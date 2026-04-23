@@ -1,0 +1,59 @@
+{
+  "description": "同行对比映射表 — 按 sector + industry 选取参照组",
+  "by_sector": {
+    "Technology": {
+      "Software—Infrastructure": ["MSFT", "ORCL", "CRM"],
+      "Semiconductors": ["NVDA", "AMD", "INTC", "TSM"],
+      "Consumer Electronics": ["AAPL", "SONY", "DELL"],
+      "Internet Content & Information": ["GOOGL", "META", "SNAP"],
+      "_default": ["AAPL", "MSFT", "GOOGL", "NVDA"]
+    },
+    "Financial Services": {
+      "Banks—Diversified": ["JPM", "BAC", "WFC", "C"],
+      "Insurance—Diversified": ["BRK-B", "AIG", "MET"],
+      "Capital Markets": ["GS", "MS", "SCHW"],
+      "_default": ["JPM", "BAC", "GS", "BRK-B"]
+    },
+    "Healthcare": {
+      "Drug Manufacturers—General": ["JNJ", "PFE", "MRK", "LLY"],
+      "Biotechnology": ["AMGN", "GILD", "BIIB"],
+      "Medical Devices": ["MDT", "ABT", "SYK"],
+      "_default": ["JNJ", "UNH", "PFE", "ABT"]
+    },
+    "Consumer Cyclical": {
+      "Internet Retail": ["AMZN", "BABA", "JD", "PDD"],
+      "Auto Manufacturers": ["TSLA", "TM", "GM", "F"],
+      "Restaurants": ["MCD", "SBUX", "CMG"],
+      "_default": ["AMZN", "TSLA", "NKE", "MCD"]
+    },
+    "Consumer Defensive": {
+      "Household & Personal Products": ["PG", "CL", "KMB"],
+      "Beverages—Non-Alcoholic": ["KO", "PEP"],
+      "Discount Stores": ["WMT", "COST", "TGT"],
+      "_default": ["PG", "KO", "WMT", "COST"]
+    },
+    "Communication Services": {
+      "Telecom Services": ["T", "VZ", "TMUS"],
+      "Entertainment": ["DIS", "NFLX", "CMCSA"],
+      "_default": ["GOOGL", "META", "DIS", "NFLX"]
+    },
+    "Industrials": {
+      "Aerospace & Defense": ["LMT", "RTX", "BA"],
+      "Railroads": ["UNP", "CSX", "NSC"],
+      "_default": ["HON", "UNP", "CAT", "GE"]
+    },
+    "Energy": {
+      "Oil & Gas Integrated": ["XOM", "CVX", "COP"],
+      "_default": ["XOM", "CVX", "COP", "SLB"]
+    },
+    "Utilities": {
+      "_default": ["NEE", "DUK", "SO", "D"]
+    },
+    "Real Estate": {
+      "_default": ["AMT", "PLD", "CCI", "SPG"]
+    },
+    "Basic Materials": {
+      "_default": ["LIN", "APD", "FCX", "NEM"]
+    }
+  }
+}

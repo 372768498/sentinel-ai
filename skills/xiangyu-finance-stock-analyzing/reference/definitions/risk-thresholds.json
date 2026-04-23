@@ -1,0 +1,36 @@
+{
+  "pre_earnings": {
+    "days": 14,
+    "action": "BUY → HOLD",
+    "description": "财报前期风险 - 距离财报发布不足 14 天"
+  },
+  "post_spike": {
+    "threshold": 0.15,
+    "window_days": 5,
+    "action": "降低置信度",
+    "description": "暴涨后期风险 - 5 日内涨幅超过 15%"
+  },
+  "overbought": {
+    "rsi_threshold": 70,
+    "near_52w_high_pct": 0.95,
+    "action": "警告提示",
+    "description": "超买风险 - RSI > 70 且接近 52 周高点"
+  },
+  "risk_off": {
+    "etfs": ["GLD", "TLT", "UUP"],
+    "trigger": "同时上涨",
+    "action": "整体降级",
+    "description": "避险情绪 - 黄金/国债/美元同时走强"
+  },
+  "geopolitical": {
+    "keywords": ["Taiwan", "China", "Russia", "Middle East", "Iran"],
+    "action": "板块惩罚",
+    "description": "地缘政治风险 - 敏感关键词出现"
+  },
+  "breaking_news": {
+    "window_hours": 24,
+    "keywords": ["crisis", "war", "default", "bankruptcy", "crash"],
+    "action": "警告提示",
+    "description": "突发新闻风险 - 24 小时内出现危机关键词"
+  }
+}

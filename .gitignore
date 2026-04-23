@@ -1,0 +1,48 @@
+# ===== 依赖 =====
+node_modules/
+.pnpm-store/
+
+# ===== Next.js 构建产物 =====
+.next/
+out/
+.vercel/
+
+# ===== TypeScript =====
+*.tsbuildinfo
+next-env.d.ts
+
+# ===== Python worker =====
+worker/**/__pycache__/
+worker/**/*.pyc
+worker/.venv/
+worker/.venv_win/
+worker/.pytest_cache/
+
+# ===== Python skill =====
+skills/**/__pycache__/
+skills/**/*.pyc
+skills/**/scripts/python/tmp-output/
+
+# ===== 环境变量 =====
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ===== Prisma 运行时生成 =====
+prisma/generated/
+
+# ===== IDE / OS =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ===== Claude Code 本地配置 =====
+.claude/settings.local.json
+.claude/worktrees/
+
+# ===== 日志 =====
+*.log
+logs/

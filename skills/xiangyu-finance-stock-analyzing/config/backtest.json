@@ -1,0 +1,23 @@
+{
+  "defaults": {
+    "buy_threshold": 0.33,
+    "sell_threshold": -0.33,
+    "initial_cash": 100000,
+    "commission": 0.001
+  },
+  "optimization": {
+    "buy_range": [0.2, 0.5, 0.05],
+    "sell_range": [-0.5, -0.2, 0.05]
+  },
+  "indicators": {
+    "rsi_period": 14,
+    "rsi_oversold": 30,
+    "rsi_overbought": 70,
+    "ma_short": 10,
+    "ma_long": 50
+  },
+  "risk": {
+    "max_position_pct": 0.95,
+    "risk_free_rate": 0.04
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "examples": {
+    "tech_giants": {
+      "name": "科技巨头",
+      "symbols": ["AAPL", "MSFT", "GOOGL", "AMZN", "META", "NVDA"],
+      "description": "美股科技龙头股监控"
+    },
+    "dividend_kings": {
+      "name": "股息之王",
+      "symbols": ["JNJ", "PG", "KO", "MCD", "MMM", "CL"],
+      "description": "连续 50+ 年增加股息的公司"
+    },
+    "crypto_majors": {
+      "name": "主流加密货币",
+      "symbols": ["BTC-USD", "ETH-USD", "BNB-USD", "SOL-USD"],
+      "description": "市值前四加密货币"
+    },
+    "growth_stocks": {
+      "name": "成长股",
+      "symbols": ["TSLA", "AMD", "CRM", "SNOW", "PLTR"],
+      "description": "高增长科技股"
+    },
+    "value_etfs": {
+      "name": "价值 ETF",
+      "symbols": ["VTV", "SCHV", "IWD", "VYM"],
+      "description": "价值型 ETF 组合"
+    }
+  },
+  "alert_presets": {
+    "breakout": {
+      "description": "突破策略",
+      "target_pct": 10,
+      "stop_pct": -5
+    },
+    "swing": {
+      "description": "波段策略",
+      "target_pct": 5,
+      "stop_pct": -3
+    },
+    "long_term": {
+      "description": "长期持有",
+      "target_pct": 30,
+      "stop_pct": -15
+    }
+  }
+}

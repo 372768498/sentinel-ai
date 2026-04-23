@@ -1,0 +1,72 @@
+{
+  "categories": {
+    "store_of_value": {
+      "symbols": ["BTC-USD"],
+      "description": "价值存储",
+      "characteristics": ["稀缺性", "去中心化", "历史最长"]
+    },
+    "smart_contract": {
+      "symbols": ["ETH-USD", "SOL-USD", "ADA-USD", "AVAX-USD", "DOT-USD", "NEAR-USD", "ATOM-USD"],
+      "description": "智能合约平台",
+      "characteristics": ["DeFi 生态", "NFT 支持", "可编程性"]
+    },
+    "exchange": {
+      "symbols": ["BNB-USD", "UNI-USD"],
+      "description": "交易所代币",
+      "characteristics": ["平台价值", "手续费折扣", "生态绑定"]
+    },
+    "payment": {
+      "symbols": ["XRP-USD", "XLM-USD", "LTC-USD", "BCH-USD"],
+      "description": "支付类",
+      "characteristics": ["快速转账", "低手续费", "跨境支付"]
+    },
+    "meme": {
+      "symbols": ["DOGE-USD"],
+      "description": "Meme 币",
+      "characteristics": ["社区驱动", "高波动", "投机属性强"]
+    },
+    "oracle": {
+      "symbols": ["LINK-USD"],
+      "description": "预言机",
+      "characteristics": ["数据桥接", "跨链支持", "DeFi 基础设施"]
+    },
+    "layer2": {
+      "symbols": ["MATIC-USD"],
+      "description": "Layer 2 扩容",
+      "characteristics": ["高吞吐", "低 Gas", "以太坊兼容"]
+    },
+    "storage": {
+      "symbols": ["FIL-USD"],
+      "description": "去中心化存储",
+      "characteristics": ["数据存储", "IPFS 生态", "长期激励"]
+    },
+    "supply_chain": {
+      "symbols": ["VET-USD"],
+      "description": "供应链追踪",
+      "characteristics": ["企业合作", "溯源验证", "物联网集成"]
+    },
+    "defi_protocol": {
+      "symbols": ["ALGO-USD"],
+      "description": "DeFi 协议",
+      "characteristics": ["高 TPS", "即时终结", "碳中和"]
+    }
+  },
+  "market_cap_tiers": {
+    "large": {
+      "min_usd": 10000000000,
+      "label": "Large Cap",
+      "risk_level": "低"
+    },
+    "mid": {
+      "min_usd": 1000000000,
+      "max_usd": 10000000000,
+      "label": "Mid Cap",
+      "risk_level": "中"
+    },
+    "small": {
+      "max_usd": 1000000000,
+      "label": "Small Cap",
+      "risk_level": "高"
+    }
+  }
+}

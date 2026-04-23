@@ -1,0 +1,30 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background:
+    radial-gradient(circle at top, rgba(0, 255, 136, 0.08), transparent 35%),
+    linear-gradient(180deg, #040504 0%, #030303 100%);
+}
+
+body {
+  color: #d9ffe9;
+  font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}

@@ -1,0 +1,14 @@
+{
+  "framework": "nextjs",
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 45
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/admin/reap",
+      "schedule": "0 */6 * * *"
+    }
+  ]
+}

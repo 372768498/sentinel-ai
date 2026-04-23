@@ -1,0 +1,48 @@
+{
+  "stock": {
+    "earnings_surprise": {
+      "weight": 0.20,
+      "description": "盈利惊喜 - EPS 超预期/不及预期"
+    },
+    "fundamentals": {
+      "weight": 0.25,
+      "description": "基本面 - 12 指标完整估值（P/E、PEG、P/S、P/B、EV/EBITDA、ROE、ROA、毛利率、净利率、FCF、流动比率、利息覆盖）"
+    },
+    "analyst_sentiment": {
+      "weight": 0.15,
+      "description": "分析师情绪 - 评级、目标价"
+    },
+    "historical_patterns": {
+      "weight": 0.05,
+      "description": "历史表现 - 过往财报反应"
+    },
+    "market_context": {
+      "weight": 0.10,
+      "description": "市场环境 - VIX、SPY/QQQ 趋势、安全港"
+    },
+    "sector_performance": {
+      "weight": 0.10,
+      "description": "板块强度 - 相对强度"
+    },
+    "technical": {
+      "weight": 0.15,
+      "description": "技术分析 - MA 交叉、MACD、布林带、RSI、成交量确认"
+    },
+    "sentiment": {
+      "weight": 0.10,
+      "description": "情绪 - 恐惧贪婪、空头、内幕、Put/Call"
+    },
+    "peer_comparison": {
+      "weight": 0.10,
+      "description": "同行对比 - 相对估值、竞争位置"
+    }
+  },
+  "rating_thresholds": {
+    "strong_buy": 80,
+    "buy": 65,
+    "hold": 50,
+    "reduce": 35,
+    "sell": 0,
+    "description": "百分制评分 → 5 级评级映射"
+  }
+}

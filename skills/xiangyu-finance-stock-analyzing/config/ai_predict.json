@@ -1,0 +1,42 @@
+{
+  "providers": {
+    "anthropic": {
+      "default_model": "claude-sonnet-4-20250514",
+      "models": [
+        "claude-sonnet-4-20250514",
+        "claude-opus-4-20250514",
+        "claude-3-5-haiku-20241022"
+      ],
+      "env_key": "ANTHROPIC_API_KEY"
+    },
+    "openai": {
+      "default_model": "gpt-4o",
+      "models": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo"
+      ],
+      "env_key": "OPENAI_API_KEY"
+    },
+    "openrouter": {
+      "default_model": "anthropic/claude-3.5-sonnet",
+      "models": [
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-4o",
+        "google/gemini-pro-1.5"
+      ],
+      "env_key": "OPENROUTER_API_KEY",
+      "base_url": "https://openrouter.ai/api/v1"
+    }
+  },
+  "news": {
+    "max_items": 15,
+    "sources": [
+      "google_news_rss"
+    ]
+  },
+  "output": {
+    "max_key_factors": 5,
+    "max_risks": 3
+  }
+}

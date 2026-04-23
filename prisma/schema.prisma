@@ -1,0 +1,84 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AnalysisStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum ReportTier {
+  BASIC
+  DEEP
+}
+
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
+
+enum SubscriptionState {
+  INACTIVE
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+model User {
+  id              String               @id @default(cuid())
+  email           String               @unique
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  analyses        AnalysisHistory[]
+  subscription    SubscriptionStatus?
+}
+
+model AnalysisHistory {
+  id                String         @id @default(cuid())
+  ticker            String
+  requestedMode     ReportTier
+  deepMode          String?
+  status            AnalysisStatus @default(QUEUED)
+  workerJobId       String?        @unique
+  finalScore        Int?
+  rating            String?
+  recommendation    String?
+  emailDeliveryId   String?
+  errorMessage      String?
+  resultJson        Json?
+  markdownReport    String?
+  pdfUrl            String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  completedAt       DateTime?
+  userId            String
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model SubscriptionStatus {
+  id                        String            @id @default(cuid())
+  plan                      SubscriptionPlan  @default(FREE)
+  state                     SubscriptionState @default(INACTIVE)
+  lemonCustomerId           String?
+  lemonOrderId              String?
+  lemonSubscriptionId       String?           @unique
+  lemonVariantId            String?
+  renewsAt                  DateTime?
+  endsAt                    DateTime?
+  lastWebhookEvent          String?
+  createdAt                 DateTime          @default(now())
+  updatedAt                 DateTime          @updatedAt
+  userId                    String            @unique
+  user                      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
