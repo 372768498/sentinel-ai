@@ -1,16 +1,5 @@
 {
   "analysis": {
-    "weights": {
-      "earnings_surprise": 0.20,
-      "fundamentals": 0.25,
-      "analyst_sentiment": 0.15,
-      "historical_patterns": 0.05,
-      "market_context": 0.10,
-      "sector_performance": 0.10,
-      "technical": 0.15,
-      "sentiment": 0.10,
-      "peer_comparison": 0.10
-    },
     "rating_thresholds": {
       "strong_buy": 80,
       "buy": 65,

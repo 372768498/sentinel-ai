@@ -182,6 +182,8 @@ uv run analyze_stock.py TSLA --deep valuation --output-dir {run}/output/ --apply
 | 财报时间 | 修正器 | Yahoo Finance | 距财报 < 14 天 → BUY → HOLD |
 
 > 权重合计精确 100%（15+20+12+5+8+8+12+10+10=100）
+>
+> 权重 SSOT：`scripts/python/shared/constants.py::STOCK_WEIGHTS` — 修改权重只改这里，`config/default.json` 不加载此字段
 
 ### 板块感知阈值
 
