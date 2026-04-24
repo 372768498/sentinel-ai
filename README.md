@@ -24,7 +24,7 @@ worker 默认会从这里读取分析脚本；如需覆盖，设置 `PYTHON_SKIL
 首次准备：
 
 ```powershell
-cd D:\code2026\jojo的AI服务toC知识库\AIweb站002-股票-Sentinel AI
+cd D:\code2026\sentinel-ai
 copy .env.example .env.local
 ```
 
