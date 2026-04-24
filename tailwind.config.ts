@@ -14,6 +14,9 @@ const config: Config = {
           panel: "#0a0a0a",
           line: "#153824",
           glow: "#00ff88",
+          ink: "#e7f3ec",
+          muted: "#8a9a90",
+          deep: "#0b1220",
           amber: "#f59e0b",
           red: "#ef4444"
         }
