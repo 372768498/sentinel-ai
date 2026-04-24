@@ -41,6 +41,19 @@ declare global {
   }
 }
 
+const tierMap: Record<string, string> = {
+  BUY: "看多",
+  STRONG_BUY: "看多",
+  HOLD: "中性",
+  SELL: "看空",
+  STRONG_SELL: "看空"
+};
+
+const formatTier = (reco?: string | null) => {
+  if (!reco) return null;
+  return tierMap[reco.toUpperCase()] ?? reco;
+};
+
 const loadingFallback = [
   ">> 初始化任务调度器...",
   ">> 连接 SEC / FMP / yfinance 数据源...",
@@ -279,6 +292,9 @@ export default function SentinelPage() {
                 <div>
                   <h1 className="text-xl font-semibold text-white">Sentinel Intelligence Briefing</h1>
                   <p className="mt-1 text-xs text-sentinel-glow/55">15 秒模拟日志 + PDF 邮件投递 + Pro 深度模式</p>
+                  <p className="mt-2 text-[11px] uppercase tracking-[0.14em] text-sentinel-muted">
+                    Not investment advice · Read-only portfolio · Cancel anytime
+                  </p>
                 </div>
               </div>
 
@@ -444,8 +460,8 @@ export default function SentinelPage() {
                       <div className="mt-2 text-2xl">{result.rating ?? "--"}</div>
                     </div>
                     <div className="border border-sentinel-line bg-black/40 p-4">
-                      <div className="text-[11px] uppercase tracking-[0.18em] text-sentinel-glow/50">建议</div>
-                      <div className="mt-2 text-2xl">{result.recommendation ?? "--"}</div>
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-sentinel-glow/50">评分参考</div>
+                      <div className="mt-2 text-2xl">{formatTier(result.recommendation) ?? "--"}</div>
                     </div>
                   </div>
 

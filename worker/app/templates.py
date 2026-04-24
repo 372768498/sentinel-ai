@@ -3,6 +3,21 @@ from __future__ import annotations
 from html import escape
 
 
+_TIER_MAP = {
+    "BUY": "Bullish",
+    "STRONG_BUY": "Bullish",
+    "HOLD": "Neutral",
+    "SELL": "Bearish",
+    "STRONG_SELL": "Bearish",
+}
+
+
+def _format_tier(reco: str | None) -> str | None:
+    if not reco:
+        return None
+    return _TIER_MAP.get(reco.upper(), reco)
+
+
 def build_email_html(
     *,
     ticker: str,
@@ -41,8 +56,8 @@ def build_email_html(
                 <div style="font-size:28px;color:#fff;margin-top:10px">{escape(rating or "--")}</div>
               </td>
               <td style="width:33%;padding:14px;border:1px solid rgba(0,255,136,.14);background:#050806">
-                <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#70c89a">Recommendation</div>
-                <div style="font-size:28px;color:#fff;margin-top:10px">{escape(recommendation or "--")}</div>
+                <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#70c89a">Signal Tier</div>
+                <div style="font-size:28px;color:#fff;margin-top:10px">{escape(_format_tier(recommendation) or "--")}</div>
               </td>
             </tr>
           </table>
@@ -56,6 +71,10 @@ def build_email_html(
             <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#d9ba6d;margin-bottom:12px">Risk Notes</div>
             <ul style="margin:0;padding-left:18px;color:#f4e6bf;line-height:1.7">{caveats_html}</ul>
           </div>
+
+          <p style="margin:20px 0 0;font-size:11px;color:#6b8879;line-height:1.6;text-align:center;letter-spacing:.05em">
+            Not investment advice · For educational purposes only · Past performance does not guarantee future results
+          </p>
         </div>
       </div>
     </div>
