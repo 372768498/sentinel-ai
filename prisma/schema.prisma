@@ -67,18 +67,21 @@ model AnalysisHistory {
 }
 
 model SubscriptionStatus {
-  id                        String            @id @default(cuid())
-  plan                      SubscriptionPlan  @default(FREE)
-  state                     SubscriptionState @default(INACTIVE)
-  lemonCustomerId           String?
-  lemonOrderId              String?
-  lemonSubscriptionId       String?           @unique
-  lemonVariantId            String?
-  renewsAt                  DateTime?
-  endsAt                    DateTime?
-  lastWebhookEvent          String?
-  createdAt                 DateTime          @default(now())
-  updatedAt                 DateTime          @updatedAt
-  userId                    String            @unique
-  user                      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String            @id @default(cuid())
+  plan                SubscriptionPlan  @default(FREE)
+  state               SubscriptionState @default(INACTIVE)
+  whopUserId          String?
+  whopMembershipId    String?           @unique
+  whopProductId       String?
+  whopPlanId          String?
+  renewsAt            DateTime?
+  endsAt              DateTime?
+  lastWebhookEvent    String?
+  telegramUserId      String?
+  telegramInviteLink  String?
+  telegramJoinedAt    DateTime?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  userId              String            @unique
+  user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

@@ -34,6 +34,19 @@ class AnalyzeAccepted(BaseModel):
     }
 
 
+PushAlertTarget = Literal["all", "watchers"]
+
+
+class PushAlertRequest(BaseModel):
+    """Operator-triggered caught-moment alert. Internal-token protected."""
+    ticker: str
+    headline: str
+    detail: str = ""
+    source_url: str = ""
+    change_pct: float = 0.0
+    target: PushAlertTarget = "watchers"  # "all"=every active VIP, "watchers"=ticker holders only
+
+
 class CallbackPayload(BaseModel):
     history_id: str = Field(alias="historyId")
     job_id: str = Field(alias="jobId")

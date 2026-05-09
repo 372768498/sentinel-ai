@@ -10,3 +10,12 @@ numpy>=1.24.0
 fear-and-greed>=0.4
 edgartools>=2.0.0
 feedparser>=6.0.0
+APScheduler>=3.10.0
+# Telegram bot
+python-telegram-bot[job-queue]>=21.0
+# Bot DB (direct Postgres access)
+asyncpg>=0.29.0
+# NYSE trading calendar
+pandas-market-calendars>=4.0
+# Whop forum auto-publisher
+whop-sdk>=0.0.38

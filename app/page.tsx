@@ -30,17 +30,6 @@ type FinalResult = {
   caveats?: string[];
 };
 
-declare global {
-  interface Window {
-    LemonSqueezy?: {
-      Url?: {
-        Open?: (url: string) => void;
-      };
-    };
-    createLemonSqueezy?: () => void;
-  }
-}
-
 const tierMap: Record<string, string> = {
   BUY: "看多",
   STRONG_BUY: "看多",
@@ -94,25 +83,6 @@ export default function SentinelPage() {
   }, [logs]);
 
   useEffect(() => {
-    const existingScript = document.querySelector<HTMLScriptElement>("script[data-lemon-squeezy='true']");
-    if (existingScript) {
-      window.createLemonSqueezy?.();
-      return;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://app.lemonsqueezy.com/js/lemon.js";
-    script.async = true;
-    script.dataset.lemonSqueezy = "true";
-    script.onload = () => window.createLemonSqueezy?.();
-    document.body.appendChild(script);
-
-    return () => {
-      script.onload = null;
-    };
-  }, []);
-
-  useEffect(() => {
     return () => {
       eventSourceRef.current?.close();
       if (fallbackTimerRef.current) {
@@ -162,12 +132,6 @@ export default function SentinelPage() {
 
       if (!response.ok) {
         setMessage(payload.error ?? "无法创建升级结账链接。");
-        return;
-      }
-
-      const overlayOpen = window.LemonSqueezy?.Url?.Open;
-      if (typeof overlayOpen === "function") {
-        overlayOpen(payload.url);
         return;
       }
 
@@ -351,7 +315,7 @@ export default function SentinelPage() {
                       }`}
                     >
                       Pro 深度版
-                      <div className="mt-1 text-xs text-sentinel-glow/45">$19.9 / 月</div>
+                      <div className="mt-1 text-xs text-sentinel-glow/45">$39 / 月</div>
                     </button>
                   </div>
 

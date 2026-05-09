@@ -49,13 +49,16 @@ CREATE TABLE "SubscriptionStatus" (
     "id" TEXT NOT NULL,
     "plan" "SubscriptionPlan" NOT NULL DEFAULT 'FREE',
     "state" "SubscriptionState" NOT NULL DEFAULT 'INACTIVE',
-    "lemonCustomerId" TEXT,
-    "lemonOrderId" TEXT,
-    "lemonSubscriptionId" TEXT,
-    "lemonVariantId" TEXT,
+    "whopUserId" TEXT,
+    "whopMembershipId" TEXT,
+    "whopProductId" TEXT,
+    "whopPlanId" TEXT,
     "renewsAt" TIMESTAMP(3),
     "endsAt" TIMESTAMP(3),
     "lastWebhookEvent" TEXT,
+    "telegramUserId" TEXT,
+    "telegramInviteLink" TEXT,
+    "telegramJoinedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "userId" TEXT NOT NULL,
@@ -76,7 +79,7 @@ CREATE INDEX "AnalysisHistory_userId_createdAt_idx" ON "AnalysisHistory"("userId
 CREATE INDEX "AnalysisHistory_status_idx" ON "AnalysisHistory"("status");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "SubscriptionStatus_lemonSubscriptionId_key" ON "SubscriptionStatus"("lemonSubscriptionId");
+CREATE UNIQUE INDEX "SubscriptionStatus_whopMembershipId_key" ON "SubscriptionStatus"("whopMembershipId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "SubscriptionStatus_userId_key" ON "SubscriptionStatus"("userId");

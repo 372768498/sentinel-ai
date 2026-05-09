@@ -46,3 +46,15 @@ Thumbs.db
 # ===== 日志 =====
 *.log
 logs/
+
+# ===== 敏感品牌/策略素材（不上公开仓库） =====
+backups/
+index.html
+landing-electric.html
+landing-swiss.html
+landing.html
+landing0507.html
+sentinel_copy_handbook_v1.html
+sentinel_p3_backlog-迭代计划.html
+sentinel_telegram_copy_pack_zh_en.html
+sentinel_user_persona_intel.html

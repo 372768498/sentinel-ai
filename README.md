@@ -1,275 +1,306 @@
-# Sentinel AI 本地开发指南
+# Sentinel AI
 
-本指南用于本地启动 Sentinel AI 的三部分能力：
+> **Never miss the moment that matters.**
+> A watchlist sentinel for self-directed US-equity investors. Quiet until something material crosses your line.
 
-- Next.js 前端
-- FastAPI worker
-- PostgreSQL / Supabase 兼容数据库
+[sentinel.jilo.ai](https://sentinel.jilo.ai) · [@SentinelAI_signals](https://t.me/SentinelAI_signals) (public) · [@SentinelAIProChannelBot](https://t.me/SentinelAIProChannelBot) (Pro)
 
-当前仓库已经内置 Python Skill：
+---
 
-- `./skills/xiangyu-finance-stock-analyzing`
+## What Sentinel AI is — and isn't
 
-worker 默认会从这里读取分析脚本；如需覆盖，设置 `PYTHON_SKILL_DIR` 即可。
+**Is**
+- A *quiet* alerting service: only pings when your tickers cross thresholds you set
+- A *contextual* assistant: every alert links to a primary source (SEC EDGAR, Reuters, Fed)
+- A *bidirectional* bot: ask "What about TSLA?" and get the current state, not a prediction
 
-## 1. 环境准备
+**Is not**
+- A signal group (no buy/sell calls)
+- A 24/7 chat noise machine (silence is a feature)
+- A predictive AI (we cite sources, not forecasts)
 
-本地已验证的基础工具：
+The brand redline: **never tell users what to buy/sell, never predict prices, always cite primary sources.** Enforced in code via red-line scans on every message template.
 
-- Node.js 24+
-- npm 11+
+---
+
+## Architecture
+
+```
+┌─────────────────┐       ┌──────────────────┐       ┌──────────────┐
+│   Next.js 14    │◄─────►│  FastAPI Worker  │◄─────►│  PostgreSQL  │
+│   (frontend +   │       │   (Python 3.12)  │       │  (Prisma +   │
+│    Whop hooks)  │       │                  │       │   asyncpg)   │
+└─────────────────┘       └──────────────────┘       └──────────────┘
+                                   │
+                          ┌────────┼────────┐
+                          ▼        ▼        ▼
+                     ┌────────┐ ┌────┐ ┌──────┐
+                     │Telegram│ │Whop│ │  yf  │
+                     │  Bot   │ │API │ │market│
+                     └────────┘ └────┘ └──────┘
+```
+
+- **Next.js 14 (App Router)** — landing page, Whop checkout, webhooks
+- **FastAPI worker** — scanner, scheduler, Telegram bot polling, Whop publisher
+- **PostgreSQL** — Prisma-managed user/subscription tables + bot-managed profile/alert tables
+- **Telegram bot (PTB v22)** — polling mode, embedded in FastAPI lifespan
+- **Whop SDK** — Pro subscription gating, VIP group access, daily forum posts
+- **APScheduler** — ET-aware cron in `America/New_York` (handles DST automatically)
+
+---
+
+## Features
+
+### 1. Public channel ([@SentinelAI_signals](https://t.me/SentinelAI_signals))
+
+Daily content for the open community:
+
+| Time (ET, Mon–Fri) | Content |
+|---|---|
+| 08:30 | Pre-market brief (active or quiet) |
+| 16:30 | Post-close digest |
+
+NYSE-aware — skips weekends and US market holidays via `pandas_market_calendars`.
+
+### 2. Whop forum (Pro feed)
+
+One auto-published post per US trading day at 16:45 ET. Five rotating content types:
+
+| Day | Template | Source |
+|---|---|---|
+| Monday | Week-ahead preview | Static (calendar) |
+| Tuesday | Yesterday's catch | `alert_log` (yesterday's window) |
+| Wednesday | Behind-the-scenes scanner stats | `alert_log` (today) |
+| Thursday | Education (rotating by ISO week) | `whop_education_posts.py` (5 entries) |
+| Friday | Week-in-review | `alert_log` (Mon–Fri aggregate) |
+
+### 3. VIP Pro user DMs
+
+After a user joins the VIP Telegram group via Whop, the bot sends a Welcome with a deep-link button, then runs a 3-step DM onboarding:
+
+1. **Tickers** — type freely or tap `Use sample (5 tickers)`
+2. **Threshold** — default ±2% or customize 0.5–10%
+3. **Quiet hours** — e.g. 22:00–07:00 ET (alerts queued during quiet, drained when window opens)
+
+Personal data persists in `telegram_bot_profile`. Onboarding can be cancelled any time via `/cancel` or the inline ❌ Cancel button.
+
+### 4. Real-time personal alerts
+
+Three times per trading day (09:02 / 12:32 / 16:32 ET) the bot dispatches per-user alerts:
+
+- Per-ticker change checked against each user's threshold
+- **30-minute dedup** by `(user, ticker, direction)` to prevent duplicate alerts
+- **Quiet-hours queuing** — alerts during muted windows persist in `queued_alerts` and drain every 2 minutes once the window closes
+- **Batch aggregation** — if ≥3 tickers cross simultaneously for one user, send one batch message instead of N individual ones
+
+Every successful delivery logs to `alert_log` for the Whop publisher's recap data.
+
+### 5. Conversational interface
+
+In the Pro DM users can:
+
+| Input | Bot response |
+|---|---|
+| `/watchlist` | Dashboard with tickers, threshold, status + Add/Remove/Threshold/Quiet inline buttons |
+| `/threshold all 1.5` | Update alert threshold |
+| `/snooze 2` | Pause alerts for N hours |
+| `/help` | Command summary |
+| `What about TSLA?` | Live yfinance data + threshold status + catalyst summary |
+| `Why no alert on NVDA?` | Same handler — explains if the move stayed under threshold |
+
+Free-text matching uses keyword + standalone-uppercase recognition (e.g. won't trigger on "Hello world"). Implementation in `worker/app/bot/handlers/messages.py`.
+
+### 6. Operator broadcast endpoint
+
+`POST /api/bot/push-alert` (internal-token protected) — used during the public-test period to manually broadcast caught-moment alerts before the auto-pipeline is fully trusted.
+
+```json
+{
+  "ticker": "TSLA",
+  "headline": "8-K filed: material asset write-down",
+  "detail": "Tesla disclosed...",
+  "source_url": "https://www.sec.gov/...",
+  "change_pct": -4.5,
+  "target": "watchers"
+}
+```
+
+`target=all` sends to every active VIP; `target=watchers` only to users with the ticker in their watchlist.
+
+### 7. Alert priority tier
+
+Each alert carries one of three priority levels for future critical-alert routing:
+
+| Priority | Trigger | Behavior |
+|---|---|---|
+| `normal` | Default threshold cross | Standard DM |
+| `urgent` | Move ≥5% or large earnings miss | Standard DM (visual: same; metadata flagged) |
+| `critical` | Fed emergency, halt, delisting, VIX spike | Reserved `should_call=True` for future Twilio integration |
+
+Today every priority sends with `disable_notification=False`. The metadata is in place for a future "Pro Plus" tier with phone escalation.
+
+---
+
+## Tech stack
+
+| Layer | Tools |
+|---|---|
+| **Frontend** | Next.js 14, TypeScript, Tailwind, Prisma client |
+| **Backend** | FastAPI, Python 3.12, httpx, Pydantic |
+| **Bot** | python-telegram-bot v22 (polling) |
+| **Scheduler** | APScheduler (timezone-aware) |
+| **Calendar** | pandas_market_calendars (NYSE) |
+| **DB** | PostgreSQL 16 (via Docker for local), Prisma + asyncpg |
+| **Market data** | yfinance |
+| **Subscription** | Whop SDK (Pro tier, VIP group access, forum posts) |
+| **Email** | Resend (mock-mode fallback if no API key) |
+| **PDF reports** | Playwright headless Chromium |
+
+---
+
+## Local development
+
+### Prerequisites
+
+- Node.js 24+ / npm 11+
 - Python 3.12+
-- Docker Desktop
+- Docker Desktop (for PostgreSQL)
 
-首次准备：
+### One-time setup
 
 ```powershell
 cd D:\code2026\sentinel-ai
 copy .env.example .env.local
-```
+# Fill in keys: TELEGRAM_BOT_TOKEN, WHOP_API_KEY, DATABASE_URL, etc.
 
-如果你在 PowerShell 中不想用 `copy`，也可以手动复制 `.env.example` 为 `.env.local`。
-
-关键环境变量：
-
-- `DATABASE_URL`
-- `WORKER_API_BASE_URL`
-- `WORKER_INTERNAL_TOKEN`
-- `INTERNAL_CALLBACK_SECRET`
-- `PYTHON_SKILL_DIR`
-- `RESEND_API_KEY`
-- `RESEND_FROM_EMAIL`
-- `LEMON_SQUEEZY_*`
-
-说明：
-
-- 如果 `RESEND_API_KEY` 留空，worker 会自动进入 Mock Mode。
-- Mock Mode 下不会真正发信，而是把邮件主题、收件人、HTML 内容、PDF 文件名打印到 worker 控制台。
-- 如果你使用本文提供的 `docker compose` 启动 worker，建议本地 `.env.local` 中至少设置为：
-
-```env
-WORKER_API_BASE_URL=http://localhost:8000
-NEXT_PUBLIC_WORKER_URL=http://localhost:8000
-WORKER_INTERNAL_TOKEN=local-dev-worker-token
-INTERNAL_CALLBACK_SECRET=local-dev-callback-secret
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sentinel_ai?schema=public
-```
-
-如果 Next.js 跑在宿主机，而 worker 跑在 Docker 容器内，请额外设置：
-```env
-NEXT_PUBLIC_APP_URL=http://localhost:3000
-APP_URL=http://host.docker.internal:3000
-```
-
-说明：
-- `NEXT_PUBLIC_APP_URL` 给浏览器访问使用
-- `APP_URL` 给 worker 容器回调 Next.js API 使用
-- 如果容器内也写成 `localhost:3000`，worker 会回调到它自己，导致 `Connection Refused` 或 `All connection attempts failed`
-
-## 2. 推荐数据库初始化方式：Prisma
-
-这是推荐方式，因为它与代码中的 Prisma schema 保持一致。
-
-### 2.1 启动本地 PostgreSQL
-
-```powershell
+# Start Postgres
 docker compose up -d postgres
-```
-
-默认连接信息：
-
-- Host: `localhost`
-- Port: `5432`
-- DB: `sentinel_ai`
-- User: `postgres`
-- Password: `postgres`
-
-对应 `DATABASE_URL`：
-
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/sentinel_ai?schema=public
-```
-
-### 2.2 生成 Prisma Client
-
-```powershell
-npm install
-npm run prisma:generate
-```
-
-### 2.3 创建本地迁移并落库
-
-```powershell
 npm run prisma:migrate -- --name init
+
+# Install Python deps into worker venv
+cd worker
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+# (or use uv: uv pip install --python .venv/Scripts/python.exe -r requirements.txt)
 ```
 
-执行后会：
+### Run the stack
 
-- 创建 Prisma migration
-- 在本地 PostgreSQL 中创建表结构
-- 生成最新 Prisma Client
-
-## 3. 可直接用于 Supabase SQL Editor 的初始化 SQL
-
-如果你不想先走 Prisma，也可以直接使用：
-
-- `prisma/init.sql`
-
-在 Supabase SQL Editor 中执行该文件内容即可。
-
-它会创建：
-
-- `AnalysisStatus`
-- `ReportTier`
-- `SubscriptionPlan`
-- `SubscriptionState`
-- `"User"`
-- `"AnalysisHistory"`
-- `"SubscriptionStatus"`
-
-以及必要索引。
-
-注意：
-
-- 这些表名和字段名使用了 Prisma 默认的大小写映射。
-- 如果你之后仍然要使用 Prisma，建议长期还是以 Prisma migration 为准，不要手工改表结构。
-
-## 4. 本地启动方式
-
-### 方式 A：Docker 启动 PostgreSQL + worker，前端本机跑
-
-这是最适合日常开发的方式。
+In separate terminals:
 
 ```powershell
-docker compose up -d postgres worker
-npm run dev
+# Terminal 1: Next.js
+npm run dev          # → http://localhost:3000
+
+# Terminal 2: Worker (with bot polling enabled)
+cd worker
+$env:BOT_ENABLED="true"
+.\.venv\Scripts\uvicorn.exe app.main:app --port 18000 --reload
 ```
 
-此时：
-
-- 前端：`http://localhost:3000`
-- worker：`http://localhost:8000`
-- PostgreSQL：`localhost:5432`
-
-### 方式 B：只启动数据库
+### Self-test
 
 ```powershell
-docker compose up -d postgres
+cd D:\code2026\sentinel-ai
+python -m worker.app.bot.e2e_test
 ```
 
-然后分别启动：
+Runs 7 steps covering timezone correctness, red-line template scans (Telegram + Whop), quiet-hours logic, ticker-query regex, priority classification, DB CRUD, and full alert dispatch (with mocked sender). Skips DB-dependent steps gracefully if Postgres isn't running. Current target: **21/21 PASS**.
 
-```powershell
-npm run dev
-npm run worker:dev
+---
+
+## Repository layout
+
+```
+sentinel-ai/
+├── app/                              # Next.js 14 App Router
+│   ├── api/
+│   │   ├── analyze/                  # Stock analysis endpoint
+│   │   ├── webhooks/whop/            # Whop subscription events
+│   │   └── checkout/                 # Whop checkout init
+│   ├── page.tsx                      # Landing
+│   └── layout.tsx
+├── lib/
+│   ├── whop.ts                       # Whop SDK wrapper
+│   ├── telegram.ts                   # VIP group invite/kick
+│   ├── prisma.ts
+│   └── env.ts
+├── prisma/
+│   ├── schema.prisma                 # Users, subscriptions, analysis history
+│   └── migrations/
+├── worker/                           # FastAPI Python worker
+│   ├── app/
+│   │   ├── main.py                   # FastAPI app + lifespan
+│   │   ├── scheduler.py              # APScheduler jobs (ET-aware)
+│   │   ├── scanner.py                # Movement scanner (yfinance)
+│   │   ├── runner.py                 # Analysis job orchestrator
+│   │   ├── telegram.py               # Public-channel sender (httpx)
+│   │   └── bot/                      # Telegram bot
+│   │       ├── bot.py                # Application factory + lifecycle
+│   │       ├── db.py                 # asyncpg layer (4 tables)
+│   │       ├── alerter.py            # Personal alerts + dedup + queue + batch
+│   │       ├── digest.py             # EOD digests (public + per-user)
+│   │       ├── whop_publisher.py     # Whop daily forum post
+│   │       ├── tz_check.py           # Timezone diagnostics
+│   │       ├── market_calendar.py    # NYSE trading day check
+│   │       ├── e2e_test.py           # Self-test runner (21/21)
+│   │       ├── handlers/
+│   │       │   ├── welcome.py        # Group join → welcome + deep link
+│   │       │   ├── onboarding.py     # 3-step ConversationHandler
+│   │       │   ├── commands.py       # /watchlist /threshold /snooze /help
+│   │       │   └── messages.py       # "What about X?" handler
+│   │       └── templates/
+│   │           ├── telegram_messages.py     # 7 alert + onboarding templates
+│   │           ├── whop_post_templates.py   # 4 dynamic forum templates
+│   │           ├── whop_education_posts.py  # 5 Thursday education posts
+│   │           └── callback_actions.py      # Inline button callback constants
+│   ├── HANDOVER_v2.md                # Sprint 1 detailed handover
+│   └── requirements.txt
+├── skills/
+│   └── xiangyu-finance-stock-analyzing/  # Stock analysis Python skill
+└── docker-compose.yml
 ```
 
-## 5. Docker Compose 说明
+---
 
-根目录已提供：
+## Bot DB tables (created automatically by `worker/app/bot/db.py`)
 
-- `docker-compose.yml`
+| Table | Purpose |
+|---|---|
+| `telegram_bot_profile` | One row per Pro user — watchlist, threshold, quiet hours, onboarding state |
+| `alert_cooldown` | Per-(user, ticker, direction) 30-min cooldown for dedup |
+| `queued_alerts` | Alerts deferred during quiet hours; drained every 2 min |
+| `alert_log` | Permanent record of every delivered alert (powers Whop weekly recap) |
 
-包含服务：
+These live alongside the Prisma-managed schema; no migration tooling required.
 
-- `postgres`
-- `worker`
+---
 
-worker 特性：
+## Brand red lines (enforced in code)
 
-- 直接挂载当前仓库目录
-- 默认使用项目内 `./skills/xiangyu-finance-stock-analyzing/scripts/python`
-- 未配置 `RESEND_API_KEY` 时自动 Mock Email
+1. **Never imply buy/sell.** Templates that contain `"buy"` / `"sell"` / `"price target"` / `"predict"` / `"trading signal"` fail e2e step 2 + step 2b.
+2. **Always disclaimer.** Every alert template ends with `Context, not advice.` or `Your call. Not advice.`
+3. **Source > prediction.** Source URL required for factual claims; templates without one don't pass review.
+4. **Quiet day = post anyway.** Static silence is the differentiator — both Telegram public channel and Whop publisher have `silence_day` / `quiet_day` fallback templates.
 
-## 6. E2E 本地联调建议
+---
 
-建议按这个顺序：
+## Status (2026-05-08)
 
-1. 启动数据库
+| Feature | Status |
+|---|---|
+| Telegram bot (polling, 4 capabilities) | ✅ Live, 21/21 self-test PASS |
+| Personal alert dispatch (dedup + quiet + batch) | ✅ Live |
+| Public channel scheduled briefs | ✅ Live |
+| Whop daily forum publisher | ✅ Code complete, awaiting Whop `forum:post:create` permission approval |
+| Manual broadcast endpoint | ✅ Live |
+| Production cloud deploy | ⏳ Pending (≥5 paying users) |
+| Twilio critical-alert escalation | ⏳ Pending (≥50 paying users) |
 
-```powershell
-docker compose up -d postgres
-```
+See [`worker/HANDOVER_v2.md`](worker/HANDOVER_v2.md) for the detailed Sprint 1 handover.
 
-2. 初始化数据库
+---
 
-```powershell
-npm run prisma:generate
-npm run prisma:migrate -- --name init
-```
+## License
 
-3. 启动 worker
-
-```powershell
-docker compose up -d worker
-```
-
-4. 启动 Next.js 前端
-
-```powershell
-npm run dev
-```
-
-5. 在浏览器打开：
-
-```text
-http://localhost:3000
-```
-
-6. 输入 ticker 和邮箱，观察：
-
-- 前端终端日志是否持续刷新
-- worker 控制台是否输出 Python stderr 日志
-- 若无 `RESEND_API_KEY`，控制台是否打印 Mock Email HTML
-- 是否生成 PDF
-- 数据库中是否写入 `AnalysisHistory`
-
-## 7. Mock Mode 验证点
-
-当 `RESEND_API_KEY` 为空时：
-
-- worker 不会请求 Resend API
-- 会在控制台打印：
-  - 发件人
-  - 收件人
-  - subject
-  - PDF 附件文件名
-  - HTML 邮件正文
-
-你可以直接在终端里审查：
-
-- 邮件标题是否正确
-- HTML 是否符合预期
-- PDF 是否已生成
-
-## 8. 常见问题
-
-### 8.1 `Ticker data unavailable`
-
-通常是：
-
-- 网络不可达
-- Yahoo Finance 临时限流
-- 本地沙箱或代理阻断
-
-### 8.2 PDF 生成失败
-
-优先检查：
-
-- Docker 镜像是否包含 Chromium 依赖
-- `playwright install --with-deps chromium` 是否成功
-- 是否缺少系统字体或 `libnss3` / `libatk-bridge2.0-0` 等库
-
-### 8.3 Supabase 联调
-
-如果你切换到真实 Supabase：
-
-1. 替换 `.env.local` 中的 `DATABASE_URL`
-2. 运行：
-
-```powershell
-npm run prisma:generate
-npm run prisma:migrate -- --name init
-```
-
-如果不想让 Prisma 改库，也可直接在 Supabase SQL Editor 执行 `prisma/init.sql`。
+Private — All rights reserved.
