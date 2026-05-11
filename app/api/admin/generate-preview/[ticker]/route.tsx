@@ -9,8 +9,9 @@ function normalizeTicker(value: string) {
   return value.trim().toUpperCase();
 }
 
-export async function GET(_: Request, context: { params: { ticker: string } }) {
-  const ticker = normalizeTicker(context.params.ticker);
+export async function GET(_: Request, context: { params: Promise<{ ticker: string }> }) {
+  const { ticker: tickerParam } = await context.params;
+  const ticker = normalizeTicker(tickerParam);
   const latest = await prisma.analysisHistory.findFirst({
     where: {
       ticker,
@@ -119,7 +120,7 @@ export async function GET(_: Request, context: { params: { ticker: string } }) {
                 background: "rgba(18, 14, 6, 0.55)"
               }}
             >
-              <div style={{ fontSize: 13, letterSpacing: 3, color: "#f2d27d" }}>RECOMMENDATION</div>
+              <div style={{ fontSize: 13, letterSpacing: 3, color: "#f2d27d" }}>SENTINEL STATE</div>
               <div style={{ fontSize: 28, marginTop: 10 }}>{recommendation}</div>
             </div>
           </div>

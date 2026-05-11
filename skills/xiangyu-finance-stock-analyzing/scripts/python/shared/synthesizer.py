@@ -182,6 +182,7 @@ class Signal:
     ticker: str
     company_name: str
     recommendation: str
+    state: str
     confidence: float
     final_score: float
     score_100: int           # 百分制
@@ -255,8 +256,8 @@ def synthesize_signal(
     if len(components) < 2:
         return Signal(
             ticker=ticker, company_name=company_name,
-            recommendation="HOLD", confidence=0.0, final_score=0.0,
-            score_100=50, rating="Hold",
+            recommendation="NEUTRAL", state="Neutral", confidence=0.0, final_score=0.0,
+            score_100=50, rating="Neutral",
             supporting_points=["Insufficient data for analysis"],
             caveats=["Limited data available"],
             timestamp=datetime.now().isoformat(), components={},
@@ -272,35 +273,42 @@ def synthesize_signal(
     rating = score_to_rating(score_100)
     confidence = abs(final_score)
 
-    # 映射旧推荐（兼容）
-    if score_100 >= 65:
-        recommendation = "BUY"
-    elif score_100 <= 34:
-        recommendation = "SELL"
+    if score_100 >= 80:
+        recommendation = "STRONG"
+    elif score_100 >= 65:
+        recommendation = "CONSTRUCTIVE"
+    elif score_100 >= 50:
+        recommendation = "NEUTRAL"
+    elif score_100 >= 35:
+        recommendation = "FRAGILE"
     else:
-        recommendation = "HOLD"
+        recommendation = "HIGH_RISK"
+    state = rating
 
     # ---- 风险修正（加法式衰减，避免链式乘法过度压缩） ----
     confidence_penalty = 0.0
 
     if earnings_timing:
         confidence_penalty += abs(earnings_timing.confidence_adjustment)
-        if earnings_timing.timing_flag == "pre_earnings" and recommendation == "BUY":
-            recommendation = "HOLD"
+        if earnings_timing.timing_flag == "pre_earnings" and recommendation in ("STRONG", "CONSTRUCTIVE"):
+            recommendation = "NEUTRAL"
+            state = "Neutral"
         if (earnings_timing.timing_flag == "post_earnings"
                 and earnings_timing.price_change_5d and earnings_timing.price_change_5d > 15
-                and recommendation == "BUY"):
-            recommendation = "HOLD"
+                and recommendation in ("STRONG", "CONSTRUCTIVE")):
+            recommendation = "NEUTRAL"
+            state = "Neutral"
 
     if technical and technical.rsi_14d and technical.rsi_14d > 70 and technical.near_52w_high:
-        if recommendation == "BUY":
-            recommendation = "HOLD"
+        if recommendation in ("STRONG", "CONSTRUCTIVE"):
+            recommendation = "NEUTRAL"
+            state = "Neutral"
         confidence_penalty += 0.15
 
-    if market_context and market_context.risk_off_detected and recommendation == "BUY":
+    if market_context and market_context.risk_off_detected and recommendation in ("STRONG", "CONSTRUCTIVE"):
         confidence_penalty += 0.15
 
-    if geopolitical_risk_penalty > 0 and recommendation == "BUY":
+    if geopolitical_risk_penalty > 0 and recommendation in ("STRONG", "CONSTRUCTIVE"):
         confidence_penalty += geopolitical_risk_penalty
 
     # ---- Brave 验证修正 ----
@@ -342,7 +350,7 @@ def synthesize_signal(
 
     return Signal(
         ticker=ticker, company_name=company_name,
-        recommendation=recommendation, confidence=confidence,
+        recommendation=recommendation, state=state, confidence=confidence,
         final_score=final_score, score_100=score_100, rating=rating,
         supporting_points=supporting[:5], caveats=caveats[:7],
         timestamp=datetime.now().isoformat(),

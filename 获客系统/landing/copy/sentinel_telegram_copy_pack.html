@@ -1,0 +1,1254 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Sentinel AI · Telegram 文案中英对照</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f1ea;
+    --bg-card: #ffffff;
+    --ink: #1a1812;
+    --ink-2: #4a4338;
+    --ink-dim: #7a7163;
+    --ink-faint: #b3a999;
+    --accent-red: #d44b1f;
+    --accent-green: #2d8659;
+    --accent-blue: #1e40af;
+    --line: #d4cdb8;
+    --line-soft: #e6dfd0;
+    --shadow: rgba(26, 24, 18, 0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    font-family: 'Inter', 'PingFang SC', system-ui, sans-serif;
+    color: var(--ink);
+    line-height: 1.7;
+    padding: 50px 30px;
+  }
+  .container { max-width: 1280px; margin: 0 auto; }
+
+  .doc-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-red);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .doc-title {
+    font-family: 'Fraunces', serif;
+    font-size: 52px;
+    font-weight: 600;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .doc-title em { font-style: italic; color: var(--accent-red); }
+  .doc-subtitle {
+    font-size: 18px;
+    color: var(--ink-2);
+    margin-bottom: 40px;
+    max-width: 760px;
+  }
+
+  .how-to-read {
+    background: rgba(45, 134, 89, 0.06);
+    border-left: 3px solid var(--accent-green);
+    padding: 18px 22px;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 48px;
+  }
+  .how-to-read h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: var(--accent-green);
+  }
+  .how-to-read p {
+    font-size: 15px;
+    color: var(--ink-2);
+    margin-bottom: 6px;
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 36px;
+    font-weight: 600;
+    margin-top: 64px;
+    margin-bottom: 8px;
+    padding-top: 32px;
+    border-top: 2px solid var(--line);
+  }
+  h2 em { font-style: italic; color: var(--accent-red); }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+
+  .h2-zh {
+    font-family: 'PingFang SC', system-ui, sans-serif;
+    font-size: 16px;
+    color: var(--ink-dim);
+    margin-bottom: 24px;
+    font-weight: 400;
+  }
+
+  /* 双栏对照核心样式 */
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1.3fr;
+    gap: 24px;
+    margin: 24px 0;
+    background: var(--bg-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px var(--shadow);
+  }
+
+  .pair-left {
+    padding: 24px 26px;
+    background: rgba(245, 241, 234, 0.5);
+    border-right: 1px solid var(--line-soft);
+  }
+
+  .pair-right {
+    padding: 24px 26px;
+    background: var(--bg-card);
+  }
+
+  .pair-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .pair-left .pair-label { color: var(--accent-red); }
+  .pair-right .pair-label { color: var(--accent-green); }
+
+  .copy-headline {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-bottom: 6px;
+    color: var(--ink);
+    line-height: 1.3;
+  }
+
+  .copy-meta-zh {
+    font-size: 14px;
+    color: var(--ink-dim);
+    margin-bottom: 12px;
+    font-style: italic;
+  }
+
+  .explain-zh {
+    font-family: 'PingFang SC', system-ui, sans-serif;
+    color: var(--ink-2);
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .explain-zh strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+  .explain-zh ul {
+    margin: 8px 0 8px 20px;
+  }
+  .explain-zh li {
+    padding: 3px 0;
+  }
+
+  .copy-where {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-dim);
+    background: rgba(212, 75, 31, 0.06);
+    border: 1px dashed var(--accent-red);
+    padding: 8px 12px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  .copy-where::before {
+    content: "📍 ";
+  }
+  .copy-where strong { color: var(--accent-red); font-weight: 700; }
+
+  .copy-text-en {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+    line-height: 1.65;
+    background: var(--bg);
+    padding: 16px 20px;
+    border-radius: 4px;
+    border: 1px solid var(--line-soft);
+    white-space: pre-wrap;
+    margin: 8px 0;
+  }
+  .copy-text-en strong { color: var(--ink); font-weight: 700; }
+  .copy-text-en em { font-style: italic; color: var(--ink-dim); }
+  .copy-text-en .arrow-up { color: var(--accent-green); font-weight: 800; }
+  .copy-text-en .arrow-down { color: var(--accent-red); font-weight: 800; }
+  .copy-text-en .src-link {
+    color: var(--accent-blue);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .copy-text-en .verified-tag {
+    background: rgba(45, 134, 89, 0.14);
+    color: var(--accent-green);
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 0.85em;
+    font-weight: 700;
+  }
+
+  .char-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--accent-green);
+    font-weight: 700;
+    margin-top: 8px;
+  }
+
+  /* 锁屏预览样式 */
+  .lock-preview {
+    background: linear-gradient(180deg, #2d2d2d 0%, #1a1a1a 100%);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 12px;
+    margin: 10px 0;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-size: 12px;
+    line-height: 1.45;
+    max-width: 320px;
+    border: 1px solid #444;
+  }
+  .lock-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 5px;
+    color: rgba(255,255,255,0.6);
+    font-size: 10px;
+  }
+  .lock-preview-header .app-name {
+    font-weight: 700;
+    color: rgba(255,255,255,0.85);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .lock-preview-title {
+    font-weight: 700;
+    color: white;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  .lock-preview-body {
+    color: rgba(255,255,255,0.85);
+    font-size: 12px;
+  }
+
+  /* 用户气泡 */
+  .user-bubble {
+    background: #4ea1f7;
+    color: white;
+    padding: 10px 14px;
+    border-radius: 18px 18px 4px 18px;
+    max-width: 75%;
+    margin-left: auto;
+    margin-bottom: 10px;
+    font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+
+  /* TOC 目录 */
+  .toc {
+    background: var(--bg-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    padding: 24px 28px;
+    margin-bottom: 56px;
+  }
+  .toc-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    color: var(--ink-dim);
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+  .toc ol { list-style: none; counter-reset: toc; margin: 0; }
+  .toc li {
+    counter-increment: toc;
+    padding: 6px 0;
+    color: var(--ink-2);
+    font-size: 15px;
+  }
+  .toc li::before {
+    content: counter(toc, decimal-leading-zero) " · ";
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--accent-red);
+    font-weight: 700;
+    margin-right: 8px;
+  }
+
+  /* 表格 */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  th {
+    text-align: left;
+    padding: 12px 16px;
+    background: var(--bg);
+    border-bottom: 2px solid var(--line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  td {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    color: var(--ink-2);
+    vertical-align: top;
+  }
+  td strong { color: var(--ink); }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(212, 75, 31, 0.08);
+    color: var(--accent-red);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.88em;
+    font-weight: 600;
+  }
+
+  .footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .scenario-tag {
+    display: inline-block;
+    background: var(--accent-red);
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    padding: 4px 10px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+
+  /* 移动端单栏 */
+  @media (max-width: 900px) {
+    .pair {
+      grid-template-columns: 1fr;
+    }
+    .pair-left {
+      border-right: none;
+      border-bottom: 1px solid var(--line-soft);
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="doc-eyebrow">Sentinel AI · Telegram 文案 · 中英对照</div>
+<h1 class="doc-title">Telegram 全套文案<br><em>中英对照版</em></h1>
+<p class="doc-subtitle">左边中文讲解（这段是干什么的、为什么这么写、贴到哪），右边英文成品（直接复制粘贴上线）。</p>
+
+<div class="how-to-read">
+<h3>📖 怎么看这份文档</h3>
+<p>所有内容是 <strong>左右两栏</strong> 对照排版：</p>
+<p>🔴 <strong>左栏（中文）</strong> = 我给你解释的：这段在做什么、贴到哪个位置、为什么这么写、关键设计点</p>
+<p>🟢 <strong>右栏（英文）</strong> = 最终给美股用户看的：直接复制粘贴到 Telegram 即可上线，不用改</p>
+<p style="margin-top: 10px;"><strong>使用顺序建议：</strong>先看完左栏理解意图 → 复制右栏内容粘贴上线。</p>
+</div>
+
+<div class="toc">
+<div class="toc-title">目录</div>
+<ol>
+<li><strong>公开频道</strong> @SentinelAI_signals（频道名 + Bio + Pinned）</li>
+<li>公开频道 <strong>14 天公测内容样本</strong>（4 种类型）</li>
+<li><strong>VIP 群</strong> SentinelAIProChannel（群名 + Bio + Pinned）</li>
+<li><strong>Welcome 消息</strong>（Whop 自动触发）</li>
+<li><strong>Bot 推送模板</strong>（7 种场景，每个都带锁屏预览）</li>
+<li><strong>品牌语气速查表</strong>（Do / Don't）</li>
+</ol>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 1 · 公开频道
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>1. 公开频道 <em>@SentinelAI_signals</em></h2>
+<div class="h2-zh">这是给"还没付费的潜在用户"看的。目的是建立信任 → 引流到 Whop。<strong>不要用 signal group 那种语气</strong>。</div>
+
+<!-- 1.1 频道名 -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 1.1 · 中文讲解</div>
+    <div class="copy-headline">频道名</div>
+    <div class="copy-meta-zh">Channel name</div>
+    <div class="explain-zh">
+      <strong>用途：</strong>显示在 Telegram 频道顶部，搜索时被发现的关键。<br><br>
+      <strong>设计思路：</strong>
+      <ul>
+        <li>"Sentinel AI" — 主品牌名</li>
+        <li>"US Stocks Watchlist Sentinel" — 让美国用户搜 "watchlist alert" 时能找到我们</li>
+        <li>用 "·" 分隔，比 dash 看起来更精致</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>贴到：</strong>Telegram → Edit channel → Channel name</div>
+    <div class="copy-text-en">Sentinel AI · US Stocks Watchlist Sentinel</div>
+  </div>
+</div>
+
+<!-- 1.2 Bio -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 1.2 · 中文讲解</div>
+    <div class="copy-headline">频道简介 (Bio)</div>
+    <div class="copy-meta-zh">Channel description</div>
+    <div class="explain-zh">
+      <strong>用途：</strong>用户点击频道时看到的简介，以及搜索结果里显示的描述。<br><br>
+      <strong>设计思路：</strong>3 段结构：
+      <ul>
+        <li>第 1 行：副标语 "Watching your watchlist. So you don't have to."</li>
+        <li>中段：解释频道发什么内容（"daily brief on events that crossed our threshold"）</li>
+        <li>结尾：CTA 引流 sentinel.jilo.ai</li>
+      </ul>
+      <strong>关键短语：</strong>"Quiet until it matters." 这是品牌锚点，必须出现。<br>
+      <strong>字符数：</strong>218 / 255（Telegram 上限），不需要修改。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>贴到：</strong>Telegram → Edit channel → Description</div>
+    <div class="copy-text-en">Watching your watchlist. So you don't have to.
+
+We post one daily brief on US market events that crossed our threshold. Quiet until it matters. Context, not advice.
+
+→ Get personal alerts: sentinel.jilo.ai</div>
+    <div class="char-count">字符数：218 / 255 ✓</div>
+  </div>
+</div>
+
+<!-- 1.3 Pinned -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 1.3 · 中文讲解</div>
+    <div class="copy-headline">置顶消息 (Pinned)</div>
+    <div class="copy-meta-zh">Pinned message</div>
+    <div class="explain-zh">
+      <strong>用途：</strong>新访客点开频道，看到的第一条消息。是"自我介绍"+ "为什么不一样"+ "怎么升级 Pro"。<br><br>
+      <strong>3 段结构：</strong>
+      <ul>
+        <li><strong>👋 这频道发什么：</strong>3 类内容（每日简报 / 抓住时刻 / 安静日）— 注意第三条 "Quiet days" 是反 signal group 最强武器</li>
+        <li><strong>这不是什么：</strong>4 个 NOT — 直接说"不是 signal group / 不喊单 / 不预测 / 只告诉你发生了什么"</li>
+        <li><strong>怎么升级：</strong>$39/month + 7 天免费试用 + URL</li>
+      </ul>
+      <strong>关键提示：</strong>按你的要求，这里"略提"set watchlist 能力，引导付费用户去自己设。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>贴到：</strong>发送下面这条消息后 → 长按 → Pin to channel</div>
+    <div class="copy-text-en"><strong>👋 Welcome to Sentinel AI</strong>
+
+This is our public channel. Here's what we post:
+
+🔵 <strong>Daily brief</strong> — pre-market open and post-close, only when something moved that we'd flag for paying users.
+
+🟢 <strong>Caught moments</strong> — earnings beats, Fed surprises, SEC filings that materially moved a stock. Same day, with source.
+
+⚪ <strong>Quiet days</strong> — when the market does nothing worth flagging, we say so. That's the product.
+
+<strong>What this is NOT</strong>
+• Not a signal group
+• No buy/sell calls
+• No price predictions
+• Just "what happened, why, and where to verify"
+
+<strong>Want personal alerts on YOUR watchlist?</strong>
+Pro users set their own tickers and thresholds. Sentinel watches 24/7 and pings you on Telegram when something crosses your line — with the catalyst and the source.
+
+→ <strong>$39/month · 7-day free trial</strong>
+→ sentinel.jilo.ai</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 2 · 14天内容样本
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>2. 公开频道 · <em>14 天公测内容样本</em></h2>
+<div class="h2-zh">这是公测期间在公开频道发的内容样本。<strong>4 种类型轮换</strong>，根据当天的真实市场事件调整具体数字和股票名。</div>
+
+<!-- 2.1 活跃日 brief -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">样本 2.1 · 中文讲解</div>
+    <div class="copy-headline">类型 A：活跃日 Pre-market Brief</div>
+    <div class="copy-meta-zh">Pre-market brief — active day</div>
+    <div class="explain-zh">
+      <strong>什么时候发：</strong>美东时间早上 8:30 AM（盘前）<br>
+      <strong>什么时候用这个版本：</strong>当天有 2-3 件值得关注的事<br><br>
+      <strong>3 段结构：</strong>
+      <ul>
+        <li>第 1 件：已经在动的股票（NVDA +2.4%，告诉用户"为什么"+ "verified by 哪几家"）</li>
+        <li>第 2 件：今天即将发生的事（AAPL 财报）</li>
+        <li>第 3 件：宏观事件（Fed minutes）</li>
+      </ul>
+      <strong>每条都要：</strong>有数字、有 source、有 "verified by" 而不是 "according to sources"。<br><br>
+      <strong>注意：</strong><em>结尾 "Catalyst, not a buy call" 是关键 — 始终重申 "不喊单"</em>
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>什么时候发：</strong>美东 8:30 AM ET，盘前</div>
+    <div class="copy-text-en"><strong>🌅 Pre-Market Brief · Tue May 7</strong>
+
+3 things on our radar before the open:
+
+<strong>1.</strong> NVDA <span class="arrow-up">▲</span> +2.4% pre-mkt — Reuters reports Saudi PIF order, ~$2.4B. Verified by Bloomberg, SEC EDGAR. <em>Catalyst, not a buy call.</em>
+
+<strong>2.</strong> AAPL — earnings tonight after close. Street expects $1.52 EPS. We'll alert if it beats/misses by &gt;5%.
+
+<strong>3.</strong> Fed minutes at 2 PM ET. If the dot plot shifts, we'll flag affected names within ~30s.
+
+<em>That's the brief. Quiet until it matters.</em>
+
+🔗 Want personal alerts on YOUR watchlist? → sentinel.jilo.ai</div>
+  </div>
+</div>
+
+<!-- 2.2 安静日 brief -->
+<div class="pair" style="border: 2px solid var(--accent-green);">
+  <div class="pair-left">
+    <div class="pair-label" style="color: var(--accent-green);">样本 2.2 · ⭐ 关键差异化 ⭐</div>
+    <div class="copy-headline">类型 B：安静日 Pre-market Brief</div>
+    <div class="copy-meta-zh">Pre-market brief — quiet day</div>
+    <div class="explain-zh">
+      <strong>什么时候发：</strong>美东 8:30 AM ET<br>
+      <strong>什么时候用这个版本：</strong>当天确实没什么值得关注的<br><br>
+      <strong style="color: var(--accent-red);">⚠️ 这是整个内容策略最重要的一种帖子。</strong><br><br>
+      <strong>为什么必须发安静日帖：</strong>
+      <ul>
+        <li>Signal group 永远不会发"今天没事"— 因为他们靠制造焦虑赚钱</li>
+        <li>Sentinel 主动说"今天 quiet"= 等于在喊出品牌差异化</li>
+        <li>这种帖子让付费用户感觉"我没付错钱"，让访客感觉"这群人是认真的"</li>
+      </ul>
+      <strong>关键句：</strong> <em>"This is what most mornings look like — and that's the point."</em><br><br>
+      <strong>千万不要：</strong>跳过安静日不发。这就跟视频里 Scene 4 "Never miss" 同等重要。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label" style="color: var(--accent-green);">English · 直接粘贴</div>
+    <div class="copy-where"><strong>什么时候发：</strong>美东 8:30 AM ET，安静日</div>
+    <div class="copy-text-en"><strong>🌅 Pre-Market Brief · Wed May 8</strong>
+
+Nothing major on our radar this morning.
+
+• No earnings beats/misses overnight
+• No SEC filings on watched names
+• No macro events scheduled until tomorrow's CPI
+
+This is what most mornings look like — and that's the point. Sentinel only pings paying users when something crosses their personal threshold.
+
+<em>If you're checking 5 news sites every morning and finding nothing, you're doing what we automated.</em>
+
+🔗 sentinel.jilo.ai</div>
+  </div>
+</div>
+
+<!-- 2.3 收盘 digest -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">样本 2.3 · 中文讲解</div>
+    <div class="copy-headline">类型 C：收盘 Digest</div>
+    <div class="copy-meta-zh">Post-close digest</div>
+    <div class="explain-zh">
+      <strong>什么时候发：</strong>美东 4:30 PM ET（收盘后 30 分钟）<br><br>
+      <strong>用途：</strong>回顾今天 Sentinel 抓到的事 + 强调"过滤了多少废信息"。<br><br>
+      <strong>核心信息架构：</strong>
+      <ul>
+        <li>今天我们 flag 了什么（具体股票 + 时间精度，比如"+18s after print"）</li>
+        <li><strong>对比强化：</strong>"3 things flagged today. The other 2,847 events processed? Filtered out."</li>
+      </ul>
+      <strong>为什么"2,847 events filtered"很重要：</strong>这给用户算账 — 每天 Sentinel 在替你筛掉海量噪音，你只看 3 条。这是付费的核心理由。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>什么时候发：</strong>美东 4:30 PM ET，收盘后</div>
+    <div class="copy-text-en"><strong>🌙 Post-Close · Tue May 7</strong>
+
+What moved that we'd have flagged for paying users today:
+
+<strong>NVDA</strong> closed +3.1% — Saudi PIF news held through the day. Sources: Reuters · Bloomberg.
+
+<strong>AAPL</strong> earnings beat by 8% on services revenue. After-hours +4.2%. We caught it at 4:01 PM ET, +18s after the print.
+
+<strong>Fed</strong> minutes were a non-event. No dot plot shift. Affected names: none.
+
+<em>3 things flagged today. The other 2,847 events processed? Filtered out.</em>
+
+🔗 Want it personal to your watchlist? → sentinel.jilo.ai</div>
+  </div>
+</div>
+
+<!-- 2.4 Live alert -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">样本 2.4 · 中文讲解</div>
+    <div class="copy-headline">类型 D：Live Caught Moment</div>
+    <div class="copy-meta-zh">Live alert during market hours</div>
+    <div class="explain-zh">
+      <strong>什么时候发：</strong>事件发生后 ~60 秒内（盘中实时）<br><br>
+      <strong>用途：</strong>展示 Sentinel 的"即时性" — 跟付费用户实际用到的同步公开秀一遍。<br><br>
+      <strong>关键设计：</strong>
+      <ul>
+        <li>用 "⚡ CAUGHT" 开头，传递时效性</li>
+        <li>"caught at 14:00 ET" 精确到秒级时间</li>
+        <li>"if you have any of these in YOUR list as a Pro user, you got pinged 6 seconds ago" — 直接展示付费用户和访客的体验差距</li>
+      </ul>
+      <strong>注意：</strong>结尾还是 "Context, not advice. Your call." — 永远不告诉用户买卖。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>什么时候发：</strong>真实事件发生后 60 秒内</div>
+    <div class="copy-text-en"><strong>⚡ CAUGHT · 14:00 ET</strong>
+
+Fed just cut 25 bps — first cut in 9 months.
+
+<strong>What:</strong> Federal Funds Rate now 4.25-4.50%
+<strong>Why it moves stocks:</strong> Lower rates → growth/tech tailwind, financials repricing
+<strong>Verified:</strong> Reuters · Bloomberg · Federal Reserve press release
+<strong>Watchlist names that just moved &gt;1%:</strong> If you have any of these in YOUR list as a Pro user, you got pinged 6 seconds ago: SPY, QQQ, XLF, TLT.
+
+<em>Context, not advice. Your call.</em>
+
+🔗 Get this for YOUR watchlist → sentinel.jilo.ai</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 3 · VIP 群
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>3. VIP 群 <em>SentinelAIProChannel</em></h2>
+<div class="h2-zh">这是付费用户在 Whop 结账后进入的私人群。Bot 是管理员。</div>
+
+<!-- 3.1 群名 -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 3.1 · 中文讲解</div>
+    <div class="copy-headline">群名</div>
+    <div class="copy-meta-zh">Group name</div>
+    <div class="explain-zh">
+      <strong>用途：</strong>付费用户进群后看到的群组名称<br><br>
+      <strong>设计思路：</strong>简洁干净，"Pro" 暗示付费身份。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>贴到：</strong>Telegram → Edit group → Group name</div>
+    <div class="copy-text-en">Sentinel AI · Pro</div>
+  </div>
+</div>
+
+<!-- 3.2 群 Bio -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 3.2 · 中文讲解</div>
+    <div class="copy-headline">群简介 (Bio)</div>
+    <div class="copy-meta-zh">Group description</div>
+    <div class="explain-zh">
+      <strong>用途：</strong>付费用户在群信息页看到的描述<br><br>
+      <strong>3 个核心能力提示：</strong>
+      <ul>
+        <li>"Set your watchlist" — 你能定制</li>
+        <li>"Get pinged only when something matters" — 我们只发重要的</li>
+        <li>"Reply to the bot anytime to ask follow-up questions" — 这是双向的</li>
+      </ul>
+      最后一句是核心差异 — 区别 signal group 单向群发。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>贴到：</strong>Telegram → Edit group → Description</div>
+    <div class="copy-text-en">Your private sentinel for US stocks. Set your watchlist. Get pinged only when something matters. Reply to the bot anytime to ask follow-up questions.</div>
+    <div class="char-count">字符数：152 ✓</div>
+  </div>
+</div>
+
+<!-- 3.3 VIP Pinned -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 3.3 · 中文讲解</div>
+    <div class="copy-headline">VIP 群 Day 1 置顶 (Pinned)</div>
+    <div class="copy-meta-zh">Pinned message · Day 1 onboarding</div>
+    <div class="explain-zh">
+      <strong>用途：</strong>付费用户进群后看到的"用户手册"。详细教他们怎么用。<br><br>
+      <strong>4 步 onboarding 结构：</strong>
+      <ul>
+        <li><strong>第 1 步：</strong>设 watchlist（命令格式 + 数量限制 25 个）</li>
+        <li><strong>第 2 步：</strong>设 threshold（默认 ±2%，可改）</li>
+        <li><strong>第 3 步：</strong>设 quiet hours（夜间不打扰）</li>
+        <li><strong>第 4 步：</strong>反问问题 — 这是 Sentinel 灵魂</li>
+      </ul>
+      <strong>结尾金句：</strong><em>"You're paying for our discipline, not our noise. Hold us to it."</em><br>
+      ↑ 这是品牌的核心宣言 — 我们卖的是"克制"，请监督我们。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>贴到：</strong>VIP 群发送后 → 长按 → Pin (admins-only)</div>
+    <div class="copy-text-en"><strong>📍 Welcome to Sentinel Pro</strong>
+
+You're set. Your sentinel is now watching.
+
+<strong>How to use this group:</strong>
+
+<strong>1. Set your watchlist</strong>
+Send: <code>/watchlist add NVDA AAPL TSLA</code>
+Or send tickers comma-separated: <code>NVDA, AAPL, TSLA</code>
+Limit: 25 names. Change anytime.
+
+<strong>2. Set your thresholds</strong>
+Default is ±2% intraday. Change per ticker:
+<code>/threshold NVDA 3</code> (alert when NVDA moves ≥3%)
+
+<strong>3. Quiet hours</strong>
+<code>/quiet 22:00-07:00 ET</code> — alerts queue up, you see them in the morning.
+
+<strong>4. Ask follow-up questions</strong>
+After any alert, reply with a question: "What about TSLA?" "Why now?" "Show me the source."
+The bot answers in context.
+
+<strong>What you'll see:</strong>
+• Pre-market brief at 8:30 AM ET
+• Live alerts within ~30s of an event crossing your threshold
+• Post-close digest at 4:30 PM ET
+• Quiet times = no message. That's the product.
+
+<strong>Need help?</strong>
+Reply <code>/help</code> any time, or message @sentinel_support.
+
+You're paying for our discipline, not our noise. Hold us to it.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 4 · Welcome
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>4. <em>Welcome 消息</em>（Whop 自动触发）</h2>
+<div class="h2-zh">用户付费瞬间，bot 主动发出的第一条消息。<strong>按你的要求：不提"等待时间"，直接让用户发 tickers 开始用。</strong></div>
+
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">资产 4.1 · 中文讲解</div>
+    <div class="copy-headline">Welcome 消息</div>
+    <div class="copy-meta-zh">Welcome message · bot first message</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>用户完成 Whop 支付 → 进入 VIP 群的瞬间<br><br>
+      <strong>设计核心：让首次行动门槛 = 零</strong>
+      <ul>
+        <li>不要表单</li>
+        <li>不要 setup wizard</li>
+        <li>用户只要输入 <code>NVDA, AAPL, TSLA, MSFT</code> 就开始了</li>
+      </ul>
+      <strong>4 段结构：</strong>
+      <ul>
+        <li><strong>👋 You're in.</strong> — 立即确认成功</li>
+        <li><strong>Quick setup</strong> — 唯一要做的事：发 tickers</li>
+        <li><strong>What I do / What I don't do</strong> — 6 行讲清品牌定位</li>
+        <li><strong>Got questions? Just reply.</strong> — 暗示双向能力</li>
+      </ul>
+      <strong>关键 ✓ / ✗ 列表：</strong>这 6 行是整个品牌定位浓缩版。"不告诉你买卖、不预测、不发废话"— 直接讲明白。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+    <div class="copy-where"><strong>触发位置：</strong>Whop → Bot 集成 → Welcome message<br>或：后端 bot 监听 group_join 事件触发</div>
+    <div class="copy-text-en"><strong>👋 You're in.</strong>
+
+Welcome to Sentinel Pro. I'm your sentinel.
+
+<strong>Quick setup — just send me your tickers:</strong>
+
+<code>NVDA, AAPL, TSLA, MSFT</code>
+
+(Comma-separated, up to 25 names. You can change them anytime with <code>/watchlist</code>.)
+
+I'll watch them 24/7 and ping you when something crosses ±2% — or any threshold you set.
+
+<strong>What I do:</strong>
+✓ Cross-verify against Reuters, Bloomberg, SEC EDGAR before pinging you
+✓ Tell you the catalyst (the "why")
+✓ Give you the source link
+
+<strong>What I don't do:</strong>
+✗ Tell you to buy or sell
+✗ Predict prices
+✗ Send noise
+
+Got questions? Just reply. I read every message.
+
+<em>Your watchlist starts empty. Send me tickers when you're ready.</em></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 5 · Bot 推送 7 模板
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>5. Bot 推送模板 · <em>7 种场景</em></h2>
+<div class="h2-zh">每个模板都包含 <strong>(a) 锁屏预览</strong>（用户不解锁手机就能看到的简短信息）+ <strong>(b) 完整内容</strong>（点开消息后看到的全文）。</div>
+
+<div style="background: rgba(30, 64, 175, 0.05); border-left: 3px solid var(--accent-blue); padding: 14px 18px; border-radius: 0 4px 4px 0; margin: 16px 0; font-size: 14px; color: var(--ink-2);">
+<strong style="color: var(--accent-blue);">锁屏预览的设计规则：</strong>第一行必须包含 (1) 股票代码 (2) 涨跌方向 ▲/▼ (3) 幅度 % (4) 一个词的 catalyst 类别。其他都留到点开后看。
+</div>
+
+<!-- 5.1 Silence -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">模板 5.1 · 中文讲解</div>
+    <div class="scenario-tag">场景 · 安静日</div>
+    <div class="copy-headline">Silence — "今天什么也没发生"</div>
+    <div class="copy-meta-zh">Sent 4:30 PM ET on quiet days</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>当天用户的 watchlist 没有任何股票越过阈值，4:30 PM 收盘汇报时发送。<br><br>
+      <strong>为什么这是关键模板：</strong>
+      <ul>
+        <li>每周可能有 1-2 天会发这个</li>
+        <li>用户付了钱却收到"什么也没发生" — 这是品牌的最强证明</li>
+        <li>对比：Signal group 永远在喊"看这个！"，Sentinel 在 quiet 日子说 "今天没事"</li>
+      </ul>
+      <strong>包含的精确数字：</strong>"2,847 events scanned, 1 borderline move (TSLA -1.8%), 0 alerts" — 让用户知道我们在干活，只是没有什么值得打扰他。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 锁屏预览（用户不解锁就能看到）</div>
+    <div class="lock-preview">
+      <div class="lock-preview-header"><span class="app-name">Sentinel AI</span><span>now</span></div>
+      <div class="lock-preview-title">Quiet day. Nothing crossed.</div>
+      <div class="lock-preview-body">Your watchlist held inside thresholds all session. Tap for details…</div>
+    </div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ 完整消息（点开后）</div>
+    <div class="copy-text-en"><strong>Quiet day. Nothing crossed.</strong>
+
+Your 12-name watchlist held inside thresholds all session.
+
+<strong>Today's stats:</strong>
+• 2,847 events scanned
+• 1 borderline move (TSLA -1.8%, didn't cross your -2%)
+• 0 alerts sent
+
+Tomorrow we watch again. Same discipline.
+
+<em>— Sentinel</em></div>
+  </div>
+</div>
+
+<!-- 5.2 Threshold crossed -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">模板 5.2 · 中文讲解</div>
+    <div class="scenario-tag">场景 · 阈值越过</div>
+    <div class="copy-headline">Threshold crossed</div>
+    <div class="copy-meta-zh">主力推送类型，约占 80% 的告警</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>用户 watchlist 里某只股票越过其设定的阈值（比如 NVDA ±2%）<br><br>
+      <strong>4 行核心信息：</strong>
+      <ul>
+        <li><strong>What:</strong> 数字（涨幅、时间）</li>
+        <li><strong>Why:</strong> 催化剂（来自哪家媒体）</li>
+        <li><strong>Verified:</strong> 4/4 sources（Reuters/Bloomberg/SEC EDGAR/CNBC）</li>
+        <li><strong>Action:</strong> "Your call. Not advice." — 永远不告诉用户买卖</li>
+      </ul>
+      <strong>结尾两个 hook：</strong>
+      <ul>
+        <li>"Reply with a question" — 提示双向能力</li>
+        <li>"Snooze NVDA 1h" — 控制权给用户</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 锁屏预览</div>
+    <div class="lock-preview">
+      <div class="lock-preview-header"><span class="app-name">Sentinel AI</span><span>10:47</span></div>
+      <div class="lock-preview-title">▲ NVDA +2.4% — Saudi PIF order</div>
+      <div class="lock-preview-body">Crossed your +2% threshold. Catalyst confirmed by Reuters…</div>
+    </div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ 完整消息</div>
+    <div class="copy-text-en"><strong><span class="arrow-up">▲</span> NVDA · +2.4% — crossed +2%</strong>
+
+<strong>What:</strong> Spike at 10:42 ET, +5.2% intraday peak
+<strong>Why:</strong> Reuters reports Saudi PIF order, ~$2.4B
+<strong>Verified:</strong> <span class="verified-tag">4/4 sources</span> Reuters · Bloomberg · SEC EDGAR · CNBC
+<strong>Action:</strong> Your call. Not advice.
+
+📎 <span class="src-link">reuters.com/business/nvda-pif-2026</span>
+
+<em>Reply with a question if you want context.</em>
+<em>Snooze NVDA for 1h: <code>/snooze NVDA 1h</code></em></div>
+  </div>
+</div>
+
+<!-- 5.3 SEC filing -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">模板 5.3 · 中文讲解</div>
+    <div class="scenario-tag">场景 · SEC 文件</div>
+    <div class="copy-headline">SEC Filing — 重要 8-K 提交</div>
+    <div class="copy-meta-zh">Material 8-K filed</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>watchlist 里的公司提交了重要 8-K（高管变动、收购、诉讼等）<br><br>
+      <strong>独特设计：</strong>
+      <ul>
+        <li>"Filed: 09:14 ET, 31s ago" — 强调 Sentinel 的速度</li>
+        <li>"Type: 5.02 — Departure of officer" — 用 SEC 的标准分类码，专业感</li>
+        <li>"Verified: SEC EDGAR primary + Reuters confirms" — 主源是 SEC 官方</li>
+      </ul>
+      <strong>用户控制：</strong>结尾给开关 — <code>/filings TSLA off</code> 可以关闭某只股票的 filing 推送。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 锁屏预览</div>
+    <div class="lock-preview">
+      <div class="lock-preview-header"><span class="app-name">Sentinel AI</span><span>09:15</span></div>
+      <div class="lock-preview-title">📋 TSLA · Material 8-K filed</div>
+      <div class="lock-preview-body">Executive departure. Pre-market reaction -1.4%. Tap for details…</div>
+    </div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ 完整消息</div>
+    <div class="copy-text-en"><strong>📋 TSLA · Material 8-K filed</strong>
+
+<strong>Filed:</strong> 09:14 ET, 31s ago
+<strong>Type:</strong> 5.02 — Departure of officer
+<strong>Summary:</strong> CFO Vaibhav Taneja resigning effective May 31. No replacement named.
+<strong>Verified:</strong> <span class="verified-tag">SEC EDGAR primary</span> + Reuters confirms
+<strong>Pre-market reaction:</strong> -1.4%
+
+📎 <span class="src-link">sec.gov/Archives/edgar/data/1318605/...</span>
+
+<em>This crossed your "any 8-K on TSLA" rule. Adjust with <code>/filings TSLA off</code></em></div>
+  </div>
+</div>
+
+<!-- 5.4 Earnings -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">模板 5.4 · 中文讲解</div>
+    <div class="scenario-tag">场景 · 财报</div>
+    <div class="copy-headline">Earnings beat / miss</div>
+    <div class="copy-meta-zh">财报超预期 / 不及预期</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>watchlist 里公司发布财报，Sentinel 在财报发布的几秒内解析<br><br>
+      <strong>结构化数据：</strong>每个数字都有"actual vs estimate"对比
+      <ul>
+        <li>EPS：$1.64 actual vs $1.52 estimate (+8% beat)</li>
+        <li>Revenue：$94.2B vs $94.5B est (-0.3% miss)</li>
+      </ul>
+      <strong>"Highlight / Lowlight" 平衡：</strong>不只报喜不报忧。Services +14% vs iPhone units -2% 都讲。<br><br>
+      <strong>主动 hook：</strong>"Conference call starts 17:00 ET — reply <code>/notify AAPL call</code>" — 把控制权完全给用户，让他们决定是否要更深的跟进。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 锁屏预览</div>
+    <div class="lock-preview">
+      <div class="lock-preview-header"><span class="app-name">Sentinel AI</span><span>16:01</span></div>
+      <div class="lock-preview-title">📊 AAPL beat — EPS $1.64 vs $1.52E</div>
+      <div class="lock-preview-body">Services +14%. After-hours +4.2%. Tap for breakdown…</div>
+    </div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ 完整消息</div>
+    <div class="copy-text-en"><strong>📊 AAPL · EARNINGS BEAT</strong>
+
+<strong>Print:</strong> 16:01 ET (+18s)
+<strong>EPS:</strong> $1.64 actual vs $1.52 estimate (+8% beat)
+<strong>Revenue:</strong> $94.2B vs $94.5B est (-0.3% miss)
+<strong>Highlight:</strong> Services revenue +14% YoY
+<strong>Lowlight:</strong> iPhone unit sales -2% YoY
+<strong>Guidance:</strong> Next quarter $89-91B (in line)
+<strong>After-hours:</strong> <span class="arrow-up">▲</span> +4.2% as of 16:08 ET
+<strong>Verified:</strong> <span class="verified-tag">Apple IR primary</span> + Reuters · Bloomberg
+
+📎 <span class="src-link">apple.com/investor/earnings-call/2026-q2</span>
+🎙 Conference call starts 17:00 ET — reply <code>/notify AAPL call</code> if you want me to ping when it starts.</div>
+  </div>
+</div>
+
+<!-- 5.5 Fed -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">模板 5.5 · 中文讲解</div>
+    <div class="scenario-tag">场景 · 宏观</div>
+    <div class="copy-headline">Fed / Macro 事件</div>
+    <div class="copy-meta-zh">Fed / CPI / Macro affecting multiple names</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>美联储宣布、CPI 数据、其他宏观事件影响多个板块<br><br>
+      <strong>独特之处：</strong>
+      <ul>
+        <li>不是单只股票推送，是"你的多只 watchlist 同时被影响"</li>
+        <li>包含"Statement shift" — 美联储声明措辞变化（"removed patient", "added data-dependent"）— 这是专业级洞察</li>
+        <li>"Dot plot" 信息 — 给到点阵图变化</li>
+      </ul>
+      <strong>watchlist 联动展示：</strong>"Your watchlist — names that crossed in last 60s" + 5 个具体股票，告诉用户具体影响。<br><br>
+      <strong>主动 hook：</strong>结尾 "Powell 14:30 ET press conference, reply /notify Powell" — 引导后续互动。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 锁屏预览</div>
+    <div class="lock-preview">
+      <div class="lock-preview-header"><span class="app-name">Sentinel AI</span><span>14:00</span></div>
+      <div class="lock-preview-title">🏛️ Fed cut 25bps — first in 9 months</div>
+      <div class="lock-preview-body">5 of your watchlist names already moved &gt;1%. Tap…</div>
+    </div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ 完整消息</div>
+    <div class="copy-text-en"><strong>🏛️ FED · 25 bps cut</strong>
+
+<strong>Decision:</strong> Federal Funds Rate now 4.25-4.50% (was 4.50-4.75%)
+<strong>Vote:</strong> 11-1 (Bowman dissented)
+<strong>Statement shift:</strong> Removed "patient" language. Added "data-dependent."
+<strong>Dot plot:</strong> Median sees 2 more cuts in 2026 (was 1)
+<strong>Verified:</strong> <span class="verified-tag">Federal Reserve primary</span> + Reuters · Bloomberg
+
+<strong>Your watchlist — names that crossed in last 60s:</strong>
+<span class="arrow-up">▲</span> SPY +0.8%
+<span class="arrow-up">▲</span> QQQ +1.2%
+<span class="arrow-up">▲</span> TLT +1.6% (rates-sensitive)
+<span class="arrow-down">▼</span> XLF -0.4% (banks repricing)
+<span class="arrow-down">▼</span> KRE -0.7% (regional banks)
+
+📎 <span class="src-link">federalreserve.gov/newsevents/pressreleases/monetary20260507a.htm</span>
+🎙 Powell press conference 14:30 ET — reply <code>/notify Powell</code> if you want a summary the moment it ends.</div>
+  </div>
+</div>
+
+<!-- 5.6 用户反问 -->
+<div class="pair" style="border: 2px solid var(--accent-red);">
+  <div class="pair-left">
+    <div class="pair-label" style="color: var(--accent-red);">模板 5.6 · ⭐ Sentinel 灵魂 ⭐</div>
+    <div class="scenario-tag">场景 · 双向交互</div>
+    <div class="copy-headline">用户反问 — Bot 上下文回答</div>
+    <div class="copy-meta-zh">User follow-up question</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>用户在收到任何告警后，回复一个问题（"What about TSLA?"）<br><br>
+      <strong style="color: var(--accent-red);">⚠️ 这是整套文案最重要的一个模板。</strong><br><br>
+      <strong>为什么这是 Sentinel 的灵魂：</strong>
+      <ul>
+        <li>Signal group 没办法做这种交互 — 他们是单向群发</li>
+        <li>Sentinel 能上下文回答"什么时候会推送"+"现在为什么没推送"+"如果你想要可以怎么调"</li>
+        <li>这是付费用户最容易感受到差异化的瞬间 — 他问"What about TSLA?"，秒回 + 上下文</li>
+      </ul>
+      <strong>回答的核心结构：</strong>
+      <ul>
+        <li>状态报告：current price, 阈值情况</li>
+        <li><strong>解释为什么没推送</strong>："moves stayed inside ±2%. You'll hear from me only if it crosses." — 强调克制纪律</li>
+        <li>给用户两条调整路径：lower threshold 或 deepdive</li>
+      </ul>
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label" style="color: var(--accent-red);">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 用户消息（蓝色气泡）</div>
+    <div class="user-bubble">What about TSLA?</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ Bot 回复（在同一线程内）</div>
+    <div class="copy-text-en"><strong>TSLA — quick check</strong>
+
+Last threshold cross: <strong>none today</strong>
+Current: $238.42 (+0.6% session)
+Watchlist threshold: ±2% intraday
+Catalyst scan (last 4h): no material news
+
+<strong>Why I haven't pinged you:</strong> moves stayed inside ±2%. You'll hear from me only if it crosses.
+
+Want me to lower the threshold? <code>/threshold TSLA 1</code>
+Want a one-time deeper look? Reply <code>/deepdive TSLA</code></div>
+  </div>
+</div>
+
+<!-- 5.7 EOD digest -->
+<div class="pair">
+  <div class="pair-left">
+    <div class="pair-label">模板 5.7 · 中文讲解</div>
+    <div class="scenario-tag">场景 · 收盘</div>
+    <div class="copy-headline">收盘 Digest（每日 4:30 PM ET）</div>
+    <div class="copy-meta-zh">End-of-day digest</div>
+    <div class="explain-zh">
+      <strong>触发时机：</strong>每个交易日 4:30 PM ET，自动发送<br><br>
+      <strong>3 段结构：</strong>
+      <ul>
+        <li><strong>You got pinged on:</strong> 今天告警的具体股票（用户回顾）</li>
+        <li><strong>Filtered out for you:</strong> "我们替你过滤了 2,844 件事，1 件差点越线" — 给到 Sentinel 的"克制证明"</li>
+        <li><strong>Tomorrow's setup:</strong> 明天看哪些事（CPI、MSFT 财报）— 让用户对接下来 24 小时有预期</li>
+      </ul>
+      <strong>"Filtered out for you"</strong> 是这条 digest 的灵魂 — 让用户知道服务费每天的价值。
+    </div>
+  </div>
+  <div class="pair-right">
+    <div class="pair-label">English · 直接粘贴</div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin-bottom: 6px;">▼ 锁屏预览</div>
+    <div class="lock-preview">
+      <div class="lock-preview-header"><span class="app-name">Sentinel AI</span><span>16:30</span></div>
+      <div class="lock-preview-title">🌙 Today: 3 alerts, 2,844 filtered</div>
+      <div class="lock-preview-body">NVDA +3.1%, AAPL beat, Fed cut. Tap for tomorrow's setup…</div>
+    </div>
+
+    <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-dim); margin: 14px 0 6px;">▼ 完整消息</div>
+    <div class="copy-text-en"><strong>🌙 EOD Digest · Tue May 7</strong>
+
+<strong>You got pinged on:</strong>
+<span class="arrow-up">▲</span> NVDA +2.4% → +3.1% close (Saudi PIF news held)
+📊 AAPL earnings beat +8% EPS, +4.2% after-hours
+🏛️ Fed cut 25bps, dovish tone
+
+<strong>Filtered out for you (we did NOT ping):</strong>
+• 2,844 other events scanned today
+• 1 close call: TSLA -1.8% (your threshold ±2%)
+
+<strong>Tomorrow's setup:</strong>
+• CPI release 8:30 AM ET (will affect rates-sensitive names)
+• MSFT earnings after close
+• No watchlist names with scheduled events
+
+<em>Set quiet hours? <code>/quiet 22:00-07:00 ET</code></em>
+<em>Adjust thresholds? <code>/watchlist</code></em>
+
+— Sentinel</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     SECTION 6 · 品牌语气速查表
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>6. 品牌语气 <em>速查表</em></h2>
+<div class="h2-zh">未来你（或别的人）写新内容时，对照这张表过一遍。任何一行不符合就重写。</div>
+
+<table>
+<thead>
+<tr><th>语气维度</th><th>✅ 应该</th><th>❌ 不应该</th></tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>语调</strong></td>
+<td>冷静、事实、略克制。NPR / Reuters / Bloomberg Terminal 的感觉。</td>
+<td>炒作、紧迫感、感叹号、全大写。</td>
+</tr>
+<tr>
+<td><strong>行动指令</strong></td>
+<td>"Your call. Not advice." / "Context, not advice."（你自己决定）</td>
+<td>"BUY NOW!" / "Don't miss this!" / "🚀🚀🚀"</td>
+</tr>
+<tr>
+<td><strong>信息来源</strong></td>
+<td>始终包含 source 名称 + 可点击链接。</td>
+<td>"消息源说……" / 不署名 / 不透明链接。</td>
+</tr>
+<tr>
+<td><strong>数字</strong></td>
+<td>具体。"+2.4%" / "$2.4B" / "11-1 vote".</td>
+<td>"big move" / "huge spike" / "massive surprise".</td>
+</tr>
+<tr>
+<td><strong>关于不确定</strong></td>
+<td>"Verified by 4/4 sources" / "primary source: SEC EDGAR".</td>
+<td>"Likely will go up" / "expect a rally" / 各种预测。</td>
+</tr>
+<tr>
+<td><strong>关于安静日</strong></td>
+<td><strong>主动发帖。</strong>"Quiet day. That's the point."</td>
+<td>跳过这天。假装什么都没发生。</td>
+</tr>
+<tr>
+<td><strong>Emoji 使用</strong></td>
+<td>仅功能性：▲▼ 方向、📎 附件、📊 财报、🏛️ Fed、📋 SEC。</td>
+<td>装饰性 emoji：🚀 💰 🔥 ✨ 💎 🎯 ⚡ 出现在标题。</td>
+</tr>
+<tr>
+<td><strong>关于用户</strong></td>
+<td>"Your watchlist." "You set the rules." "Your call."</td>
+<td>"Trust us." "Our experts." "Smart money is doing X."</td>
+</tr>
+<tr>
+<td><strong>永远好用的品牌句子</strong></td>
+<td>"Quiet until it matters." / "Context, not advice." / "Watching your watchlist."</td>
+<td>"AI-powered signals" / "Premium picks" / "Insider edge".</td>
+</tr>
+</tbody>
+</table>
+
+<h3 style="font-family: 'Fraunces', serif; font-size: 24px; font-weight: 600; margin-top: 32px; margin-bottom: 12px;">5 秒理智检查</h3>
+
+<div class="explain-zh" style="font-size: 15px; background: rgba(212, 75, 31, 0.04); padding: 18px 22px; border-radius: 4px; border-left: 3px solid var(--accent-red);">
+<p>每条 Telegram 消息发出去之前，问自己：</p>
+<ol style="margin-top: 10px;">
+<li><strong>这条会不会被误以为是 signal group 的帖？</strong>会 → 重写。</li>
+<li><strong>每个论断都有 source 吗？</strong>没有 → 加上或删了。</li>
+<li><strong>我在告诉用户怎么做，还是告诉他发生了什么？</strong>告诉怎么做 → 重写。</li>
+<li><strong>锁屏预览第一行单独看有用吗？</strong>没用 → 重新组织第一行。</li>
+<li><strong>把这条给 Bloomberg 记者看，我会觉得尴尬吗？</strong>会 → 重写。</li>
+</ol>
+</div>
+
+<div class="footer">
+Sentinel AI · Telegram 文案中英对照版 · 2026.05.07<br>
+所有内容直接复制粘贴即可上线，不需要任何修改。<br><br>
+<strong>相关频道 / 资产：</strong><br>
+• 公开频道：t.me/SentinelAI_signals<br>
+• VIP 群：SentinelAIProChannel（Whop bot 是管理员）<br>
+• Whop 产品页：whop.com/sentinel-ai-2097/sentinel-pro-68/<br>
+• Landing：sentinel.jilo.ai
+</div>
+
+</div>
+</body>
+</html>

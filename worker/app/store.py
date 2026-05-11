@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 class JobRecord:
     job_id: str
     history_id: str
+    access_token: str
     ticker: str
     email: str
     requested_mode: str
@@ -79,6 +80,7 @@ class JobStore:
             return JobRecord(
                 job_id=job.job_id,
                 history_id=job.history_id,
+                access_token=job.access_token,
                 ticker=job.ticker,
                 email=job.email,
                 requested_mode=job.requested_mode,

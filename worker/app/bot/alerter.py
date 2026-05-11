@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime, timezone
 from typing import Callable, Awaitable
 
 import httpx
@@ -94,6 +95,14 @@ async def _send_or_queue(
     Returns stats dict.
     """
     user_id: int = profile["telegram_user_id"]
+    snooze_until = profile.get("snooze_until")
+    if snooze_until:
+        if snooze_until.tzinfo is None:
+            snooze_until = snooze_until.replace(tzinfo=timezone.utc)
+        if snooze_until > datetime.now(timezone.utc):
+            logger.info("user %s snoozed until %s — suppressing alerts", user_id, snooze_until)
+            return {"sent": 0, "queued": 0, "deduped": len(crossings)}
+
     quiet_enabled: bool = profile.get("quiet_hours_enabled", True)
     quiet_start: int = profile.get("quiet_hours_start", 22)
     quiet_end: int = profile.get("quiet_hours_end", 7)
@@ -274,6 +283,13 @@ async def process_queued_alerts(sender: SenderFn | None = None) -> int:
             continue
         if not profile:
             continue
+
+        snooze_until = profile.get("snooze_until")
+        if snooze_until:
+            if snooze_until.tzinfo is None:
+                snooze_until = snooze_until.replace(tzinfo=timezone.utc)
+            if snooze_until > datetime.now(timezone.utc):
+                continue
 
         if is_quiet_time(
             profile.get("quiet_hours_enabled", True),

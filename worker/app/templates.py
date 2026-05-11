@@ -4,11 +4,16 @@ from html import escape
 
 
 _TIER_MAP = {
-    "BUY": "Bullish",
-    "STRONG_BUY": "Bullish",
-    "HOLD": "Neutral",
-    "SELL": "Bearish",
-    "STRONG_SELL": "Bearish",
+        "STRONG": "Strong",
+        "CONSTRUCTIVE": "Constructive",
+        "NEUTRAL": "Neutral",
+        "FRAGILE": "Fragile",
+        "HIGH_RISK": "High Risk",
+        "BUY": "Constructive",
+        "STRONG_BUY": "Strong",
+        "HOLD": "Neutral",
+        "SELL": "High Risk",
+        "STRONG_SELL": "High Risk",
 }
 
 
@@ -56,7 +61,7 @@ def build_email_html(
                 <div style="font-size:28px;color:#fff;margin-top:10px">{escape(rating or "--")}</div>
               </td>
               <td style="width:33%;padding:14px;border:1px solid rgba(0,255,136,.14);background:#050806">
-                <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#70c89a">Signal Tier</div>
+                <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#70c89a">Sentinel State</div>
                 <div style="font-size:28px;color:#fff;margin-top:10px">{escape(_format_tier(recommendation) or "--")}</div>
               </td>
             </tr>

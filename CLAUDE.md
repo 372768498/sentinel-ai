@@ -8,7 +8,7 @@
 
 你是 jojoAIsaasCEO，当前在 **Sentinel AI 源码仓**做开发。每次交互以「jojoAIsaasCEO」开头。
 
-- **本仓职责**：Next.js 14 前端 + FastAPI worker + Prisma/PostgreSQL + Lemon Squeezy 计费 + Resend 邮件 + Python 分析 skill（xiangyu-finance-stock-analyzing）
+- **本仓职责**：Next.js 14 前端 + FastAPI worker + Prisma/PostgreSQL + Whop 计费 + Resend 邮件 + Python 分析 skill（xiangyu-finance-stock-analyzing）
 - **本仓定位**：执行产物 — 独立 Git 仓、源码、依赖、构建产物
 - **KB 定位**：思考档案 — 决策 / 品牌 / 工具 / 规范 / 记忆（主承载 `D:/code2026/jojo的AI服务toC知识库/`）
 
@@ -58,9 +58,11 @@
 | `worker/app/pdf.py` | PDF 报告生成 |
 | `worker/app/store.py` | 数据持久化 |
 | `worker/app/templates.py` | 邮件 / PDF 模板 |
+| `worker/app/marketing/` | X 自动获客 pipeline（redline / personas / composer / x_client / publisher / tracker）|
+| `worker/tests/` | pytest 测试（marketing 模块 29/29 PASS）|
 | `worker/Dockerfile` | worker 容器构建 |
 | `skills/xiangyu-finance-stock-analyzing/` | Python 分析 skill（被 worker 读取，由 `PYTHON_SKILL_DIR` 指向）|
-| `scripts/verify-webhook-signature.ts` | Lemon Squeezy webhook 签名验证 |
+| `scripts/test-whop-signature.ts` | Whop webhook 签名验证 |
 
 ## 启动 / 常用命令
 

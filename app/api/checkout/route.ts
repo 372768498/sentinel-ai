@@ -5,7 +5,7 @@ import { getOrCreateUser, normalizeEmail } from "@/lib/analysis";
 import { appEnv } from "@/lib/env";
 
 const checkoutSchema = z.object({
-  email: z.string().email().optional()
+  email: z.string().email()
 });
 
 function buildCheckoutUrl(baseUrl: string, params: Record<string, string>) {
@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const payload = checkoutSchema.parse(await request.json().catch(() => ({})));
-    const email = normalizeEmail(payload.email ?? "guest@example.com");
+    const email = normalizeEmail(payload.email);
     const user = await getOrCreateUser(email);
 
     const url = buildCheckoutUrl(appEnv.whopCheckoutUrlPro, {
@@ -44,6 +44,13 @@ export async function POST(request: Request) {
       mode: "redirect"
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "A valid email is required before checkout." },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : "Checkout creation failed"

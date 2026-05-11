@@ -20,7 +20,7 @@ try:
 except ImportError:
     pass
 
-from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi import FastAPI, Header, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 
@@ -70,11 +70,23 @@ app = FastAPI(title="Sentinel AI Worker", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=list(settings.cors_allowed_origins),
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _require_internal_token(x_internal_token: str | None) -> None:
+    if not settings.worker_internal_token:
+        raise HTTPException(status_code=503, detail="WORKER_INTERNAL_TOKEN is not configured")
+    if x_internal_token != settings.worker_internal_token:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+def _require_job_token(snapshot: JobRecord, token: str | None) -> None:
+    if not token or token != snapshot.access_token:
+        raise HTTPException(status_code=401, detail="Unauthorized job access")
 
 
 @app.get("/api/health")
@@ -87,8 +99,7 @@ async def trigger_scan(
     session_label: str = "Manual",
     x_internal_token: str | None = Header(default=None),
 ) -> dict:
-    if settings.worker_internal_token and x_internal_token != settings.worker_internal_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    _require_internal_token(x_internal_token)
     return await run_scan_and_push(session_label)
 
 
@@ -102,8 +113,7 @@ async def push_alert(
     Used during 14-day public test for hand-curated moments where AI can't be trusted yet.
     Sends to all active VIP users (target=all) or only those watching the ticker (target=watchers).
     """
-    if settings.worker_internal_token and x_internal_token != settings.worker_internal_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    _require_internal_token(x_internal_token)
 
     from .bot import db
     from .bot.alerter import _default_sender
@@ -153,8 +163,7 @@ async def create_analysis_job(
     payload: AnalyzeRequest,
     x_internal_token: str | None = Header(default=None),
 ) -> AnalyzeAccepted:
-    if settings.worker_internal_token and x_internal_token != settings.worker_internal_token:
-        raise HTTPException(status_code=401, detail="Unauthorized")
+    _require_internal_token(x_internal_token)
 
     job_id = str(uuid4())
     base_url = settings.worker_public_url or str(request.base_url).rstrip("/")
@@ -162,6 +171,7 @@ async def create_analysis_job(
     record = JobRecord(
         job_id=job_id,
         history_id=payload.history_id,
+        access_token=payload.access_token,
         ticker=payload.ticker,
         email=payload.email,
         requested_mode=payload.requested_mode,
@@ -176,24 +186,26 @@ async def create_analysis_job(
     return AnalyzeAccepted(
         jobId=job_id,
         status="queued",
-        eventsUrl=f"{base_url}/api/analyze/{job_id}/events",
-        pollUrl=f"{base_url}/api/analyze/{job_id}",
+        eventsUrl=f"{base_url}/api/analyze/{job_id}/events?token={payload.access_token}",
+        pollUrl=f"{base_url}/api/analyze/{job_id}?token={payload.access_token}",
     )
 
 
 @app.get("/api/analyze/{job_id}")
-async def get_analysis_job(job_id: str):
+async def get_analysis_job(job_id: str, token: str | None = Query(default=None)):
     snapshot = await store.snapshot(job_id)
     if snapshot is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    _require_job_token(snapshot, token)
     return snapshot
 
 
 @app.get("/api/analyze/{job_id}/events")
-async def get_analysis_events(job_id: str):
+async def get_analysis_events(job_id: str, token: str | None = Query(default=None)):
     snapshot = await store.snapshot(job_id)
     if snapshot is None:
         raise HTTPException(status_code=404, detail="Job not found")
+    _require_job_token(snapshot, token)
 
     async def event_stream():
         last_log_index = 0

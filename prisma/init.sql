@@ -2,6 +2,8 @@ CREATE TYPE "AnalysisStatus" AS ENUM ('QUEUED', 'RUNNING', 'COMPLETED', 'FAILED'
 CREATE TYPE "ReportTier" AS ENUM ('BASIC', 'DEEP');
 CREATE TYPE "SubscriptionPlan" AS ENUM ('FREE', 'PRO');
 CREATE TYPE "SubscriptionState" AS ENUM ('INACTIVE', 'ACTIVE', 'PAST_DUE', 'CANCELED', 'EXPIRED');
+CREATE TYPE "MarketingChannel" AS ENUM ('X', 'REDDIT', 'TELEGRAM');
+CREATE TYPE "MarketingDraftStatus" AS ENUM ('DRAFT', 'APPROVED', 'REJECTED', 'POSTED');
 
 CREATE TABLE "User" (
   "id" TEXT PRIMARY KEY,
@@ -17,6 +19,7 @@ CREATE TABLE "AnalysisHistory" (
   "deepMode" TEXT,
   "status" "AnalysisStatus" NOT NULL DEFAULT 'QUEUED',
   "workerJobId" TEXT UNIQUE,
+  "accessToken" TEXT UNIQUE,
   "finalScore" INTEGER,
   "rating" TEXT,
   "recommendation" TEXT,
@@ -58,8 +61,38 @@ CREATE TABLE "SubscriptionStatus" (
     ON UPDATE CASCADE
 );
 
+CREATE TABLE "MarketingDraft" (
+  "id" TEXT PRIMARY KEY,
+  "channel" "MarketingChannel" NOT NULL,
+  "persona" TEXT NOT NULL,
+  "ticker" TEXT,
+  "score" INTEGER,
+  "headline" TEXT NOT NULL,
+  "body" TEXT NOT NULL,
+  "sourceUrl" TEXT,
+  "deepLink" TEXT,
+  "status" "MarketingDraftStatus" NOT NULL DEFAULT 'DRAFT',
+  "redlineOk" BOOLEAN NOT NULL DEFAULT false,
+  "redlineNotes" TEXT,
+  "scheduledFor" TIMESTAMPTZ,
+  "approvedAt" TIMESTAMPTZ,
+  "approvedBy" TEXT,
+  "rejectedAt" TIMESTAMPTZ,
+  "rejectionReason" TEXT,
+  "postedAt" TIMESTAMPTZ,
+  "externalPostId" TEXT,
+  "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX "AnalysisHistory_userId_createdAt_idx"
   ON "AnalysisHistory" ("userId", "createdAt");
 
 CREATE INDEX "AnalysisHistory_status_idx"
   ON "AnalysisHistory" ("status");
+
+CREATE INDEX "MarketingDraft_status_channel_createdAt_idx"
+  ON "MarketingDraft" ("status", "channel", "createdAt");
+
+CREATE INDEX "MarketingDraft_ticker_idx"
+  ON "MarketingDraft" ("ticker");

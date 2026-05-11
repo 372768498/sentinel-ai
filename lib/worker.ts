@@ -4,6 +4,7 @@ export type AnalyzeMode = "basic" | "deep";
 
 export type WorkerAnalyzePayload = {
   historyId: string;
+  accessToken: string;
   ticker: string;
   email: string;
   requestedMode: AnalyzeMode;

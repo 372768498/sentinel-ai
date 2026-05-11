@@ -25,7 +25,7 @@ export function isAuthorizedAdminRequest(request: Request) {
   const secret = appEnv.adminApiKey;
 
   if (!secret) {
-    return true;
+    return false;
   }
 
   const bearerToken = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim();

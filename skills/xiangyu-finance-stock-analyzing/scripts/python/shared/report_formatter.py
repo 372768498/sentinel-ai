@@ -446,7 +446,7 @@ def _section_analysts(comps: dict) -> str:
             lines.append(f"仅 {num} 位分析师覆盖——覆盖不足，评级代表性有限，需谨慎参考。")
     if consensus:
         if consensus.lower() in ("strong buy", "buy") and upside and upside < 5:
-            lines.append("注意：虽然评级为买入但潜在涨幅有限——可能意味着上涨空间已基本兑现。")
+            lines.append("注意：虽然外部共识偏积极但潜在涨幅有限——可能意味着上行空间已基本兑现。")
     lines.append("")
     return "\n".join(lines)
 
@@ -480,9 +480,9 @@ def _section_historical(comps: dict) -> str:
         lines.append("历史表现中规中矩，财报反应需结合当时市场环境判断。")
     if avg_react is not None:
         if avg_react > 3:
-            lines.append(f"财报后平均涨 {avg_react:.1f}%——市场对该公司财报反应积极，历史上买入财报后持有有正期望。")
+            lines.append(f"财报后平均涨 {avg_react:.1f}%——市场对该公司财报反应积极。")
         elif avg_react < -3:
-            lines.append(f"财报后平均跌 {avg_react:.1f}%——即使超预期也可能下跌（buy the rumor, sell the news）。")
+            lines.append(f"财报后平均跌 {avg_react:.1f}%——即使超预期也可能下跌，需关注预期提前兑现。")
     lines.append("")
     return "\n".join(lines)
 
@@ -704,8 +704,8 @@ def _section_sentiment(comps: dict, sentiment) -> str:
     lines.append("")
     lines.append("**解读**")
     if fg_val is not None and float(fg_val) < 25:
-        lines.append("极度恐惧区间，历史上常是反转买入信号——「别人恐惧时我贪婪」。")
-        lines.append("但极度恐惧期间市场可能继续下跌，建议分批建仓而非一次性重仓。")
+        lines.append("极度恐惧区间，历史上常出现反转窗口。")
+        lines.append("但极度恐惧期间市场可能继续下跌，需控制单次决策暴露。")
     elif fg_val is not None and float(fg_val) > 75:
         lines.append("极度贪婪区间，市场过热，追高风险加大。")
         lines.append("此时市场定价通常隐含了过于乐观的预期，任何利空都可能引发较大回调。")
@@ -811,7 +811,7 @@ def _risk_adjustments(comps: dict) -> str:
     ]
     if flag == "pre_earnings" and days is not None:
         lines.append(
-            f"| 财报前期 | 距财报 {days} 天 | BUY → HOLD | 评级降级 |"
+            f"| 财报前期 | 距财报 {days} 天 | Constructive → Neutral | 状态降级 |"
         )
     if flag == "post_earnings":
         lines.append(
@@ -1127,11 +1127,16 @@ def _signal_text(score_100: int) -> str:
 def _rating_cn(rating: str) -> str:
     """英文评级 → 中文。"""
     return {
-        "Strong Buy": "强烈买入",
-        "Buy": "买入",
-        "Hold": "持有",
-        "Reduce": "减持",
-        "Sell": "卖出",
+        "Strong": "强势",
+        "Constructive": "建设性",
+        "Neutral": "中性",
+        "Fragile": "脆弱",
+        "High Risk": "高风险",
+        "Strong Buy": "强势",
+        "Buy": "建设性",
+        "Hold": "中性",
+        "Reduce": "脆弱",
+        "Sell": "高风险",
     }.get(rating, rating)
 
 

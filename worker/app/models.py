@@ -11,6 +11,7 @@ JobState = Literal["queued", "running", "completed", "failed"]
 
 class AnalyzeRequest(BaseModel):
     history_id: str = Field(alias="historyId")
+    access_token: str = Field(alias="accessToken")
     ticker: str
     email: EmailStr
     requested_mode: AnalyzeMode = Field(alias="requestedMode")

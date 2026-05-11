@@ -26,16 +26,22 @@ type FinalResult = {
   score_100?: number;
   rating?: string;
   recommendation?: string;
+  state?: string;
   supporting_points?: string[];
   caveats?: string[];
 };
 
 const tierMap: Record<string, string> = {
-  BUY: "看多",
-  STRONG_BUY: "看多",
+  STRONG: "强势",
+  CONSTRUCTIVE: "建设性",
+  NEUTRAL: "中性",
+  FRAGILE: "脆弱",
+  HIGH_RISK: "高风险",
+  BUY: "建设性",
+  STRONG_BUY: "强势",
   HOLD: "中性",
-  SELL: "看空",
-  STRONG_SELL: "看空"
+  SELL: "高风险",
+  STRONG_SELL: "高风险"
 };
 
 const formatTier = (reco?: string | null) => {
@@ -117,6 +123,11 @@ export default function SentinelPage() {
   };
 
   const openCheckout = async () => {
+    if (!email.trim()) {
+      setMessage("请先填写邮箱，再打开 Pro 结账链接。");
+      return;
+    }
+
     try {
       setCheckoutPending(true);
 
@@ -424,8 +435,8 @@ export default function SentinelPage() {
                       <div className="mt-2 text-2xl">{result.rating ?? "--"}</div>
                     </div>
                     <div className="border border-sentinel-line bg-black/40 p-4">
-                      <div className="text-[11px] uppercase tracking-[0.18em] text-sentinel-glow/50">评分参考</div>
-                      <div className="mt-2 text-2xl">{formatTier(result.recommendation) ?? "--"}</div>
+                      <div className="text-[11px] uppercase tracking-[0.18em] text-sentinel-glow/50">Sentinel State</div>
+                      <div className="mt-2 text-2xl">{formatTier(result.state ?? result.recommendation) ?? "--"}</div>
                     </div>
                   </div>
 

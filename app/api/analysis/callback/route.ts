@@ -1,4 +1,4 @@
-import { AnalysisStatus } from "@prisma/client";
+import { AnalysisStatus, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -9,7 +9,7 @@ const callbackSchema = z.object({
   historyId: z.string(),
   jobId: z.string(),
   status: z.enum(["completed", "failed"]),
-  resultJson: z.record(z.any()).optional(),
+  resultJson: z.record(z.unknown()).optional(),
   markdownReport: z.string().optional(),
   emailDeliveryId: z.string().optional(),
   errorMessage: z.string().optional()
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     data: {
       workerJobId: payload.jobId,
       status: payload.status === "completed" ? AnalysisStatus.COMPLETED : AnalysisStatus.FAILED,
-      resultJson: payload.resultJson,
+      resultJson: payload.resultJson as Prisma.InputJsonValue | undefined,
       markdownReport: payload.markdownReport,
       emailDeliveryId: payload.emailDeliveryId,
       errorMessage: payload.errorMessage,
@@ -39,8 +39,10 @@ export async function POST(request: Request) {
         typeof payload.resultJson?.score_100 === "number" ? payload.resultJson.score_100 : null,
       rating: typeof payload.resultJson?.rating === "string" ? payload.resultJson.rating : null,
       recommendation:
-        typeof payload.resultJson?.recommendation === "string"
-          ? payload.resultJson.recommendation
+        typeof payload.resultJson?.state === "string"
+          ? payload.resultJson.state
+          : typeof payload.resultJson?.recommendation === "string"
+            ? payload.resultJson.recommendation
           : null,
       completedAt: new Date()
     }

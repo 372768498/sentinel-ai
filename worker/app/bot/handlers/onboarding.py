@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 import yfinance as yf
@@ -55,6 +56,10 @@ STEP_THRESHOLD_CUSTOM = 4
 
 MAX_TICKERS = 25
 TICKER_RE = re.compile(r"\b[A-Z]{1,5}\b")
+START_PAYLOAD_RE = re.compile(
+    r"^(?:src_)?(?P<source>[a-z][a-z0-9]{0,8})(?:_(?P<campaign>[a-z0-9-]{1,24}))?"
+    r"(?:_(?P<ticker>[A-Za-z]{1,5}))?(?:_[0-9]{6,8})?$"
+)
 
 
 def _make_keyboard(buttons: list[tuple[str, str]]) -> InlineKeyboardMarkup:
@@ -70,6 +75,29 @@ def _extract_tickers(text: str) -> list[str]:
     for t in found:
         seen[t] = None
     return list(seen.keys())
+
+
+def _parse_start_payload(payload: str | None) -> dict[str, Any]:
+    if not payload:
+        return {}
+    clean = payload.strip()[:64]
+    if not clean or clean.startswith("uid_"):
+        return {"signup_payload_raw": clean} if clean else {}
+    match = START_PAYLOAD_RE.match(clean)
+    if not match:
+        return {"signup_payload_raw": clean}
+    data: dict[str, Any] = {
+        "signup_source": match.group("source"),
+        "signup_payload_raw": clean,
+        "signup_at": datetime.now(timezone.utc),
+    }
+    campaign = match.group("campaign")
+    ticker = match.group("ticker")
+    if campaign:
+        data["signup_campaign"] = campaign
+    if ticker:
+        data["signup_ticker"] = ticker.upper()
+    return data
 
 
 async def _validate_tickers_async(tickers: list[str]) -> tuple[list[str], list[str]]:
@@ -110,6 +138,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> i
         user.id,
         telegram_username=user.username,
         telegram_first_name=user.first_name,
+        **_parse_start_payload(context.args[0] if context.args else None),
     )
 
     await update.message.reply_text(

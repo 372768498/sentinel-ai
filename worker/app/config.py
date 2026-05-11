@@ -16,6 +16,7 @@ class Settings:
     resend_api_key: str
     resend_from_email: str
     playwright_chromium_executable: str
+    cors_allowed_origins: tuple[str, ...]
 
 
 def _resolve_project_root() -> Path:
@@ -50,4 +51,12 @@ def get_settings() -> Settings:
             "RESEND_FROM_EMAIL", "Sentinel AI <briefing@example.com>"
         ),
         playwright_chromium_executable=os.environ.get("PLAYWRIGHT_CHROMIUM_EXECUTABLE", ""),
+        cors_allowed_origins=tuple(
+            origin.strip()
+            for origin in os.environ.get(
+                "WORKER_CORS_ALLOWED_ORIGINS",
+                os.environ.get("APP_URL", "http://localhost:3000"),
+            ).split(",")
+            if origin.strip()
+        ),
     )

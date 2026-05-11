@@ -78,33 +78,33 @@ def get_valuation_thresholds(sector: str = "") -> dict:
 # ============================================================================
 
 RATING_THRESHOLDS = {
-    "strong_buy": 80,
-    "buy": 65,
-    "hold": 50,
-    "reduce": 35,
-    # 0-34 = Sell
+    "strong": 80,
+    "constructive": 65,
+    "neutral": 50,
+    "fragile": 35,
+    # 0-34 = High Risk
 }
 
 RATING_LABELS = {
-    "strong_buy": "Strong Buy",
-    "buy": "Buy",
-    "hold": "Hold",
-    "reduce": "Reduce",
-    "sell": "Sell",
+    "strong": "Strong",
+    "constructive": "Constructive",
+    "neutral": "Neutral",
+    "fragile": "Fragile",
+    "high_risk": "High Risk",
 }
 
 
 def score_to_rating(score: int) -> str:
     """百分制 → 5 级评级。"""
-    if score >= RATING_THRESHOLDS["strong_buy"]:
-        return "Strong Buy"
-    if score >= RATING_THRESHOLDS["buy"]:
-        return "Buy"
-    if score >= RATING_THRESHOLDS["hold"]:
-        return "Hold"
-    if score >= RATING_THRESHOLDS["reduce"]:
-        return "Reduce"
-    return "Sell"
+    if score >= RATING_THRESHOLDS["strong"]:
+        return "Strong"
+    if score >= RATING_THRESHOLDS["constructive"]:
+        return "Constructive"
+    if score >= RATING_THRESHOLDS["neutral"]:
+        return "Neutral"
+    if score >= RATING_THRESHOLDS["fragile"]:
+        return "Fragile"
+    return "High Risk"
 
 
 def raw_to_percentile(raw: float) -> int:

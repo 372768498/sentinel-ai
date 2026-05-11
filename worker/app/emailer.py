@@ -33,7 +33,7 @@ async def send_briefing_email(
         ticker=ticker,
         score=result.get("score_100"),
         rating=result.get("rating"),
-        recommendation=result.get("recommendation"),
+        recommendation=result.get("state") or result.get("recommendation"),
         supporting_points=result.get("supporting_points", []),
         caveats=result.get("caveats", []),
     )

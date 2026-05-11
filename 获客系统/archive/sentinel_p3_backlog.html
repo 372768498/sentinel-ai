@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Sentinel AI · P3 Backlog · 不要忘记但不是现在做的事</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Fraunces:ital,wght@0,500;0,600;0,700;1,500;1,600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f1ea;
+    --bg-card: #ffffff;
+    --ink: #1a1812;
+    --ink-2: #4a4338;
+    --ink-dim: #7a7163;
+    --accent-red: #d44b1f;
+    --accent-amber: #d4a017;
+    --accent-green: #2d8659;
+    --accent-blue: #1e40af;
+    --line: #d4cdb8;
+    --line-soft: #e6dfd0;
+    --code-bg: #1a1812;
+    --code-ink: #f5f1ea;
+    --shadow: rgba(26, 24, 18, 0.08);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    font-family: 'Inter', 'PingFang SC', system-ui, sans-serif;
+    color: var(--ink);
+    line-height: 1.7;
+    padding: 50px 30px;
+  }
+  .container { max-width: 980px; margin: 0 auto; }
+
+  .doc-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent-red);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+  .doc-title {
+    font-family: 'Fraunces', serif;
+    font-size: 52px;
+    font-weight: 600;
+    line-height: 1.1;
+    margin-bottom: 16px;
+  }
+  .doc-title em { font-style: italic; color: var(--accent-red); }
+  .doc-subtitle {
+    font-size: 18px;
+    color: var(--ink-2);
+    margin-bottom: 40px;
+    max-width: 760px;
+  }
+
+  .lead {
+    font-size: 16px;
+    color: var(--ink-2);
+    background: rgba(45, 134, 89, 0.06);
+    border-left: 3px solid var(--accent-green);
+    padding: 18px 22px;
+    border-radius: 0 4px 4px 0;
+    margin-bottom: 40px;
+  }
+  .lead strong { color: var(--accent-green); }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 36px;
+    font-weight: 600;
+    margin-top: 56px;
+    margin-bottom: 12px;
+    padding-top: 32px;
+    border-top: 2px solid var(--line);
+  }
+  h2 em { font-style: italic; color: var(--accent-red); }
+  h2:first-of-type { border-top: none; padding-top: 0; }
+
+  .h2-zh {
+    font-family: 'PingFang SC', system-ui, sans-serif;
+    font-size: 15px;
+    color: var(--ink-dim);
+    margin-bottom: 24px;
+    font-weight: 400;
+  }
+
+  h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 600;
+    margin-top: 32px;
+    margin-bottom: 12px;
+  }
+
+  .item-card {
+    background: var(--bg-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    padding: 22px 26px;
+    margin: 16px 0;
+    box-shadow: 0 2px 12px var(--shadow);
+    position: relative;
+  }
+
+  .item-tag {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    margin-right: 8px;
+    margin-bottom: 8px;
+  }
+  .tag-p1 { background: rgba(212, 75, 31, 0.12); color: var(--accent-red); }
+  .tag-p2 { background: rgba(212, 160, 23, 0.15); color: var(--accent-amber); }
+  .tag-p3 { background: rgba(122, 113, 99, 0.12); color: var(--ink-dim); }
+  .tag-source-cc { background: rgba(30, 64, 175, 0.1); color: var(--accent-blue); }
+  .tag-source-product { background: rgba(45, 134, 89, 0.1); color: var(--accent-green); }
+  .tag-source-ops { background: rgba(212, 75, 31, 0.08); color: var(--accent-red); }
+
+  .item-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 600;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    line-height: 1.3;
+  }
+  .item-title em { font-style: italic; color: var(--accent-red); }
+
+  .item-meta {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line-soft);
+    font-size: 13px;
+  }
+  .item-meta-cell-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .item-meta-cell-value {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  .item-desc {
+    color: var(--ink-2);
+    margin: 10px 0 6px;
+  }
+  .item-desc strong { color: var(--ink); font-weight: 700; }
+
+  pre {
+    background: var(--code-bg);
+    color: var(--code-ink);
+    padding: 12px 16px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 10px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(212, 75, 31, 0.08);
+    color: var(--accent-red);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.88em;
+    font-weight: 600;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  ul, ol {
+    margin: 8px 0 12px 22px;
+  }
+  ul li, ol li {
+    color: var(--ink-2);
+    padding: 3px 0;
+  }
+  ul li strong, ol li strong { color: var(--ink); font-weight: 700; }
+
+  .legend {
+    background: var(--bg-card);
+    border: 1px solid var(--line-soft);
+    border-radius: 6px;
+    padding: 18px 22px;
+    margin-bottom: 32px;
+  }
+  .legend-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .legend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 6px 0;
+    font-size: 14px;
+    color: var(--ink-2);
+  }
+
+  .footer {
+    margin-top: 80px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="doc-eyebrow">Sentinel AI · P3 Backlog</div>
+<h1 class="doc-title">不是现在做<br><em>但不要忘记</em></h1>
+<p class="doc-subtitle">这份文档是 Sentinel 的"待办池"。所有从开发过程中产生但暂时不做的想法都在这里。每条都有触发条件 + 预估工作量。等条件满足时回来看。</p>
+
+<div class="lead">
+<strong>使用方法：</strong>不要照单做。每月翻一次这份文档，看看哪些项的"触发条件"已经满足。满足了 → 当时再判断是否提到 P1/P2 排期；不满足 → 继续放着。<br><br>
+<strong>原则：</strong>没有路线图，只有触发条件。没有 deadline，只有"什么发生了就该做"。
+</div>
+
+<div class="legend">
+<div class="legend-title">图例</div>
+<div class="legend-row">
+<span class="item-tag tag-p1">P1</span>
+<span>条件满足后立刻做（已经接近触发线）</span>
+</div>
+<div class="legend-row">
+<span class="item-tag tag-p2">P2</span>
+<span>条件满足后再排期，但不是马上</span>
+</div>
+<div class="legend-row">
+<span class="item-tag tag-p3">P3</span>
+<span>长期参考项，可能永远不做</span>
+</div>
+<div class="legend-row" style="margin-top: 14px;">
+<span class="item-tag tag-source-cc">CC 遗留</span>
+<span>从 CC 验收报告 known issues 转入</span>
+</div>
+<div class="legend-row">
+<span class="item-tag tag-source-product">产品想法</span>
+<span>对话中讨论但暂缓的产品方向</span>
+</div>
+<div class="legend-row">
+<span class="item-tag tag-source-ops">运营事项</span>
+<span>非技术，但和上线相关</span>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     CC 遗留事项
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>1. CC <em>验收报告里的遗留</em></h2>
+<div class="h2-zh">CC 完成 v1 时主动标出来的 known issues，不影响产品上线但要记着。</div>
+
+<div class="item-card">
+<span class="item-tag tag-p2">P2</span>
+<span class="item-tag tag-source-cc">CC 遗留</span>
+<div class="item-title">ConversationHandler 卡住时的引导提示</div>
+<div class="item-desc">
+当用户在 onboarding 第 3 步（quiet hours 输入）卡住时，如果发了无关消息，bot 只显示"格式错误"，不会主动提示用户"我在等输入，发 /cancel 退出"。<br><br>
+<strong>影响：</strong>新用户可能困惑，以为产品坏了。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">用户反馈 onboarding 卡住或退订理由提到"困惑"</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">30 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">低 · 在每个 ConversationHandler state 加 fallback</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p2">P2</span>
+<span class="item-tag tag-source-cc">CC 遗留</span>
+<div class="item-title">Inline 按钮点击后的显式取消机制</div>
+<div class="item-desc">
+当前 inline 按钮点击进入子流程后没有显式 "取消" 按钮，用户只能等输入合法值或超时（30 分钟）。<br><br>
+<strong>影响：</strong>UX 不优雅，老用户改 watchlist 时可能困住。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">和上一条同时修</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">30 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">低 · 加 ❌ Cancel 按钮到所有 inline keyboard</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p2">P2</span>
+<span class="item-tag tag-source-cc">CC 遗留</span>
+<div class="item-title">Redis 对话上下文持久化</div>
+<div class="item-desc">
+当前对话上下文（onboarding 进度、用户最近收到的告警）存内存，worker 重启会丢。<br><br>
+<strong>影响：</strong>v1 阶段可接受。但当用户量超过 50 或需要 worker 频繁重启升级时，丢上下文会有不好的体验。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">≥50 付费用户 OR worker 部署到云端开始频繁更新</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">2-3 小时</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · Redis + Pickle Persistence</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-cc">CC 遗留</span>
+<div class="item-title">yfinance ticker 验证缓存</div>
+<div class="item-desc">
+Onboarding 验证 5 个 ticker 当前需 3-5 秒（并行 fast_info 请求）。<br><br>
+<strong>影响：</strong>用户体验稍微卡顿，但 onboarding 一辈子才走一次，影响小。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">用户反馈 onboarding 慢，OR yfinance 出现限流</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">30 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">低 · 加 Redis 缓存层</div></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     产品想法 - 推送优先级
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>2. <em>推送优先级 + Critical Alerts</em></h2>
+<div class="h2-zh">2026.05.07 对话讨论的"波动巨大时打电话"方向。结论：现在不上电话，但要在数据结构里预留位置。</div>
+
+<div class="item-card">
+<span class="item-tag tag-p1">P1</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">推送 priority 字段</div>
+<div class="item-desc">
+在 <code>templates/telegram_messages.py</code> 给每个推送加 priority 字段（normal / urgent / critical）和 disable_notification 控制。<br><br>
+<strong>三个级别：</strong>
+<ul>
+<li><strong>normal</strong>：普通 threshold 越线，默认推送</li>
+<li><strong>urgent</strong>：>5% 单股暴跌、SEC 调查、退市公告等 → <code>disable_notification=False</code> + 自定义提示音</li>
+<li><strong>critical</strong>：VIX spike >50%、Fed 紧急加息、系统性风险 → 预留字段 <code>should_call=true</code>，未来接 Twilio</li>
+</ul>
+<strong>为什么 P1：</strong>不实现真电话，但数据结构要现在定。等真要做时不用改模板。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">下次 CC 改 templates 时顺手加</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">15 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">极低 · 改 dict 结构</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">Twilio 电话告警（"Pro Plus" tier）</div>
+<div class="item-desc">
+真实电话告警，用 Twilio API 拨打 + 文本转语音，<strong>不用 Telegram VoIP</strong>（违反 ToS）。<br><br>
+<strong>触发场景候选：</strong>
+<ul>
+<li>个股单分钟跳水 >5%（fat finger / 黑天鹅）</li>
+<li>持仓股票 SEC 调查 / 退市公告</li>
+<li>Fed 紧急加息 / 系统性风险</li>
+<li>VIX 单日 spike >50%</li>
+</ul>
+<strong>定价构想：</strong>"Pro Plus" $79/month，包含电话告警 + 优先客服。<br><br>
+<strong>成本：</strong>Twilio $0.013/min，30 秒告警 = $0.0065，毛利充足。<br><br>
+<strong>为什么 P3：</strong>需要 50+ 付费用户才有意义。早做是过度工程。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">≥50 付费用户 + 至少 3 人主动询问"能不能打电话"</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">1-2 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · Twilio 集成 + 用户手机号管理 + 计费</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">Critical Alerts 路线图卖点</div>
+<div class="item-desc">
+更新 Whop description 时加一行未来承诺：<br><br>
+<em>"Critical Alerts (coming Q3): When something truly market-moving hits your watchlist (>5% single-stock plunge, systemic risk events), Sentinel can phone you directly. Your call to enable."</em><br><br>
+<strong>目的：</strong>给产品的"严肃性"建立期待。让访客觉得这不是又一个 signal group，是真把客户当回事的服务。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">下次更新 Whop description 时（可能 v6 视频上线时）</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">5 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">极低 · 复制粘贴</div></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     产品想法 - 用户输入交互
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>3. <em>用户输入交互升级</em></h2>
+<div class="h2-zh">v1 用了对话式表单，跑通后用户体验不错。但当用户量起来后可以考虑升级。</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">Telegram Mini App / Web App</div>
+<div class="item-desc">
+v2/v3 版本可以考虑做一个 Telegram Mini App：<br>
+<ul>
+<li>真实的 watchlist 编辑器（搜索股票、批量增删、设阈值）</li>
+<li>历史告警查看器（看过去 30 天的所有推送）</li>
+<li>统计 dashboard（你的告警精度、平均响应时间）</li>
+</ul>
+<strong>为什么 P3：</strong>需要做独立 web app + 服务器托管 + HMAC 验证，工作量大。当前对话式表单 + /watchlist dashboard 已经够用。<br><br>
+<strong>什么时候做：</strong>用户反馈"watchlist 太多看不过来" OR "想看历史告警分析" 时再考虑。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">≥3 个用户主动要求 OR 用户平均 watchlist >15 个 ticker</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">1 周</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">高 · 全栈 web app + Telegram initData 验证</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">双向交互接 LLM</div>
+<div class="item-desc">
+当前 "What about TSLA?" 走规则路由 + 模板回复。如果未来用户问得越来越复杂（"为什么 NVDA 今天涨这么多" / "我应该担心什么" / "这家公司 CFO 是谁"），可以接 LLM 做自然语言回答。<br><br>
+<strong>必须的约束（system prompt）：</strong>
+<ul>
+<li>永远不能给 buy/sell 建议（红线）</li>
+<li>必须 cite source URL</li>
+<li>不预测股价，只解释当前状态</li>
+</ul>
+<strong>可复用：</strong>OpenClawd / Anthropic 的 agent 配置已有，迁移时复用 system prompt 设计。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">用户反问中 ≥30% 是规则路由覆盖不到的复杂问题</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">3-4 小时</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · 已经预留了 LLM 槽，主要是 prompt 工程 + cost 控制</div></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     产品想法 - 内容自动化
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>4. <em>内容自动化</em></h2>
+<div class="h2-zh">公开频道 14 天测试期间手工把关，跑稳后某些内容可以自动化。</div>
+
+<div class="item-card">
+<span class="item-tag tag-p2">P2</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">Live caught moment 全自动化</div>
+<div class="item-desc">
+当前盘中 caught moment（earnings beat / Fed surprise / SEC filing）是定时 brief / digest 自动发，但<strong>实时事件推送到公开频道这步先人工把关</strong>，避免 AI 判断错或源链接挂了砸品牌。<br><br>
+<strong>什么时候自动化：</strong>跑 14 天后，如果手工把关过的所有 caught moment 都质量稳定、源链接 100% 可用、AI 提取 catalyst 没出过错 → 可以放开自动化。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">14 天测试期间手工把关 ≥10 条 caught moment 都准确</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">2 小时</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · 加 confidence threshold 判断逻辑</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">/api/bot/push-alert 内部接口</div>
+<div class="item-desc">
+CC 在验收报告里建议的"Live caught moment 工具"：给一个内部 API，你人工填好数据后触发，bot 自动发给所有关注该 ticker 的用户。<br><br>
+<strong>用途：</strong>14 天公测期间手工运营，逐步沉淀质量数据。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">公测期间发现需要快速 broadcast 而不靠定时</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">30 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">低 · 加一个 FastAPI endpoint + 鉴权</div></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     运营事项
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>5. <em>运营路线图</em></h2>
+<div class="h2-zh">非技术，但和产品上线相关的运营事项。</div>
+
+<div class="item-card">
+<span class="item-tag tag-p1">P1</span>
+<span class="item-tag tag-source-ops">运营事项</span>
+<div class="item-title">Whop 年付 $390 SKU 创建</div>
+<div class="item-desc">
+Landing 上挂了 "$390/year"，但 Whop 后台还没创建年付 SKU。访客点 "Lock in annual rate" 按钮去到的还是月付页面 = 产品断层。<br><br>
+<strong>怎么做：</strong>已有 SOP（之前对话中给出的 5 步 Whop dashboard 操作）。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">现在 → 立刻做（5-10 分钟）</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">10 分钟</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">极低 · Whop dashboard 点击</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p1">P1</span>
+<span class="item-tag tag-source-ops">运营事项</span>
+<div class="item-title">v6 视频制作（CC 任务）</div>
+<div class="item-desc">
+v6 主营销视频，Scene 2 加 iPhone 对话流 + "What about TSLA?" 用户反问气泡。CC 已经收到指令文档。<br><br>
+<strong>状态：</strong>等 CC 完成后端任务后接力做。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">后端 4 能力跑稳后启动</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">CC ~1 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · 复用 v5 + 重做 Scene 2</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p1">P1</span>
+<span class="item-tag tag-source-ops">运营事项</span>
+<div class="item-title">14 天 Telegram 公测内容产出</div>
+<div class="item-desc">
+公开频道 @SentinelAI_signals 14 天公测期间内容产出。已有 4 种内容样本（活跃日 brief / 安静日 brief / 收盘 digest / live caught moment），需要每天发。<br><br>
+<strong>启动方案：</strong>定时任务自动发 brief / digest，盘中 caught moment 手工把关。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">明天美股开盘后启动</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">每天 10 分钟人工把关</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">低 · 大部分自动化</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p2">P2</span>
+<span class="item-tag tag-source-ops">运营事项</span>
+<div class="item-title">首批 5 付费用户手动获客</div>
+<div class="item-desc">
+找首批 5 个真实付费用户，验证产品/市场契合度。<br><br>
+<strong>渠道候选：</strong>
+<ul>
+<li>Reddit r/stocks（搜 "missed the move on $NVDA" 类似帖）</li>
+<li>X / Twitter（搜 "watchlist alerts"）</li>
+<li>Discord 投资群（侧面接触群主）</li>
+<li>HackerNews ShowHN</li>
+</ul>
+<strong>注意：</strong>不要硬推。看到用户在抱怨"漏掉了某次行情" → 私信他 Sentinel 链接。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">v6 视频上线 + 14 天公测内容跑出 3-4 天质量稳定</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">每天 30 分钟，连续 7-14 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">低但耗时 · 主要是耐心</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p2">P2</span>
+<span class="item-tag tag-source-ops">运营事项</span>
+<div class="item-title">后端云端部署</div>
+<div class="item-desc">
+当前 worker 跑在你 Windows 本地 + Docker Postgres。电脑关机 = 服务挂掉。<br><br>
+<strong>触发条件：</strong>≥5 付费用户后必须上云。<br><br>
+<strong>选项：</strong>Railway / Fly.io / Render 都能跑 Python + Postgres，月费 $5-20。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">≥5 付费用户</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">CC 半天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · Dockerfile + 部署配置 + 数据迁移</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-ops">运营事项</span>
+<div class="item-title">数据源接入升级（替代 yfinance）</div>
+<div class="item-desc">
+当前主要用 yfinance（免费但限流，偶尔 fast_info 失败）。如果用户量起来 / 越线告警频次提高，需要更稳定的数据源。<br><br>
+<strong>候选：</strong>
+<ul>
+<li><strong>Polygon.io</strong>：$29/月起，实时数据，专业级</li>
+<li><strong>Alpaca</strong>：免费 + 有 paper trading API</li>
+<li><strong>Alpha Vantage</strong>：免费 tier 25 calls/day，付费 tier $49/月</li>
+</ul>
+<strong>对应 SEC EDGAR / Reuters / Bloomberg 信源：</strong>需要 Reuters Connect API 等更专业接入，目前由 OpenClawd 处理。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">yfinance 失败率 >5% OR 用户量 ≥30</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">1-2 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · API 切换 + 计费监控</div></div>
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     长期方向
+     ═══════════════════════════════════════════════════════════════ -->
+
+<h2>6. <em>长期方向</em>（可能永远不做）</h2>
+<div class="h2-zh">长期参考项。每隔几个月看一次，可能某天某条会变得相关。</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">TikTok / Reels / X 短视频矩阵</div>
+<div class="item-desc">
+9:16 / 1:1 比例的短视频系列，做"caught moment"故事讲述（"用户 A 在睡觉，Sentinel 抓住了 NVDA 的 6% 跳水"）。<br><br>
+<strong>触发条件：</strong>找到首批 5+ 付费用户，他们的真实 caught moment 案例可以授权使用 → 做成短视频。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">5+ 付费用户 + 至少 3 个真实可授权案例</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">每条 2-3 小时</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · Remotion 模板批量产出</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">多语言版本（中文 / 日文）</div>
+<div class="item-desc">
+当前全英文，面向美股用户。但中国 / 日本投资美股的散户也很多。<br><br>
+<strong>不急的原因：</strong>
+<ul>
+<li>当前 ICP 是英语 native 用户</li>
+<li>多语言会拖慢内容运营节奏</li>
+<li>需要新建 Telegram channel + 重写文案 + 维护多个版本</li>
+</ul>
+<strong>什么时候做：</strong>当中文/日文用户主动询问 ≥10 次时。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">≥10 个非英语用户主动询问</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">3-5 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">高 · 文案 + 频道 + bot 多语言架构</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">Sentinel API（让用户接到自己的工作流）</div>
+<div class="item-desc">
+某些用户可能想把 Sentinel 告警接到自己的 Slack / Discord / 邮件 / IFTTT。<br><br>
+提供一个 webhook 接口，每次推送同步发到用户配置的 URL。<br><br>
+<strong>触发条件：</strong>有用户主动要求"能不能把告警推到我的 Slack"。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">≥3 个用户要求 webhook / API 集成</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">1 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">中 · API 设计 + 鉴权 + 文档</div></div>
+</div>
+</div>
+
+<div class="item-card">
+<span class="item-tag tag-p3">P3</span>
+<span class="item-tag tag-source-product">产品想法</span>
+<div class="item-title">机构 / 团队版本（多人共享 watchlist）</div>
+<div class="item-desc">
+小型对冲基金 / 家族办公室可能想给团队共享一个 watchlist，每个人都收 Sentinel 告警。<br><br>
+<strong>定价构想：</strong>"Team" $199/month，5 个用户共享 watchlist，付费给 PI 而不是按人头。<br><br>
+<strong>不急的原因：</strong>个人 SaaS 是当前 ICP，团队是另一个产品 motion。
+</div>
+<div class="item-meta">
+<div><div class="item-meta-cell-label">触发条件</div><div class="item-meta-cell-value">至少 2 个机构用户主动询问</div></div>
+<div><div class="item-meta-cell-label">预估工时</div><div class="item-meta-cell-value">3-5 天</div></div>
+<div><div class="item-meta-cell-label">复杂度</div><div class="item-meta-cell-value">高 · 多用户管理 + 计费 + 权限</div></div>
+</div>
+</div>
+
+<div class="footer">
+Sentinel AI · P3 Backlog v1.0 · 2026.05.07<br>
+每月翻一次。条件满足时再判断是否提到 P1/P2。<br>
+没有路线图，只有触发条件。
+</div>
+
+</div>
+</body>
+</html>

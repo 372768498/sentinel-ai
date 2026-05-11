@@ -1,0 +1,2941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sentinel AI — Quiet watchlist alerts in Telegram</title>
+  <meta name="description" content="A source-cited watchlist sentinel for self-directed US-equity investors. Quiet until something material crosses your line. Not investment advice." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Palette: paper + ink + market semantics (up=green, down=red) ─── */
+    :root {
+      --paper:     #f4f1ea;
+      --paper-2:   #ebe7dd;
+      --ink:       #0b0d0c;
+      --ink-2:     #3a3f3c;
+      --mute:      #8a8b85;
+      --rule:      #d6d1c3;
+
+      /* market — rebalanced for paper bg: brighter but still readable */
+      --up:        #0a9454;   /* gain green · boosted saturation */
+      --up-bright: #14b86a;   /* hover / highlight */
+      --up-soft:   #c9ecd7;
+      --up-glow:   rgba(10,148,84,0.18);
+      --down:      #c93330;   /* loss red */
+      --down-soft: #f1d9d7;
+
+      /* accent palette for Bold Signal pillars */
+      --cobalt:    #1f3ec9;
+      --cobalt-s:  #dde3f9;
+      --amber:     #d98014;
+      --amber-s:   #fae4c8;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-feature-settings: 'ss01', 'cv11';
+      -webkit-font-smoothing: antialiased;
+      line-height: 1.4;
+      overflow-x: hidden;
+    }
+    .mono   { font-family: 'IBM Plex Mono', ui-monospace, monospace; }
+    .serif  { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-weight: 400; }
+
+    /* ─── 12-col grid rails ─── */
+    .rails {
+      position: fixed; inset: 0; pointer-events: none; z-index: 1;
+      max-width: 1280px; margin: 0 auto;
+      display: grid; grid-template-columns: repeat(12, 1fr);
+      padding: 0 32px;
+    }
+    .rails > span { border-left: 1px solid var(--rule); opacity: .45; }
+    .rails > span:last-child { border-right: 1px solid var(--rule); }
+    @media (max-width: 768px) { .rails { display: none; } }
+
+    .wrap { position: relative; z-index: 2; max-width: 1280px; margin: 0 auto; padding: 0 32px; }
+    @media (max-width: 768px) { .wrap { padding: 0 20px; } }
+
+    /* ─── Typography ─── */
+    h1, h2, h3 { margin: 0; letter-spacing: -0.02em; font-weight: 800; }
+    .display   { font-size: clamp(48px, 9vw, 120px); line-height: 0.92; letter-spacing: -0.045em; font-weight: 900; }
+    .h1        { font-size: clamp(36px, 5.5vw, 72px); line-height: 1.02; font-weight: 800; letter-spacing: -0.028em; }
+    .h2        { font-size: clamp(26px, 3vw, 40px); line-height: 1.08; font-weight: 700; }
+    .kicker    { font-family: 'IBM Plex Mono', ui-monospace, monospace;
+                 font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase;
+                 color: var(--up); font-weight: 500; }
+    .rule-light{ border: 0; border-top: 1px solid var(--rule); margin: 0; }
+    a { color: inherit; text-decoration: none; }
+
+    /* ─── Ticker tape (top + scrolling) ─── */
+    .tape {
+      background: var(--ink); color: var(--paper); overflow: hidden;
+      border-bottom: 1px solid var(--ink);
+      font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+      position: sticky; top: 0; z-index: 21;
+    }
+    .tape-track {
+      display: inline-flex; gap: 48px; padding: 10px 0;
+      animation: marquee 40s linear infinite;
+      white-space: nowrap;
+    }
+    .tape .tk { display: inline-flex; align-items: baseline; gap: 10px; }
+    .tape .sym { font-weight: 600; letter-spacing: 0.05em; }
+    .tape .px  { color: #d8d5c8; }
+    .tape .chg.up   { color: #72d8a7; }
+    .tape .chg.down { color: #ff8a87; }
+    .tape .spark { display: inline-block; width: 44px; height: 14px; vertical-align: middle; margin-left: 4px; }
+    @keyframes marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ─── Nav ─── */
+    nav.bar {
+      position: sticky; top: 35px; z-index: 20;
+      background: rgba(244, 241, 234, 0.92);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--ink);
+    }
+    nav.bar .inner {
+      max-width: 1280px; margin: 0 auto; padding: 0 32px;
+      height: 56px; display: flex; align-items: center; justify-content: space-between;
+    }
+    nav.bar a.logo { font-weight: 800; letter-spacing: -0.02em; font-size: 18px; display: inline-flex; align-items: center; gap: 8px; }
+    nav.bar a.logo em { color: var(--up); font-style: normal; }
+    nav.bar a.logo .live { width: 7px; height: 7px; background: var(--up); border-radius: 50%; animation: blink 1.6s ease-in-out infinite; }
+    nav.bar .links { display: flex; gap: 28px; }
+    nav.bar .links a { font-size: 13px; color: var(--ink-2); }
+    nav.bar .links a:hover { color: var(--ink); }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--ink); color: var(--paper);
+      padding: 12px 20px; font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      border: 1px solid var(--ink);
+      transition: all .2s ease;
+      position: relative; overflow: hidden;
+    }
+    .btn-primary::after {
+      content: ''; position: absolute; inset: 0; background: var(--up);
+      transform: translateY(100%); transition: transform .25s ease; z-index: -1;
+    }
+    .btn-primary:hover { border-color: var(--up); }
+    .btn-primary:hover::after { transform: translateY(0); }
+    .btn-primary > * { position: relative; z-index: 1; }
+
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 20px; font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      border: 1px solid currentColor; color: inherit;
+      transition: all .2s ease;
+    }
+    .btn-ghost:hover { background: var(--ink); color: var(--paper); }
+    @media (max-width: 768px) { nav.bar .links { display: none; } }
+
+    /* ─── Section rhythm (paper / band / ink alternating) ─── */
+    section { padding: 96px 0; border-bottom: 1px solid var(--rule); position: relative; }
+    section.band { background: var(--paper-2); }
+    section.ink  { background: var(--ink); color: var(--paper); }
+    section.ink .kicker { color: #72d8a7; }
+    section.ink hr { border-top-color: #2a2d2b; }
+
+    .section-no { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--mute); letter-spacing: 0.08em; }
+
+    /* ─── Reveal animation (IntersectionObserver) ─── */
+    .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s cubic-bezier(.2,.7,.2,1); }
+    .reveal.in { opacity: 1; transform: translateY(0); }
+    .reveal-stagger > * { opacity: 0; transform: translateY(20px); transition: all .6s cubic-bezier(.2,.7,.2,1); }
+    .reveal-stagger.in > * { opacity: 1; transform: translateY(0); }
+    .reveal-stagger.in > *:nth-child(1) { transition-delay: 0.05s; }
+    .reveal-stagger.in > *:nth-child(2) { transition-delay: 0.15s; }
+    .reveal-stagger.in > *:nth-child(3) { transition-delay: 0.25s; }
+    .reveal-stagger.in > *:nth-child(4) { transition-delay: 0.35s; }
+    .reveal-stagger.in > *:nth-child(5) { transition-delay: 0.45s; }
+    .reveal-stagger.in > *:nth-child(6) { transition-delay: 0.55s; }
+    @media (prefers-reduced-motion: reduce) {
+      .reveal, .reveal-stagger > * { opacity: 1 !important; transform: none !important; }
+      .tape-track { animation: none !important; }
+    }
+
+    /* ─── Hero ─── */
+    .hero { padding-top: 72px; padding-bottom: 72px; }
+    .hero-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 56px; align-items: center; }
+    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; } }
+
+    .hero .drop::first-letter {
+      font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400;
+      font-size: 1.15em; color: var(--up); margin-right: 4px;
+    }
+
+    /* live score card (Hero right) */
+    .score-card {
+      background: var(--paper-2); border: 1px solid var(--ink);
+      position: relative;
+    }
+    .score-card .tape-row {
+      display: flex; justify-content: space-between; padding: 10px 16px;
+      border-bottom: 1px solid var(--ink); font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; font-weight: 600;
+    }
+    .score-card .body { padding: 24px; }
+    .score-card .big-num {
+      font-size: 92px; font-weight: 900; letter-spacing: -0.05em; line-height: 0.9;
+      font-variant-numeric: tabular-nums;
+    }
+    .score-card .big-num em { font-family: 'Instrument Serif', serif; font-style: italic; color: var(--up); font-weight: 400; font-size: 0.35em; letter-spacing: 0; }
+    .score-card .verdict {
+      display: inline-block; margin-top: 8px;
+      background: var(--up); color: var(--paper); padding: 4px 12px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase;
+    }
+
+    .candles { width: 100%; height: 64px; margin-top: 20px; }
+    .cn { fill: var(--up); }
+    .cp { fill: var(--down); }
+    @keyframes candleRise {
+      from { transform: scaleY(0); transform-origin: center; }
+      to   { transform: scaleY(1); }
+    }
+    .candles.in rect { animation: candleRise .5s cubic-bezier(.2,.7,.2,1) both; }
+    .candles.in rect:nth-child(1)  { animation-delay: 0.00s; }
+    .candles.in rect:nth-child(2)  { animation-delay: 0.06s; }
+    .candles.in rect:nth-child(3)  { animation-delay: 0.12s; }
+    .candles.in rect:nth-child(4)  { animation-delay: 0.18s; }
+    .candles.in rect:nth-child(5)  { animation-delay: 0.24s; }
+    .candles.in rect:nth-child(6)  { animation-delay: 0.30s; }
+    .candles.in rect:nth-child(7)  { animation-delay: 0.36s; }
+    .candles.in rect:nth-child(8)  { animation-delay: 0.42s; }
+    .candles.in rect:nth-child(9)  { animation-delay: 0.48s; }
+    .candles.in rect:nth-child(10) { animation-delay: 0.54s; }
+    .candles.in rect:nth-child(11) { animation-delay: 0.60s; }
+    .candles.in rect:nth-child(12) { animation-delay: 0.66s; }
+
+    .score-bars { margin-top: 18px; display: grid; gap: 8px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+    .score-bars .row { display: grid; grid-template-columns: 82px 1fr 28px; gap: 10px; align-items: center; }
+    .score-bars .b { height: 7px; background: var(--paper); border: 1px solid var(--rule); position: relative; }
+    .score-bars .b i {
+      position: absolute; inset: 0 auto 0 0; background: var(--up);
+      width: 0; transition: width 1.2s cubic-bezier(.2,.7,.2,1);
+    }
+    .score-card.in .score-bars .b i { width: var(--w); }
+
+    /* ─── Telegram phone mock (Hero right) ─── */
+    .tg-phone {
+      background: var(--paper); border: 1px solid var(--ink);
+      box-shadow: 8px 8px 0 var(--ink);
+      display: flex; flex-direction: column;
+      position: relative;
+    }
+    .phone-hdr {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 18px; background: var(--ink); color: var(--paper);
+      border-bottom: 1px solid var(--ink);
+    }
+    .phone-hdr-l { display: flex; align-items: center; gap: 12px; }
+    .avatar {
+      width: 34px; height: 34px; background: var(--up); color: var(--paper);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 13px;
+      border-radius: 50%;
+    }
+    .hdr-name { font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+    .hdr-sub  { font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #b8b6a8; display: flex; align-items: center; gap: 6px; margin-top: 2px; }
+    .dot-live { width: 6px; height: 6px; background: var(--up); border-radius: 50%; animation: blink 1.8s infinite; }
+
+    .phone-body {
+      padding: 18px 16px; background: var(--paper-2);
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .date-chip {
+      align-self: center; background: var(--paper); border: 1px solid var(--rule);
+      padding: 4px 12px; font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+      letter-spacing: 0.1em; color: var(--ink-2); margin-bottom: 4px;
+    }
+
+    .bubble {
+      max-width: 94%; padding: 10px 14px; font-size: 13px; line-height: 1.5;
+      background: var(--paper); border: 1px solid var(--rule);
+    }
+    .bubble.bot  { align-self: flex-start; border-radius: 2px 12px 12px 12px; }
+    .bubble.user {
+      align-self: flex-end; background: var(--ink); color: var(--paper);
+      border-color: var(--ink); border-radius: 12px 2px 12px 12px;
+      font-size: 12.5px;
+    }
+    .bubble-meta { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: var(--up); font-weight: 600; margin-bottom: 6px; display: block; }
+    .bubble-txt { margin-top: 6px; color: var(--ink-2); font-size: 12.5px; }
+    .bubble strong { color: var(--ink); font-weight: 700; }
+
+    .bubble.priority {
+      max-width: 100%; padding: 12px 14px 10px;
+      border-color: var(--ink); box-shadow: 3px 3px 0 var(--ink);
+    }
+    .prio {
+      display: flex; align-items: baseline; gap: 10px; padding-bottom: 8px;
+      border-bottom: 1px dashed var(--rule); margin-bottom: 10px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px;
+    }
+    .prio-no { font-weight: 800; letter-spacing: 0.06em; }
+    .prio-no.up   { color: var(--up); }
+    .prio-no.down { color: var(--down); }
+    .prio-sym { font-weight: 700; font-size: 13px; letter-spacing: 0.04em; color: var(--ink); }
+    .prio-chg { margin-left: auto; font-size: 10.5px; }
+    .prio-chg.up   { color: var(--up); }
+    .prio-chg.down { color: var(--down); }
+
+    .mini-card { }
+    .mini-card .big-num {
+      font-size: 52px; font-weight: 900; letter-spacing: -0.045em; line-height: 0.92;
+      font-variant-numeric: tabular-nums; margin-top: 4px;
+    }
+    .mini-card .big-num em {
+      font-family: 'Instrument Serif', serif; font-style: italic; color: var(--up);
+      font-weight: 400; font-size: 0.3em; letter-spacing: 0;
+    }
+    .mini-card .verdict {
+      display: inline-block; margin-top: 6px;
+      background: var(--up); color: var(--paper); padding: 3px 10px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    }
+    .mini-card .candles { height: 40px; margin-top: 14px; }
+    .mini-card .score-bars { margin-top: 10px; gap: 6px; font-size: 10.5px; }
+    .mini-card .score-bars .row { grid-template-columns: 78px 1fr 22px; gap: 8px; }
+    .mini-card .score-bars .b { height: 6px; background: var(--paper-2); border: 0; }
+    .tg-phone.in .mini-card .score-bars .b i { width: var(--w); }
+
+    .tap-row { display: flex; gap: 8px; margin-top: 12px; }
+    .tap {
+      flex: 1; padding: 8px 10px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+      letter-spacing: 0.14em; text-transform: uppercase;
+      background: var(--ink); color: var(--paper); border: 1px solid var(--ink);
+      cursor: pointer; transition: all .2s; font-weight: 600;
+    }
+    .tap:hover { background: var(--up); border-color: var(--up); }
+    .tap.alt { background: var(--paper); color: var(--ink); }
+    .tap.alt:hover { background: var(--ink); color: var(--paper); }
+
+    .typing {
+      display: inline-flex; gap: 5px; align-self: flex-start;
+      padding: 10px 14px; background: var(--paper); border: 1px solid var(--rule);
+      border-radius: 2px 12px 12px 12px;
+    }
+    .typing span {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--mute);
+      animation: bob 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.30s; }
+    @keyframes bob {
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    /* bubble staggered enter (legacy static) */
+    .b-in { opacity: 0; transform: translateY(10px); }
+    .tg-phone.in .b-in {
+      animation: bubble-in .55s cubic-bezier(.2,.7,.2,1) forwards;
+      animation-delay: var(--delay, 0s);
+    }
+    @keyframes bubble-in {
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* dynamic chat stream entry — JS-driven */
+    .b-enter { opacity: 0; transform: translateY(14px) scale(0.98); transition: opacity .5s cubic-bezier(.2,.7,.2,1), transform .5s cubic-bezier(.2,.7,.2,1); }
+    .b-enter.b-in-now { opacity: 1; transform: translateY(0) scale(1); }
+    .phone-body .date-chip.b-enter { transform: translateY(6px); }
+
+    /* ─── Pain list — numbered editorial ─── */
+    .pain-list { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; margin-top: 40px; }
+    .pain-list > li {
+      list-style: none; padding: 28px 20px 20px 0; border-right: 1px solid var(--rule);
+      cursor: default; transition: background .25s ease;
+    }
+    .pain-list > li:hover { background: var(--paper); }
+    .pain-list > li:last-child { border-right: 0; }
+    .pain-list .num { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--down); letter-spacing: 0.15em; margin-bottom: 14px; display: flex; align-items: center; gap: 6px; }
+    .pain-list .num::before { content: '▼'; font-size: 10px; }
+    .pain-list .txt { font-size: 15px; line-height: 1.35; font-weight: 500; }
+    .pain-list .txt strong { font-weight: 800; }
+    .pain-list > li:last-child .num { color: var(--up); }
+    .pain-list > li:last-child .num::before { content: '▲'; }
+    @media (max-width: 900px) { .pain-list { grid-template-columns: 1fr 1fr; } .pain-list > li { border-right: 0; border-bottom: 1px solid var(--rule); } }
+
+    /* ─── Pillars · Bold Signal colored blocks ─── */
+    .pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 56px; }
+    @media (max-width: 900px) { .pillars { grid-template-columns: 1fr; } }
+    .pillar {
+      padding: 32px; border: 1px solid var(--ink);
+      transition: transform .3s cubic-bezier(.2,.7,.2,1), box-shadow .3s ease;
+      position: relative; overflow: hidden;
+    }
+    .pillar:hover { transform: translateY(-6px); box-shadow: 8px 8px 0 var(--ink); }
+    .pillar .no { font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400; font-size: 88px; letter-spacing: -0.04em; line-height: 0.8; }
+    .pillar h3 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin: 14px 0 12px; line-height: 1.08; }
+    .pillar p { font-size: 15px; color: var(--ink-2); }
+    .pillar .tag {
+      display: inline-block; margin-top: 18px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.2em;
+      text-transform: uppercase; padding: 4px 9px;
+      background: var(--paper); border: 1px solid var(--ink); font-weight: 600;
+    }
+    .pillar.c-knows     { background: var(--cobalt-s);  }
+    .pillar.c-knows .no { color: var(--cobalt); }
+    .pillar.c-mem       { background: var(--amber-s); }
+    .pillar.c-mem .no   { color: var(--amber); }
+    .pillar.c-msg       { background: var(--up-soft); }
+    .pillar.c-msg .no   { color: var(--up); }
+
+    /* ─── 10-dim weights (Swiss bar chart, animated) ─── */
+    .weights { margin-top: 40px; }
+    .weights .row {
+      display: grid; grid-template-columns: 36px 180px 1fr 56px; gap: 16px;
+      align-items: center; padding: 14px 0; border-bottom: 1px solid #2a2d2b;
+    }
+    .weights .row .no  { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #868880; }
+    .weights .row .lbl { font-size: 15px; font-weight: 600; }
+    .weights .row .bar { position: relative; height: 10px; background: #2a2d2b; overflow: hidden; }
+    .weights .row .bar i {
+      position: absolute; inset: 0 auto 0 0; background: #72d8a7;
+      width: 0; transition: width 1.1s cubic-bezier(.2,.7,.2,1);
+    }
+    .weights.in .row .bar i { width: var(--w); }
+    .weights .row .pct { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; color: #72d8a7; }
+    @media (max-width: 700px) {
+      .weights .row { grid-template-columns: 28px 1fr 56px; grid-template-areas: "no lbl pct" "no bar bar"; }
+      .weights .row .no  { grid-area: no; }
+      .weights .row .lbl { grid-area: lbl; }
+      .weights .row .bar { grid-area: bar; }
+      .weights .row .pct { grid-area: pct; }
+    }
+
+    /* ─── Terminal demo panel ─── */
+    .term {
+      background: var(--ink); color: #eae8dc; padding: 24px 28px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 13px; line-height: 1.75;
+      border: 1px solid var(--ink);
+      position: relative; overflow: hidden;
+    }
+    .term .prompt { color: #72d8a7; }
+    .term .mute   { color: #868880; }
+    .term .ok     { color: #72d8a7; }
+    .term .warn   { color: #e8a262; }
+    .term .down   { color: #ff8a87; }
+    .term .cursor::after {
+      content: '▊'; color: #72d8a7; animation: blink 1s infinite;
+      margin-left: 2px;
+    }
+
+    /* ─── Heatmap (market semantics) ─── */
+    .heatmap {
+      display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px;
+      margin-top: 28px;
+    }
+    .heatmap .cell {
+      aspect-ratio: 1; position: relative;
+      font-family: 'IBM Plex Mono', monospace; font-size: 9px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; font-weight: 600;
+      transform: scale(0); transition: transform .4s cubic-bezier(.2,.7,.2,1);
+    }
+    .heatmap.in .cell { transform: scale(1); }
+    .heatmap.in .cell:nth-child(2n)  { transition-delay: 0.04s; }
+    .heatmap.in .cell:nth-child(3n)  { transition-delay: 0.08s; }
+    .heatmap.in .cell:nth-child(4n)  { transition-delay: 0.12s; }
+    .heatmap.in .cell:nth-child(5n)  { transition-delay: 0.16s; }
+    .heatmap.in .cell:nth-child(6n)  { transition-delay: 0.20s; }
+    .heatmap.in .cell:nth-child(7n)  { transition-delay: 0.24s; }
+    .heatmap .cell.u1 { background: #d4ebdd; color: #0a4530; }
+    .heatmap .cell.u2 { background: #72c896; color: #0a4530; }
+    .heatmap .cell.u3 { background: var(--up); }
+    .heatmap .cell.d1 { background: #f5dcda; color: #5a1210; }
+    .heatmap .cell.d2 { background: #e68a87; color: #fff; }
+    .heatmap .cell.d3 { background: var(--down); }
+    .heatmap .cell .t { opacity: 0.85; font-size: 8px; }
+    .heatmap .cell .t.count-tick { transition: color 0.4s ease; }
+
+    /* subtle breathing — all cells pulse slightly out of sync */
+    .heatmap.in .cell { animation: cell-breathe 4s ease-in-out infinite; }
+    .heatmap.in .cell:nth-child(3n+1) { animation-delay: 0s; }
+    .heatmap.in .cell:nth-child(3n+2) { animation-delay: 1.3s; }
+    .heatmap.in .cell:nth-child(3n+3) { animation-delay: 2.6s; }
+    @keyframes cell-breathe {
+      0%, 100% { opacity: 0.94; }
+      50%      { opacity: 1.00; }
+    }
+
+    /* flash when a cell's number updates */
+    .heatmap .cell.flash-up,
+    .count-seats.flash-up   { animation: flash-up   .7s ease; }
+    .heatmap .cell.flash-down,
+    .count-seats.flash-down { animation: flash-down .7s ease; }
+    @keyframes flash-up {
+      0%   { box-shadow: 0 0 0 0 rgba(10,148,84,0); }
+      30%  { box-shadow: 0 0 0 3px rgba(20,184,106,.8), 0 0 14px 2px rgba(20,184,106,.6); transform: scale(1.04); }
+      100% { box-shadow: 0 0 0 0 rgba(10,148,84,0); transform: scale(1); }
+    }
+    @keyframes flash-down {
+      0%   { box-shadow: 0 0 0 0 rgba(201,51,48,0); }
+      30%  { box-shadow: 0 0 0 3px rgba(201,51,48,.8), 0 0 14px 2px rgba(201,51,48,.6); transform: scale(1.04); }
+      100% { box-shadow: 0 0 0 0 rgba(201,51,48,0); transform: scale(1); }
+    }
+
+    /* adv/dec counters in heatmap header (tabular numerics) */
+    .adv-dec { font-variant-numeric: tabular-nums; }
+    .adv-dec .adv { color: var(--up); }
+    .adv-dec .dec { color: var(--down); }
+
+    /* chat bubbles scroll away when too many */
+    .phone-body {
+      max-height: 620px; overflow: hidden;
+      position: relative;
+      scroll-behavior: smooth;
+    }
+    .phone-body::before {
+      content: ''; position: absolute; top: 40px; left: 0; right: 0; height: 24px;
+      background: linear-gradient(var(--paper-2), transparent);
+      pointer-events: none; z-index: 2;
+    }
+    .phone-body .bubble.fading,
+    .tg-chat .bubble.fading,
+    .tg-chat .date-chip.fading,
+    .tg-chat .typing.fading { animation: bubble-fade-up .8s ease forwards; }
+    @keyframes bubble-fade-up {
+      to { opacity: 0; transform: translateY(-16px); max-height: 0; margin: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+    }
+
+    /* highlight emphasis on display h1 serif word — "ranked" glow */
+    .serif.hl {
+      position: relative; display: inline-block;
+    }
+    .serif.hl::after {
+      content: ''; position: absolute; left: 2%; right: 2%; bottom: 6%;
+      height: 16%; background: var(--up-glow); z-index: -1;
+      transform: skewX(-6deg);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · iPhone frame + Telegram iOS UI
+       ═══════════════════════════════════════════════════════════════ */
+    :root {
+      --tg-blue: #3390ec;
+      --tg-msg-bg: #e7ebf0;
+      --tg-msg-user: #dceeff;
+      --tg-chat-bg: #f1ece3;
+      --tg-nav-blur: rgba(244,241,234,0.88);
+    }
+
+    .iphone-wrap { display: flex; justify-content: center; position: relative; }
+    .iphone {
+      position: relative;
+      width: 100%; max-width: 380px;
+      background: #0a0c10;
+      border-radius: 50px;
+      padding: 11px;
+      box-shadow:
+        inset 0 0 0 2px #1a1d24,
+        inset 0 0 0 4px #2a2d35,
+        0 0 0 1px rgba(0,0,0,0.08),
+        30px 40px 80px -20px rgba(0,0,0,0.35),
+        15px 20px 40px -10px rgba(0,0,0,0.18),
+        -4px 4px 16px -4px rgba(0,0,0,0.1);
+      height: 720px;
+    }
+    .iphone::before,
+    .iphone::after {
+      content: ''; position: absolute;
+      background: #2a2d35; left: -2px; width: 2px;
+    }
+    .iphone::before { top: 112px; height: 28px; }
+    .iphone::after  { top: 160px; height: 62px; }
+
+    .iphone-screen {
+      width: 100%; height: 100%;
+      background: var(--tg-chat-bg);
+      border-radius: 46px;
+      overflow: hidden;
+      position: relative;
+    }
+    .dynamic-island {
+      position: absolute; top: 11px; left: 50%;
+      transform: translateX(-50%);
+      width: 120px; height: 35px;
+      background: #000; border-radius: 20px;
+      z-index: 20;
+    }
+    .dynamic-island::after {
+      content: ''; position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+      width: 10px; height: 10px; background: #1a1c20;
+      border-radius: 50%; box-shadow: inset 0 0 0 2px #2a2d33;
+    }
+
+    .status-bar {
+      position: absolute; top: 0; left: 0; right: 0;
+      height: 56px; z-index: 15;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 18px 32px 0 32px;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+      font-size: 15px; font-weight: 600; color: #000;
+      letter-spacing: -0.02em;
+    }
+    .status-icons { display: inline-flex; gap: 5px; align-items: center; }
+    .status-icons svg { display: block; }
+
+    /* Telegram iOS topbar */
+    .tg-topbar {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 10;
+      height: 108px; padding: 56px 12px 10px;
+      background: var(--tg-nav-blur);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex; align-items: center; gap: 10px;
+      border-bottom: 0.5px solid rgba(0,0,0,0.08);
+    }
+    .tg-back {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      font-size: 24px; color: var(--tg-blue); font-weight: 300; line-height: 1;
+      padding: 0 4px 0 6px;
+    }
+    .tg-back sup { font-size: 11px; font-weight: 600; color: var(--tg-blue); background: #fff; border-radius: 9px; padding: 1px 5px; margin-left: 3px; vertical-align: middle; }
+    .tg-title-info {
+      flex: 1; text-align: center;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .tg-title-info .tit { font-size: 16px; font-weight: 600; color: #000; letter-spacing: -0.02em; line-height: 1.2; }
+    .tg-title-info .sub { font-size: 12px; color: #8e8e93; margin-top: 2px; display: inline-flex; align-items: center; gap: 4px; }
+    .tg-avatar-group {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, #0a9454, #14b86a);
+      border-radius: 50%; display: grid; place-items: center;
+      color: white; font-weight: 700; font-size: 13px;
+      font-family: -apple-system, sans-serif; letter-spacing: -0.02em;
+    }
+    .tg-topbar .menu { font-size: 20px; color: var(--tg-blue); padding: 0 6px; cursor: pointer; }
+
+    /* chat area scroll */
+    .tg-chat {
+      position: absolute; top: 108px; bottom: 78px; left: 0; right: 0;
+      background: var(--tg-chat-bg);
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(10,148,84,0.03) 0, transparent 50%),
+        radial-gradient(circle at 80% 80%, rgba(10,148,84,0.03) 0, transparent 50%);
+      overflow: hidden;
+      padding: 14px 12px 8px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    .tg-chat .date-chip {
+      align-self: center; background: rgba(10,12,16,0.18); color: white;
+      padding: 3px 12px; border-radius: 12px;
+      font-family: -apple-system, sans-serif; font-size: 11px; font-weight: 600;
+      letter-spacing: 0; text-transform: none;
+      margin-bottom: 4px;
+    }
+
+    /* Telegram bubbles (iOS style) */
+    .tg-chat .bubble {
+      max-width: 84%; padding: 8px 12px 8px 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+      font-size: 14px; line-height: 1.35;
+      background: #ffffff; color: #000;
+      border: 0; border-radius: 16px;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+      position: relative;
+      letter-spacing: -0.01em;
+    }
+    .tg-chat .bubble.bot  { align-self: flex-start; border-bottom-left-radius: 4px; }
+    .tg-chat .bubble.user {
+      align-self: flex-end; background: linear-gradient(135deg, #3390ec, #1e7be3);
+      color: #fff; border-bottom-right-radius: 4px;
+      box-shadow: 0 1px 2px rgba(51,144,236,0.25);
+    }
+    .tg-chat .bubble.user strong { color: #fff; }
+    .tg-chat .bubble-meta {
+      font-family: -apple-system, sans-serif; font-size: 12px; font-weight: 600;
+      color: var(--up); margin-bottom: 4px; display: block;
+      letter-spacing: -0.01em; text-transform: none;
+    }
+    .tg-chat .bubble.priority {
+      max-width: 94%; padding: 10px 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+    }
+    .tg-chat .prio {
+      padding-bottom: 8px; margin-bottom: 10px;
+      border-bottom: 0.5px solid rgba(0,0,0,0.08);
+      font-family: -apple-system, sans-serif; font-size: 12px;
+      display: flex; align-items: baseline; gap: 8px;
+    }
+    .tg-chat .prio-no { font-weight: 700; letter-spacing: -0.01em; }
+    .tg-chat .prio-no.up   { color: var(--up); }
+    .tg-chat .prio-no.down { color: var(--down); }
+    .tg-chat .prio-sym { font-weight: 700; font-size: 14px; color: #000; }
+    .tg-chat .prio-chg { margin-left: auto; font-size: 11px; font-weight: 500; }
+    .tg-chat .prio-chg.up   { color: var(--up); }
+    .tg-chat .prio-chg.down { color: var(--down); }
+    .tg-chat .bubble-txt { color: #000; font-size: 13px; }
+
+    /* time tag bottom-right in bubble */
+    .tg-chat .bubble .tstamp {
+      float: right; font-family: -apple-system, sans-serif;
+      font-size: 10px; color: #8e8e93; margin: 3px 0 -2px 8px;
+    }
+    .tg-chat .bubble.user .tstamp { color: rgba(255,255,255,0.8); }
+    .tg-chat .bubble.user .tstamp::after { content: ' ✓✓'; color: rgba(255,255,255,0.9); }
+
+    /* mini-card inside priority bubble (keep structure) */
+    .tg-chat .mini-card { font-family: -apple-system, sans-serif; }
+    .tg-chat .mini-card .big-num { font-size: 44px; color: #000; }
+    .tg-chat .mini-card .big-num em { color: #8e8e93; }
+    .tg-chat .mini-card .verdict {
+      background: var(--up); color: white; padding: 2px 8px;
+      font-family: -apple-system, sans-serif; font-size: 10px;
+      letter-spacing: 0; text-transform: uppercase; font-weight: 600;
+      border-radius: 4px;
+    }
+    .tg-chat .mini-card .score-bars { font-family: -apple-system, sans-serif; font-size: 10.5px; }
+    .tg-chat .mini-card .score-bars .b { background: #e7ebf0; }
+    .tg-chat .mini-card .score-bars .b i { background: var(--up); }
+    .tg-chat .mini-card .candles { height: 38px; }
+
+    /* inline reply buttons (iOS style chip) */
+    .tg-chat .tap-row { gap: 6px; margin-top: 10px; }
+    .tg-chat .tap {
+      flex: 1; padding: 9px 10px;
+      font-family: -apple-system, sans-serif; font-size: 12px;
+      letter-spacing: -0.01em; text-transform: none;
+      background: #f0f3f7; color: var(--tg-blue); border: 0;
+      border-radius: 10px; font-weight: 600;
+    }
+    .tg-chat .tap.alt { background: transparent; color: #8e8e93; }
+
+    /* typing (iOS style animated) */
+    .tg-chat .typing {
+      background: white; border: 0; border-radius: 16px 16px 16px 4px;
+      padding: 10px 14px; box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+    }
+    .tg-chat .typing span { background: #8e8e93; width: 5px; height: 5px; }
+
+    /* Input bar */
+    .tg-inputbar {
+      position: absolute; bottom: 0; left: 0; right: 0; z-index: 10;
+      height: 78px; padding: 8px 10px 30px;
+      background: var(--tg-nav-blur);
+      backdrop-filter: blur(20px);
+      border-top: 0.5px solid rgba(0,0,0,0.08);
+      display: flex; gap: 8px; align-items: center;
+    }
+    .tg-inputbar .attach, .tg-inputbar .mic {
+      width: 32px; height: 32px; display: grid; place-items: center;
+      color: var(--tg-blue); font-size: 22px; cursor: pointer;
+    }
+    .tg-inputbar .input {
+      flex: 1; height: 36px; border-radius: 18px;
+      background: rgba(255,255,255,0.8); border: 0.5px solid rgba(0,0,0,0.06);
+      display: flex; align-items: center; padding: 0 14px;
+      color: #8e8e93; font-size: 13px;
+      font-family: -apple-system, sans-serif;
+    }
+    .tg-inputbar .input .blink-cur {
+      display: inline-block; width: 1.5px; height: 16px; background: var(--tg-blue);
+      margin-right: 2px; animation: tg-blink 1.1s infinite;
+    }
+    @keyframes tg-blink { 50% { opacity: 0; } }
+
+    .home-indicator {
+      position: absolute; bottom: 8px; left: 50%;
+      transform: translateX(-50%);
+      width: 134px; height: 5px;
+      background: #000; border-radius: 3px; z-index: 15;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · Market Pulse (Block 1B · independent heatmap showcase)
+       ═══════════════════════════════════════════════════════════════ */
+    section.market-pulse { background: var(--ink); color: #eae8dc; padding: 88px 0; }
+    section.market-pulse .kicker { color: #72d8a7; }
+    section.market-pulse .section-no { color: #8a8b85; }
+    section.market-pulse h2 { color: #eae8dc; }
+    .pulse-head {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      gap: 24px; flex-wrap: wrap; margin-bottom: 32px;
+    }
+    .pulse-head .lhs { max-width: 620px; }
+    .pulse-head .rhs {
+      font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+      color: #8a8b85; text-align: right;
+    }
+    .pulse-head .rhs .live-row { display: flex; gap: 14px; align-items: center; justify-content: flex-end; }
+    .pulse-head .rhs .live-dot { width: 8px; height: 8px; background: #72d8a7; border-radius: 50%; animation: blink 1.4s infinite; }
+    .pulse-head .rhs .adv-dec-big { font-size: 16px; font-weight: 600; color: #eae8dc; letter-spacing: 0.04em; margin-top: 4px; }
+    .pulse-head .rhs .adv-dec-big .adv { color: #14b86a; }
+    .pulse-head .rhs .adv-dec-big .dec { color: #ff8a87; }
+
+    .pulse-map {
+      display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px;
+      margin-top: 20px;
+    }
+    .pulse-map .cell {
+      aspect-ratio: 1.2; position: relative;
+      font-family: 'IBM Plex Mono', monospace;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; font-weight: 600;
+      transform: scale(0);
+      transition: transform .4s cubic-bezier(.2,.7,.2,1);
+      cursor: default;
+    }
+    .pulse-map.in .cell { transform: scale(1); }
+    .pulse-map.in .cell:nth-child(2n)  { transition-delay: 0.04s; }
+    .pulse-map.in .cell:nth-child(3n)  { transition-delay: 0.08s; }
+    .pulse-map.in .cell:nth-child(4n)  { transition-delay: 0.12s; }
+    .pulse-map.in .cell:nth-child(5n)  { transition-delay: 0.16s; }
+    .pulse-map.in .cell:nth-child(6n)  { transition-delay: 0.20s; }
+    .pulse-map.in .cell:nth-child(7n)  { transition-delay: 0.24s; }
+    .pulse-map .cell.u1 { background: #1a5537; color: #a8e8c4; }
+    .pulse-map .cell.u2 { background: #0a9454; color: #fff; }
+    .pulse-map .cell.u3 { background: #14b86a; color: #fff; }
+    .pulse-map .cell.d1 { background: #5a1e1d; color: #f5a09d; }
+    .pulse-map .cell.d2 { background: #c93330; color: #fff; }
+    .pulse-map .cell.d3 { background: #ff4843; color: #fff; }
+    .pulse-map .cell .sym { font-size: 10px; letter-spacing: 0.02em; font-weight: 700; }
+    .pulse-map .cell .t   { font-size: 10px; margin-top: 2px; opacity: 0.92; }
+    .pulse-map.in .cell { animation: cell-breathe 4s ease-in-out infinite; }
+    .pulse-map.in .cell:nth-child(3n+1) { animation-delay: 0s; }
+    .pulse-map.in .cell:nth-child(3n+2) { animation-delay: 1.3s; }
+    .pulse-map.in .cell:nth-child(3n+3) { animation-delay: 2.6s; }
+    .pulse-map .cell.flash-up   { animation: flash-up-dk   .7s ease; }
+    .pulse-map .cell.flash-down { animation: flash-down-dk .7s ease; }
+    @keyframes flash-up-dk {
+      0%   { box-shadow: 0 0 0 0 rgba(20,184,106,0); }
+      30%  { box-shadow: 0 0 0 3px rgba(20,184,106,.8), 0 0 16px 3px rgba(20,184,106,.5); transform: scale(1.08); }
+      100% { box-shadow: 0 0 0 0 rgba(20,184,106,0); transform: scale(1); }
+    }
+    @keyframes flash-down-dk {
+      0%   { box-shadow: 0 0 0 0 rgba(255,72,67,0); }
+      30%  { box-shadow: 0 0 0 3px rgba(255,72,67,.8), 0 0 16px 3px rgba(255,72,67,.5); transform: scale(1.08); }
+      100% { box-shadow: 0 0 0 0 rgba(255,72,67,0); transform: scale(1); }
+    }
+    .pulse-legend {
+      display: flex; gap: 16px; justify-content: center; margin-top: 28px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8a8b85;
+    }
+    .pulse-legend .scale { display: inline-flex; align-items: center; gap: 4px; }
+    .pulse-legend .sw { width: 14px; height: 14px; display: inline-block; }
+    .pulse-legend .sw.d3{ background:#ff4843; } .pulse-legend .sw.d2{ background:#c93330; } .pulse-legend .sw.d1{ background:#5a1e1d; }
+    .pulse-legend .sw.u1{ background:#1a5537; } .pulse-legend .sw.u2{ background:#0a9454; } .pulse-legend .sw.u3{ background:#14b86a; }
+
+    .pulse-footer {
+      margin-top: 32px; display: flex; justify-content: space-between;
+      gap: 24px; flex-wrap: wrap; padding-top: 24px;
+      border-top: 1px solid #2a2d2b;
+      font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #8a8b85;
+    }
+    .pulse-footer em { font-family: 'Instrument Serif', serif; font-style: italic; color: #eae8dc; font-size: 15px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.5 · Pipeline (3 steps: Scan → Score → Rank & Push)
+       ═══════════════════════════════════════════════════════════════ */
+    .pipeline {
+      display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px;
+      margin-top: 36px; position: relative;
+    }
+    @media (max-width: 1000px) { .pipeline { grid-template-columns: 1fr; gap: 32px; } }
+
+    .p-step {
+      background: #121414; border: 1px solid #2a2d2b;
+      padding: 24px; display: flex; flex-direction: column; gap: 18px;
+      position: relative; transition: border-color .3s, transform .3s;
+    }
+    .p-step:hover { border-color: #72d8a7; transform: translateY(-4px); }
+    .p-step-head { display: flex; gap: 14px; align-items: flex-start; }
+    .p-num {
+      font-family: 'Instrument Serif', serif; font-style: italic;
+      font-size: 56px; font-weight: 400; color: #72d8a7;
+      line-height: 0.8; letter-spacing: -0.04em;
+    }
+    .p-title { font-family: 'Inter', sans-serif; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: #eae8dc; margin-top: 2px; }
+    .p-sub   { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8a8b85; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+
+    .p-visual {
+      background: #0a0c0b; border: 1px solid #2a2d2b;
+      padding: 14px; flex: 1; overflow: hidden;
+      min-height: 260px; display: flex; align-items: stretch;
+    }
+    /* shrink pulse-map inside step 1 preview */
+    .p-step[data-step="1"] .p-visual { padding: 8px; }
+    .p-step[data-step="1"] .pulse-map {
+      display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px;
+      width: 100%; margin: 0;
+    }
+    .p-step[data-step="1"] .pulse-map .cell {
+      aspect-ratio: 1.5; font-size: 8px;
+    }
+    .p-step[data-step="1"] .pulse-map .cell .sym { font-size: 8px; font-weight: 700; }
+    .p-step[data-step="1"] .pulse-map .cell .t   { font-size: 7.5px; }
+
+    .p-footer {
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8a8b85;
+      letter-spacing: 0.04em; line-height: 1.5;
+    }
+
+    /* STEP 2 · Score matrix */
+    .score-matrix { flex: 1; display: flex; flex-direction: column; gap: 8px; width: 100%; }
+    .sm-row {
+      display: grid; grid-template-columns: 60px 1fr 44px; gap: 10px;
+      align-items: center;
+      font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+    }
+    .sm-row.dim { opacity: 0.45; }
+    .sm-ticker { color: #eae8dc; font-weight: 600; letter-spacing: 0.02em; }
+    .sm-bar {
+      position: relative; height: 8px; background: #2a2d2b;
+    }
+    .sm-bar i {
+      position: absolute; inset: 0 auto 0 0; background: #72d8a7;
+      width: 0; transition: width 1.2s cubic-bezier(.2,.7,.2,1);
+    }
+    .pipeline.in .sm-bar i { width: var(--w); }
+    .sm-score { text-align: right; font-weight: 700; font-size: 13px; color: #c4c2b4; font-variant-numeric: tabular-nums; }
+    .sm-score.up   { color: #72d8a7; }
+    .sm-score.warn { color: #e8a262; }
+
+    /* STEP 3 · Telegram push card */
+    .push-card {
+      background: white; color: #000; padding: 14px 16px; width: 100%;
+      border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+      font-family: -apple-system, 'SF Pro Text', sans-serif;
+      display: flex; flex-direction: column; gap: 10px;
+      align-self: flex-start;
+    }
+    .push-hdr { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .tg-ico { width: 22px; height: 22px; background: var(--tg-blue); color: white; border-radius: 50%; display: grid; place-items: center; font-size: 11px; }
+    .tg-name { font-weight: 700; color: #000; }
+    .push-time { margin-left: auto; color: #8e8e93; font-size: 11px; }
+    .push-title { font-size: 13px; font-weight: 600; color: #000; line-height: 1.3; }
+    .push-rank { display: flex; flex-direction: column; gap: 6px; }
+    .rank-row {
+      display: grid; grid-template-columns: 52px 1fr auto; gap: 8px;
+      padding: 6px 10px; background: #f5f6fa; border-radius: 6px;
+      font-size: 12px; align-items: center;
+    }
+    .rk { font-family: 'IBM Plex Mono', monospace; font-weight: 700; font-size: 10px; letter-spacing: 0.04em; }
+    .rk.up   { color: #0a9454; }
+    .rk.down { color: #c93330; }
+    .rk-sym { font-weight: 700; color: #000; }
+    .rk-score { color: #8e8e93; font-family: 'IBM Plex Mono', monospace; font-size: 10px; text-align: right; }
+    .push-cta {
+      background: var(--tg-blue); color: white; padding: 8px 10px; text-align: center;
+      font-size: 11px; font-weight: 600; border-radius: 6px; letter-spacing: -0.01em;
+    }
+
+    /* pipeline arrows (desktop overlay between cards) */
+    .pipeline-arrows {
+      position: absolute; top: 86px; left: 0; right: 0; height: 16px;
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      pointer-events: none; padding: 0 10px;
+    }
+    .pipeline-arrows svg {
+      width: 40px; height: 16px; justify-self: end; margin-right: -30px;
+      opacity: 0.6;
+    }
+    @media (max-width: 1000px) { .pipeline-arrows { display: none; } }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.5 · Stat inset serif refinement (73% no longer shouty)
+       ═══════════════════════════════════════════════════════════════ */
+    .stat-inset .pct {
+      font-family: 'Instrument Serif', Georgia, serif;
+      font-style: italic; font-weight: 400;
+      font-size: 88px; letter-spacing: -0.035em; line-height: 0.92;
+    }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.5 · Demo 3-up column layout (no more hidden tabs)
+       ═══════════════════════════════════════════════════════════════ */
+    .modes-3col {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;
+      margin-top: 40px;
+    }
+    @media (max-width: 1100px) { .modes-3col { grid-template-columns: 1fr; gap: 28px; } }
+    .mode-card {
+      background: var(--paper); border: 1px solid var(--ink);
+      padding: 28px 24px; display: flex; flex-direction: column; gap: 16px;
+      transition: transform .3s, box-shadow .3s;
+    }
+    .mode-card:hover { transform: translateY(-4px); box-shadow: 8px 8px 0 var(--ink); }
+    .mode-card .m-head { display: flex; gap: 14px; align-items: flex-start; }
+    .mode-card .m-num {
+      font-family: 'Instrument Serif', serif; font-style: italic;
+      font-size: 52px; color: var(--up); line-height: 0.8; letter-spacing: -0.04em;
+    }
+    .mode-card h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin-top: 2px; }
+    .mode-card .m-desc { font-size: 14px; color: var(--ink-2); line-height: 1.5; }
+    .mode-card .m-demo { margin-top: auto; }
+    .mode-card.dark { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+    .mode-card.dark h3 { color: var(--paper); }
+    .mode-card.dark .m-desc { color: #c4c2b4; }
+    .mode-card.dark .m-num { color: #72d8a7; }
+    .mode-card .m-tag {
+      display: inline-block; font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase;
+      padding: 3px 8px; background: var(--paper-2); color: var(--ink-2);
+      font-weight: 700;
+    }
+    .mode-card.dark .m-tag { background: #2a2d2b; color: #c4c2b4; }
+
+    /* shrink terminal inside mode cards */
+    .mode-card .term { padding: 16px; font-size: 11px; line-height: 1.7; }
+    .mode-card .term .spin { width: 8px; height: 8px; }
+    .mode-card .tg-group { padding: 12px; gap: 6px; }
+    .mode-card .tg-group .av { width: 26px; height: 26px; font-size: 11px; }
+    .mode-card .tg-group .msg-body { font-size: 12px; padding: 6px 10px; max-width: 86%; }
+    .mode-card .tg-group .hdl { font-size: 10.5px; }
+    .mode-card .tg-group .time { font-size: 9px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · Pain strip as real social feedback cards
+       ═══════════════════════════════════════════════════════════════ */
+    .social-grid {
+      display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px;
+      margin-top: 48px;
+    }
+    .social-card {
+      background: var(--paper); border: 1px solid var(--rule);
+      padding: 18px 20px 16px; box-shadow: 3px 3px 0 var(--rule);
+      font-size: 14px; line-height: 1.45;
+      transition: transform .25s ease, box-shadow .25s ease;
+      position: relative;
+    }
+    .social-card:hover { transform: translateY(-3px); box-shadow: 5px 5px 0 var(--ink); }
+    .social-card .src {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--mute);
+    }
+    .social-card .av {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: grid; place-items: center;
+      font-weight: 700; color: white;
+      font-family: 'Inter', sans-serif; letter-spacing: -0.02em;
+    }
+    .social-card .src .handle { color: var(--ink); font-weight: 600; letter-spacing: -0.01em; font-size: 13px; font-family: 'Inter', sans-serif; }
+    .social-card .src .platform { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--rule); border-radius: 3px; font-size: 10px; letter-spacing: 0.1em; }
+    .social-card .src .platform.x  { color: #0f1419; }
+    .social-card .src .platform.rd { color: #ff4500; }
+    .social-card .src .platform.hn { color: #ff6600; }
+    .social-card .body { color: var(--ink); font-size: 14.5px; font-weight: 500; }
+    .social-card .body strong { font-weight: 700; }
+    .social-card .meta { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--rule); font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--mute); display: flex; gap: 14px; }
+    .social-card.w4  { grid-column: span 4; }
+    .social-card.w6  { grid-column: span 6; }
+    .social-card.w8  { grid-column: span 8; }
+    @media (max-width: 900px) { .social-card.w4, .social-card.w6, .social-card.w8 { grid-column: span 12; } }
+
+    .stat-inset {
+      grid-column: span 4; background: var(--ink); color: var(--paper);
+      padding: 28px 24px; display: flex; flex-direction: column; justify-content: center;
+      transition: transform .25s ease;
+    }
+    .stat-inset:hover { transform: translateY(-3px); }
+    .stat-inset .pct { font-size: 64px; font-weight: 900; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; color: var(--up-bright); }
+    .stat-inset .desc { font-size: 13px; color: #c4c2b4; margin-top: 14px; line-height: 1.5; }
+    .stat-inset .src { margin-top: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #8a8b85; letter-spacing: 0.1em; text-transform: uppercase; }
+    @media (max-width: 900px) { .stat-inset { grid-column: span 12; } }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · Pillar backgrounds (SVG decorations)
+       ═══════════════════════════════════════════════════════════════ */
+    .pillar .bg-svg {
+      position: absolute; top: 0; right: 0; width: 120px; height: 120px;
+      pointer-events: none; opacity: 0.9;
+    }
+    .pillar .bg-svg svg { width: 100%; height: 100%; display: block; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · Demo tab enhancements · typewriter + progress
+       ═══════════════════════════════════════════════════════════════ */
+    .term .line { display: block; opacity: 0; transform: translateY(4px); transition: all .4s ease; }
+    .term.run .line { opacity: 1; transform: translateY(0); }
+    .term.run .line:nth-child(1) { transition-delay: 0.1s; }
+    .term.run .line:nth-child(2) { transition-delay: 0.5s; }
+    .term.run .line:nth-child(3) { transition-delay: 1.0s; }
+    .term.run .line:nth-child(4) { transition-delay: 1.5s; }
+    .term.run .line:nth-child(5) { transition-delay: 2.0s; }
+    .term.run .line:nth-child(6) { transition-delay: 2.5s; }
+    .term.run .line:nth-child(7) { transition-delay: 3.0s; }
+    .term.run .line:nth-child(8) { transition-delay: 3.5s; }
+    .term .line .spin {
+      display: inline-block; width: 10px; height: 10px;
+      border: 1.5px solid #72d8a7; border-top-color: transparent;
+      border-radius: 50%; animation: term-spin .7s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes term-spin { to { transform: rotate(360deg); } }
+    .term .pill-result {
+      display: inline-block; padding: 2px 8px; border: 1px solid #72d8a7;
+      color: #72d8a7; font-size: 11px; letter-spacing: 0.1em;
+      text-transform: uppercase; margin-left: 6px;
+    }
+
+    /* Community tab mini Telegram group chat */
+    .tg-group {
+      background: var(--tg-chat-bg); padding: 18px 16px;
+      border-radius: 4px; border: 1px solid var(--rule);
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .tg-group .msg { display: flex; gap: 10px; align-items: flex-start; }
+    .tg-group .av {
+      width: 32px; height: 32px; border-radius: 50%;
+      display: grid; place-items: center; color: white; font-weight: 700;
+      font-size: 13px; letter-spacing: -0.02em; flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .tg-group .msg-body {
+      background: white; border-radius: 14px; border-top-left-radius: 4px;
+      padding: 8px 12px; max-width: 76%;
+      box-shadow: 0 1px 1px rgba(0,0,0,0.08);
+      font-size: 13.5px; color: #000; line-height: 1.4;
+    }
+    .tg-group .msg.pin .msg-body {
+      background: #fff8e0; border: 1px solid #f5d486;
+    }
+    .tg-group .hdl {
+      font-size: 12px; font-weight: 700; color: var(--tg-blue); margin-bottom: 2px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .tg-group .hdl .tag {
+      background: var(--up); color: white; padding: 1px 6px; border-radius: 3px;
+      font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .tg-group .hdl .pinned-tag {
+      background: #f5c842; color: #4a3c00; padding: 1px 6px; border-radius: 3px;
+      font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+    }
+    .tg-group .time { font-size: 10px; color: #8e8e93; font-family: -apple-system, sans-serif; margin-top: 4px; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · Pricing urgency
+       ═══════════════════════════════════════════════════════════════ */
+    .founding-banner {
+      background: var(--ink); color: var(--paper); padding: 16px 24px;
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 16px; flex-wrap: wrap;
+      border: 1px solid var(--ink); margin-bottom: 28px;
+    }
+    .founding-banner .fire { font-size: 20px; animation: fire-pulse 1.4s infinite; }
+    @keyframes fire-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+    .founding-banner .body { flex: 1; min-width: 200px; }
+    .founding-banner .body strong { color: var(--up-bright); letter-spacing: -0.01em; }
+    .founding-banner .seats {
+      font-family: 'IBM Plex Mono', monospace; font-size: 13px; display: flex; gap: 10px; align-items: center;
+    }
+    .founding-banner .bar-wrap {
+      width: 140px; height: 8px; background: rgba(255,255,255,0.1); position: relative;
+    }
+    .founding-banner .bar-wrap i {
+      position: absolute; inset: 0 auto 0 0; background: var(--up-bright);
+      width: 0; transition: width 1.2s cubic-bezier(.2,.7,.2,1);
+    }
+    .founding-banner.in .bar-wrap i { width: var(--pct, 72%); }
+    .founding-banner .count-seats { color: var(--up-bright); font-weight: 700; font-variant-numeric: tabular-nums; }
+    .founding-banner .ticker-live { font-size: 11px; color: #c4c2b4; }
+
+    .tier.featured .savings-chip {
+      display: inline-block; background: var(--up-bright); color: var(--ink);
+      padding: 3px 8px; font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px; letter-spacing: 0.1em; font-weight: 700;
+      margin-left: 10px; border-radius: 2px;
+    }
+
+    .recent-joins {
+      margin-top: 16px; font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: var(--mute); text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .recent-joins .dot-live { width: 6px; height: 6px; background: var(--up); border-radius: 50%; display: inline-block; vertical-align: middle; margin-right: 4px; animation: blink 1.4s infinite; }
+    .recent-joins strong { color: var(--ink); font-weight: 700; }
+
+    /* ═══════════════════════════════════════════════════════════════
+       v0.4 · Professional footer
+       ═══════════════════════════════════════════════════════════════ */
+    footer.pro-footer { background: var(--ink); color: #c4c2b4; padding: 72px 0 32px; }
+    footer.pro-footer .wrap { padding: 0 32px; }
+    footer.pro-footer .top-grid {
+      display: grid; grid-template-columns: 1.8fr repeat(5, 1fr); gap: 48px;
+    }
+    @media (max-width: 1000px) { footer.pro-footer .top-grid { grid-template-columns: 1fr 1fr 1fr; gap: 32px; } }
+    footer.pro-footer h4 {
+      font-family: 'IBM Plex Mono', monospace; font-size: 10px;
+      letter-spacing: 0.24em; text-transform: uppercase; color: #8a8b85;
+      margin: 0 0 16px; font-weight: 700;
+    }
+    footer.pro-footer ul { list-style: none; padding: 0; margin: 0; }
+    footer.pro-footer li { margin-bottom: 10px; font-size: 13.5px; line-height: 1.3; }
+    footer.pro-footer li a { color: #dadaca; transition: color .2s; display: inline-flex; align-items: center; gap: 6px; }
+    footer.pro-footer li a:hover { color: var(--up-bright); }
+    footer.pro-footer li .new-chip {
+      background: var(--up); color: white; font-family: 'IBM Plex Mono', monospace;
+      font-size: 9px; padding: 1px 5px; letter-spacing: 0.1em; margin-left: 4px;
+    }
+    footer.pro-footer .brand-blk .logo {
+      font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: white;
+    }
+    footer.pro-footer .brand-blk .logo em { color: var(--up-bright); font-style: normal; }
+    footer.pro-footer .tagline { font-size: 13.5px; color: #8a8b85; margin: 12px 0 20px; max-width: 280px; line-height: 1.5; }
+    footer.pro-footer .socials { display: flex; gap: 10px; }
+    footer.pro-footer .socials a {
+      width: 32px; height: 32px; border: 1px solid #2a2d2b; display: grid; place-items: center;
+      color: #dadaca; font-size: 14px; transition: all .2s;
+    }
+    footer.pro-footer .socials a:hover { background: var(--up-bright); color: var(--ink); border-color: var(--up-bright); }
+
+    .compliance-badges {
+      margin-top: 48px; padding-top: 32px; border-top: 1px solid #2a2d2b;
+      display: flex; gap: 18px; flex-wrap: wrap; justify-content: center;
+      align-items: center;
+    }
+    .compliance-badges .cb {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; border: 1px solid #2a2d2b;
+      font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #8a8b85;
+      letter-spacing: 0.1em;
+    }
+    .compliance-badges .cb strong { color: #dadaca; }
+
+    footer.pro-footer .legal-long {
+      margin-top: 32px; font-size: 11.5px; color: #6f7270; line-height: 1.65;
+      max-width: 1100px;
+    }
+    footer.pro-footer .legal-long p { margin: 0 0 10px; }
+    footer.pro-footer .legal-long strong { color: #c4c2b4; }
+
+    footer.pro-footer .bottom-row {
+      margin-top: 32px; padding-top: 20px; border-top: 1px solid #2a2d2b;
+      display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px; color: #6f7270; flex-wrap: wrap; gap: 14px;
+    }
+    footer.pro-footer .bottom-row a { color: #c4c2b4; }
+
+    /* pillar background imagery */
+    .pillar.c-knows .bg-svg, .pillar.c-mem .bg-svg, .pillar.c-msg .bg-svg {
+      opacity: 0.35; transition: opacity .3s, transform .3s;
+    }
+    .pillar:hover .bg-svg { opacity: 0.55; transform: scale(1.05) translate(-4px, 4px); }
+
+    /* ─── Pricing ─── */
+    .tiers { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 48px; border: 1px solid var(--ink); }
+    @media (max-width: 900px) { .tiers { grid-template-columns: 1fr; } .tiers > .tier { border-right: 0 !important; border-bottom: 1px solid var(--ink); } }
+    .tier { padding: 32px; border-right: 1px solid var(--ink); display: flex; flex-direction: column; transition: background .25s ease; }
+    .tier:last-child { border-right: 0; }
+    .tier:hover { background: var(--paper-2); }
+    .tier.featured { background: var(--ink); color: var(--paper); position: relative; }
+    .tier.featured:hover { background: #16181700; background: #1a1d1b; }
+    .tier.featured .mute { color: #b8b6a8; }
+    .tier.featured::before {
+      content: 'MOST POPULAR'; position: absolute; top: -1px; left: -1px; right: -1px;
+      background: var(--up); color: var(--paper); text-align: center;
+      font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.25em;
+      padding: 6px 0; font-weight: 600;
+    }
+    .tier.featured { padding-top: 56px; }
+    .tier .tier-name { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; }
+    .tier .price { font-size: 64px; font-weight: 900; letter-spacing: -0.04em; margin-top: 18px; line-height: 1; font-variant-numeric: tabular-nums; }
+    .tier .unit { font-size: 13px; color: var(--mute); margin-top: 6px; }
+    .tier ul { list-style: none; padding: 0; margin: 24px 0 0; flex: 1; }
+    .tier ul li { padding: 7px 0; font-size: 14px; display: flex; gap: 10px; align-items: flex-start; }
+    .tier ul li::before { content: '→'; font-family: 'IBM Plex Mono', monospace; color: var(--up); }
+    .tier.featured ul li::before { color: #72d8a7; }
+    .tier .cta {
+      margin-top: 28px; text-align: center; padding: 14px;
+      border: 1px solid currentColor; font-family: 'IBM Plex Mono', monospace;
+      font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase;
+      transition: all .2s ease;
+    }
+    .tier .cta:hover { background: var(--up); color: var(--paper); border-color: var(--up); }
+    .tier.featured .cta { background: var(--up); border-color: var(--up); color: var(--paper); }
+    .tier.featured .cta:hover { background: #72d8a7; border-color: #72d8a7; color: var(--ink); }
+
+    /* ─── Tabs ─── */
+    .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--ink); margin-top: 40px; margin-bottom: 28px; }
+    .tab-btn {
+      padding: 14px 20px; font-family: 'IBM Plex Mono', monospace; font-size: 12px;
+      letter-spacing: 0.1em; text-transform: uppercase; border: 0; background: transparent;
+      cursor: pointer; color: var(--mute); border-bottom: 3px solid transparent; margin-bottom: -1px;
+      transition: color .2s;
+    }
+    .tab-btn:hover { color: var(--ink); }
+    .tab-btn.active { color: var(--ink); border-bottom-color: var(--up); }
+    .tab-panel { display: none; animation: fade-in .4s ease; }
+    .tab-panel.active { display: block; }
+    @keyframes fade-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ─── Timeline ─── */
+    .timeline { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 48px; position: relative; }
+    .timeline::before { content: ''; position: absolute; top: 38px; left: 0; right: 0; height: 1px; background: var(--rule); }
+    .timeline::after {
+      content: ''; position: absolute; top: 38px; left: 0; height: 1px; background: var(--up);
+      width: 0; transition: width 1.8s cubic-bezier(.2,.7,.2,1);
+    }
+    .timeline.in::after { width: 41.66%; /* up to Q2 */ }
+    .milestone { padding-right: 16px; position: relative; }
+    .milestone .year { font-family: 'IBM Plex Mono', monospace; font-size: 13px; letter-spacing: 0.1em; color: var(--ink-2); }
+    .milestone .dot { width: 14px; height: 14px; background: var(--paper); border: 1px solid var(--mute); border-radius: 50%; margin: 16px 0 14px; position: relative; z-index: 2; }
+    .milestone.current .dot {
+      background: var(--up); border-color: var(--up); width: 18px; height: 18px; margin: 14px 0 12px;
+      box-shadow: 0 0 0 0 rgba(16,138,84,.55);
+      animation: pulse-dot 1.8s infinite;
+    }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(16,138,84,.55); }
+      70%      { box-shadow: 0 0 0 14px rgba(16,138,84,0); }
+    }
+    .milestone.shipped .dot { background: var(--ink); border-color: var(--ink); }
+    .milestone h4 { font-size: 15px; font-weight: 700; margin: 4px 0 6px; line-height: 1.2; }
+    .milestone .state { font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--mute); }
+    .milestone.shipped .state { color: var(--up); }
+    .milestone.current .state { color: var(--up); }
+    @media (max-width: 900px) { .timeline { grid-template-columns: 1fr 1fr; } .timeline::before, .timeline::after { display: none; } }
+
+    /* ─── Stats ─── */
+    .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--ink); margin-top: 40px; }
+    .stat { padding: 32px; border-right: 1px solid var(--ink); position: relative; overflow: hidden; }
+    .stat:last-child { border-right: 0; }
+    .stat .big { font-size: 48px; font-weight: 900; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .stat .lbl { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--mute); margin-top: 12px; }
+    .stat .arrow { position: absolute; top: 20px; right: 20px; width: 20px; height: 20px; opacity: 0; transform: translate(-6px, 6px); transition: all .5s ease; }
+    .stat-row.in .stat .arrow { opacity: 1; transform: translate(0, 0); }
+    @media (max-width: 900px) { .stat-row { grid-template-columns: 1fr 1fr; } .stat:nth-child(2) { border-right: 0; } .stat:nth-child(-n+2) { border-bottom: 1px solid var(--ink); } }
+
+    /* ─── Memory ─── */
+    .mem-box {
+      margin-top: 32px; border: 1px solid var(--ink); padding: 28px; background: var(--paper-2);
+      font-family: 'IBM Plex Mono', monospace; font-size: 14px;
+    }
+    .mem-box .mem-row { display: grid; grid-template-columns: 28px 160px 1fr; padding: 10px 0; border-bottom: 1px dashed var(--rule); align-items: baseline; gap: 12px; opacity: 0; transform: translateY(6px); transition: all .5s ease; }
+    .mem-box.in .mem-row { opacity: 1; transform: translateY(0); }
+    .mem-box.in .mem-row:nth-child(1) { transition-delay: 0.1s; }
+    .mem-box.in .mem-row:nth-child(2) { transition-delay: 0.3s; }
+    .mem-box.in .mem-row:nth-child(3) { transition-delay: 0.5s; }
+    .mem-box.in .mem-row:nth-child(4) { transition-delay: 0.7s; }
+    .mem-box.in .mem-row:nth-child(5) { transition-delay: 0.9s; }
+    .mem-box .mem-row:last-child { border-bottom: 0; }
+    .mem-box .mem-row .k { color: var(--ink-2); font-weight: 600; }
+    .mem-box .mem-row .v { color: var(--mute); }
+
+    .trust { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 28px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--ink-2); }
+    .trust span { padding: 6px 12px; border: 1px solid var(--rule); letter-spacing: 0.08em; background: var(--paper); }
+
+    /* ─── Drop cap paragraph (Paper & Ink preset) ─── */
+    .lede {
+      font-size: 20px; color: var(--ink-2); line-height: 1.45; max-width: 640px;
+    }
+    .lede.drop::first-letter {
+      font-family: 'Instrument Serif', serif; font-style: italic; font-weight: 400;
+      font-size: 4em; line-height: 0.85; float: left; margin: 6px 10px -4px 0;
+      color: var(--up);
+    }
+
+    details.compliance summary { cursor: pointer; font-family: 'IBM Plex Mono', monospace; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; padding: 12px 0; list-style: none; }
+    details.compliance summary::before { content: '+ '; color: var(--up); font-weight: 700; }
+    details.compliance[open] summary::before { content: '− '; }
+    details.compliance p { font-size: 12px; color: var(--ink-2); line-height: 1.6; }
+
+    /* methodology pills (ink section) */
+    .meth-pills { margin-top: 56px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    @media (max-width: 900px) { .meth-pills { grid-template-columns: 1fr; } }
+    .meth-pills .pill {
+      padding: 24px; border: 1px solid #2a2d2b;
+      transition: border-color .25s ease, transform .3s ease;
+    }
+    .meth-pills .pill:hover { border-color: #72d8a7; transform: translateY(-4px); }
+    .meth-pills .pill .label { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #72d8a7; }
+    .meth-pills .pill p { margin: 12px 0 0; font-size: 14px; color: #c4c2b4; }
+
+    /* offscreen class for JS hint */
+    .count { font-variant-numeric: tabular-nums; }
+  </style>
+</head>
+
+<body>
+
+<!-- ───────── TICKER TAPE ───────── -->
+<div class="tape" aria-hidden="true">
+  <div class="tape-track" id="tape">
+    <!-- content is duplicated by JS for seamless loop -->
+  </div>
+</div>
+
+<!-- 12-col grid rails -->
+<div class="rails" aria-hidden="true">
+  <span></span><span></span><span></span><span></span><span></span><span></span>
+  <span></span><span></span><span></span><span></span><span></span><span></span>
+</div>
+
+<!-- ───────── NAV ───────── -->
+<nav class="bar">
+  <div class="inner">
+    <a href="#top" class="logo"><span class="live"></span>Sentinel <em>AI</em></a>
+    <div class="links">
+      <a href="#pillars">Features</a>
+      <a href="#demo">Demo</a>
+      <a href="#methodology">Methodology</a>
+      <a href="#pricing">Pricing</a>
+    </div>
+    <a href="https://t.me/SentinelAI_signals" class="btn-primary"><span>Join Telegram →</span></a>
+  </div>
+</nav>
+
+<!-- ───────── BLOCK 1 · HERO ───────── -->
+<section id="top" class="hero">
+  <div class="wrap">
+    <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:40px;" class="reveal">
+      <span class="kicker">01 / Quiet until it matters</span>
+      <span class="section-no">v0.2 · May 2026</span>
+    </div>
+
+    <div class="hero-grid">
+      <div>
+        <h1 class="display reveal">
+          Your watchlist,<br/>
+          <span class="serif hl" style="color: var(--up);">watched</span><br/>
+          without the noise.
+        </h1>
+        <p class="lede reveal" style="margin-top: 36px;">
+          Sentinel watches your US-equity tickers, cites primary sources, and messages you only when a move, filing, earnings event, or risk gate crosses the line you set.
+        </p>
+        <div style="margin-top: 36px; display:flex; flex-wrap:wrap; gap:12px; align-items:center;" class="reveal">
+          <a href="https://t.me/SentinelAI_signals" class="btn-primary" style="padding: 16px 24px; font-size: 13px;"><span>Join the public channel →</span></a>
+          <a href="#pricing" style="font-size: 13px; color: var(--ink-2); text-decoration: underline; text-underline-offset: 4px;">See Pro pricing</a>
+        </div>
+        <p class="mono reveal" style="margin-top: 24px; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute);">
+          Not advice · Read-only · Cancel anytime
+        </p>
+        <p class="mono" style="margin-top: 8px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute);">
+          A market intelligence tool · No trade calls · You make every decision
+        </p>
+      </div>
+
+      <!-- iPhone mock wrapping Telegram iOS UI -->
+      <div class="iphone-wrap reveal">
+        <div class="iphone tg-phone">
+          <div class="iphone-screen">
+            <!-- Dynamic Island -->
+            <div class="dynamic-island"></div>
+
+            <!-- Status bar (iOS) -->
+            <div class="status-bar">
+              <span class="time" id="ios-clock">07:02</span>
+              <div class="status-icons">
+                <!-- signal -->
+                <svg width="18" height="10" viewBox="0 0 18 10" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="0" y="7" width="3" height="3" rx="0.5"/>
+                  <rect x="5" y="5" width="3" height="5" rx="0.5"/>
+                  <rect x="10" y="3" width="3" height="7" rx="0.5"/>
+                  <rect x="15" y="0" width="3" height="10" rx="0.5" opacity="0.35"/>
+                </svg>
+                <!-- wifi -->
+                <svg width="16" height="12" viewBox="0 0 16 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M8 11c.5 0 1-.5 1-1s-.5-1-1-1-1 .5-1 1 .5 1 1 1z" fill="currentColor"/>
+                  <path d="M4 7.5c1-1 2.5-1.5 4-1.5s3 .5 4 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                  <path d="M2 5c1.5-1.5 4-2.5 6-2.5s4.5 1 6 2.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+                <!-- battery -->
+                <svg width="26" height="12" viewBox="0 0 26 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="0.5" y="0.5" width="22" height="11" rx="2.5" stroke="currentColor" opacity="0.4"/>
+                  <rect x="23" y="4" width="1.5" height="4" rx="0.5" fill="currentColor" opacity="0.4"/>
+                  <rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/>
+                </svg>
+              </div>
+            </div>
+
+            <!-- Telegram topbar -->
+            <div class="tg-topbar">
+              <div class="tg-back">‹<sup>12</sup></div>
+              <div class="tg-avatar-group">S</div>
+              <div class="tg-title-info">
+                <div class="tit">Sentinel AI</div>
+                <div class="sub"><span class="dot-live" style="width:5px; height:5px; background: var(--up); border-radius: 50%;"></span>online · watching 4 tickers</div>
+              </div>
+              <div class="menu">⋯</div>
+            </div>
+
+            <!-- chat area (dynamic stream from JS; static fallback below in case JS is delayed) -->
+            <div class="tg-chat" id="chat-stream" data-clock="07:02">
+              <div class="date-chip">Today · Apr 24 · Pre-market</div>
+
+              <div class="bubble bot">
+                <div class="bubble-meta">Morning brief · 08:30 ET</div>
+                Good morning. <strong>3 events</strong> in your watchlist — ranked by materiality:
+              </div>
+
+              <div class="bubble bot priority">
+                <div class="prio">
+                  <span class="prio-no up">▲ 01</span>
+                  <span class="prio-sym">NVDA</span>
+                  <span class="prio-chg up">+2.4% · 892.11</span>
+                </div>
+                <div class="mini-card">
+                  <div style="font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: #8e8e93; font-weight: 600;">Sentinel pulse · 10-dim</div>
+                  <div class="big-num">83<em> /100</em></div>
+                  <span class="verdict">High activity</span>
+                  <svg class="candles in" viewBox="0 0 240 48" preserveAspectRatio="none">
+                    <rect x="2" y="26" width="14" height="14" class="cn"/>
+                    <rect x="20" y="22" width="14" height="18" class="cn"/>
+                    <rect x="38" y="30" width="14" height="8" class="cp"/>
+                    <rect x="56" y="18" width="14" height="20" class="cn"/>
+                    <rect x="74" y="12" width="14" height="24" class="cn"/>
+                    <rect x="92" y="20" width="14" height="10" class="cp"/>
+                    <rect x="110" y="10" width="14" height="24" class="cn"/>
+                    <rect x="128" y="6" width="14" height="26" class="cn"/>
+                    <rect x="146" y="16" width="14" height="12" class="cp"/>
+                    <rect x="164" y="6" width="14" height="22" class="cn"/>
+                    <rect x="182" y="2" width="14" height="26" class="cn"/>
+                    <rect x="200" y="0" width="14" height="28" class="cn"/>
+                  </svg>
+                  <div class="score-bars">
+                    <div class="row"><span>Fundamentals</span><span class="b" style="--w:85%"><i style="width:85%"></i></span><span>85</span></div>
+                    <div class="row"><span>Sentiment</span><span class="b" style="--w:91%"><i style="width:91%"></i></span><span>91</span></div>
+                    <div class="row"><span>Technical</span><span class="b" style="--w:78%"><i style="width:78%"></i></span><span>78</span></div>
+                  </div>
+                </div>
+                <div class="tap-row">
+                  <button class="tap">Source + context</button>
+                  <button class="tap alt">Mute today</button>
+                </div>
+              </div>
+
+              <div class="bubble bot">
+                <div class="prio">
+                  <span class="prio-no down">▼ 02</span>
+                  <span class="prio-sym">TSLA</span>
+                  <span class="prio-chg down">-0.8% · risk gate</span>
+                </div>
+                <div class="bubble-txt">Earnings in 9 days. Score <span style="font-family: 'IBM Plex Mono', monospace;">62 → 55</span> · <strong style="color:var(--down)">Score: 62 → 55</strong></div>
+              </div>
+
+              <div class="bubble user">
+                Why NVDA over AVGO today?
+              </div>
+
+              <div class="typing">
+                <span></span><span></span><span></span>
+              </div>
+            </div>
+
+            <!-- input bar -->
+            <div class="tg-inputbar">
+              <span class="attach">＋</span>
+              <div class="input"><span class="blink-cur"></span>Reply to Sentinel…</div>
+              <span class="mic">🎙</span>
+            </div>
+
+            <!-- Home indicator -->
+            <div class="home-indicator"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 1B · HOW IT WORKS pipeline (Scan → Score → Rank & Push) ───────── -->
+<section class="market-pulse">
+  <div class="wrap">
+    <div class="pulse-head reveal">
+      <div class="lhs">
+        <span class="kicker">01B / How it works — end to end</span>
+        <h2 class="h1" style="margin-top: 14px;">From market noise to <span class="serif" style="color: #72d8a7;">the few events worth checking</span>, before you've finished coffee.</h2>
+        <p style="font-size: 17px; color: #c4c2b4; margin-top: 16px; max-width: 620px; line-height: 1.55;">
+          Sentinel runs an ET-aware scan across your watchlist. You do not babysit dashboards; it speaks first in Telegram when something crosses your threshold, then shows the source so you can verify it.
+        </p>
+      </div>
+      <div class="rhs reveal">
+        <div class="live-row"><span class="live-dot"></span>pipeline running · ET market schedule</div>
+        <div class="adv-dec-big" style="margin-top: 8px;"><span class="adv">▲ 62</span><span class="dec" style="margin-left: 14px;">▼ 38</span><span style="color: #8a8b85; margin-left: 14px; font-weight: 400;">adv / dec</span></div>
+      </div>
+    </div>
+
+    <!-- 3-STEP PIPELINE -->
+    <div class="pipeline reveal">
+      <!-- STEP 1 · SCAN -->
+      <div class="p-step" data-step="1">
+        <div class="p-step-head">
+          <span class="p-num">01</span>
+          <div>
+            <div class="p-title">Scan</div>
+            <div class="p-sub">your tickers · market hours · quiet days included</div>
+          </div>
+        </div>
+        <div class="p-visual"><div class="pulse-map">
+      <div class="cell u2"><span class="sym">AAPL</span><span class="t">+0.4</span></div>
+      <div class="cell u3"><span class="sym">NVDA</span><span class="t">+2.4</span></div>
+      <div class="cell d1"><span class="sym">TSLA</span><span class="t">-0.8</span></div>
+      <div class="cell u1"><span class="sym">MSFT</span><span class="t">+0.1</span></div>
+      <div class="cell u2"><span class="sym">GOOG</span><span class="t">+0.7</span></div>
+      <div class="cell u1"><span class="sym">META</span><span class="t">+0.2</span></div>
+      <div class="cell d2"><span class="sym">AMZN</span><span class="t">-1.4</span></div>
+      <div class="cell u2"><span class="sym">JPM</span><span class="t">+0.9</span></div>
+      <div class="cell u1"><span class="sym">BRK.B</span><span class="t">+0.3</span></div>
+      <div class="cell d1"><span class="sym">UNH</span><span class="t">-0.2</span></div>
+      <div class="cell u3"><span class="sym">AVGO</span><span class="t">+2.4</span></div>
+      <div class="cell u3"><span class="sym">MU</span><span class="t">+3.1</span></div>
+      <div class="cell u2"><span class="sym">AMD</span><span class="t">+1.2</span></div>
+      <div class="cell u1"><span class="sym">INTC</span><span class="t">+0.5</span></div>
+      <div class="cell d2"><span class="sym">CRM</span><span class="t">-1.1</span></div>
+      <div class="cell u2"><span class="sym">ORCL</span><span class="t">+0.8</span></div>
+      <div class="cell d1"><span class="sym">CSCO</span><span class="t">-0.3</span></div>
+      <div class="cell u2"><span class="sym">ADBE</span><span class="t">+1.0</span></div>
+      <div class="cell u1"><span class="sym">NFLX</span><span class="t">+0.2</span></div>
+      <div class="cell d3"><span class="sym">PYPL</span><span class="t">-3.2</span></div>
+      <div class="cell u1"><span class="sym">V</span><span class="t">+0.3</span></div>
+      <div class="cell u2"><span class="sym">MA</span><span class="t">+0.6</span></div>
+      <div class="cell d1"><span class="sym">BAC</span><span class="t">-0.4</span></div>
+      <div class="cell u1"><span class="sym">WFC</span><span class="t">+0.2</span></div>
+      <div class="cell d2"><span class="sym">GS</span><span class="t">-1.2</span></div>
+      <div class="cell u2"><span class="sym">XOM</span><span class="t">+1.1</span></div>
+      <div class="cell u3"><span class="sym">CVX</span><span class="t">+2.0</span></div>
+      <div class="cell u1"><span class="sym">SLB</span><span class="t">+0.4</span></div>
+      <div class="cell d1"><span class="sym">KO</span><span class="t">-0.2</span></div>
+      <div class="cell u1"><span class="sym">PEP</span><span class="t">+0.1</span></div>
+      <div class="cell d2"><span class="sym">PG</span><span class="t">-1.0</span></div>
+      <div class="cell u1"><span class="sym">WMT</span><span class="t">+0.3</span></div>
+      <div class="cell u2"><span class="sym">COST</span><span class="t">+0.8</span></div>
+      <div class="cell d1"><span class="sym">MCD</span><span class="t">-0.4</span></div>
+      <div class="cell u1"><span class="sym">NKE</span><span class="t">+0.2</span></div>
+      <div class="cell d2"><span class="sym">SBUX</span><span class="t">-1.3</span></div>
+      <div class="cell u2"><span class="sym">HD</span><span class="t">+0.7</span></div>
+      <div class="cell u1"><span class="sym">LOW</span><span class="t">+0.3</span></div>
+      <div class="cell d1"><span class="sym">TGT</span><span class="t">-0.5</span></div>
+      <div class="cell u3"><span class="sym">LLY</span><span class="t">+2.8</span></div>
+      <div class="cell u2"><span class="sym">PFE</span><span class="t">+0.6</span></div>
+      <div class="cell d1"><span class="sym">MRK</span><span class="t">-0.3</span></div>
+      <div class="cell u1"><span class="sym">ABBV</span><span class="t">+0.2</span></div>
+      <div class="cell u2"><span class="sym">JNJ</span><span class="t">+0.5</span></div>
+      <div class="cell d2"><span class="sym">BMY</span><span class="t">-1.4</span></div>
+      <div class="cell u2"><span class="sym">TMO</span><span class="t">+0.9</span></div>
+      <div class="cell u1"><span class="sym">ABT</span><span class="t">+0.2</span></div>
+      <div class="cell u3"><span class="sym">DHR</span><span class="t">+2.1</span></div>
+      <div class="cell u1"><span class="sym">ISRG</span><span class="t">+0.4</span></div>
+      <div class="cell d1"><span class="sym">GILD</span><span class="t">-0.2</span></div>
+        </div></div>
+        <div class="p-footer"><span class="adv-dec"><span class="adv">▲ 62 adv</span> · <span class="dec">38 dec</span></span> <span style="color:#8a8b85;">· 50 S&amp;P names sampled</span></div>
+      </div>
+
+      <!-- STEP 2 · SCORE -->
+      <div class="p-step" data-step="2">
+        <div class="p-step-head">
+          <span class="p-num">02</span>
+          <div>
+            <div class="p-title">Score</div>
+            <div class="p-sub">movement · filings · earnings · source checks</div>
+          </div>
+        </div>
+        <div class="p-visual">
+          <div class="score-matrix">
+            <div class="sm-row"><span class="sm-ticker">NVDA</span><span class="sm-bar" style="--w:83%"><i></i></span><span class="sm-score up">83</span></div>
+            <div class="sm-row"><span class="sm-ticker">TSLA</span><span class="sm-bar" style="--w:62%"><i></i></span><span class="sm-score warn">62</span></div>
+            <div class="sm-row"><span class="sm-ticker">AAPL</span><span class="sm-bar" style="--w:71%"><i></i></span><span class="sm-score up">71</span></div>
+            <div class="sm-row"><span class="sm-ticker">AVGO</span><span class="sm-bar" style="--w:72%"><i></i></span><span class="sm-score up">72</span></div>
+            <div class="sm-row"><span class="sm-ticker">MSFT</span><span class="sm-bar" style="--w:54%"><i></i></span><span class="sm-score warn">54</span></div>
+            <div class="sm-row"><span class="sm-ticker">GOOG</span><span class="sm-bar" style="--w:68%"><i></i></span><span class="sm-score up">68</span></div>
+            <div class="sm-row dim"><span class="sm-ticker">…</span><span class="sm-bar" style="--w:0%"><i></i></span><span class="sm-score">+494</span></div>
+          </div>
+        </div>
+        <div class="p-footer">SEC EDGAR · earnings releases · Fed/calendar context <span style="color:#72d8a7;">· source links over forecasts</span></div>
+      </div>
+
+      <!-- STEP 3 · RANK & PUSH -->
+      <div class="p-step" data-step="3">
+        <div class="p-step-head">
+          <span class="p-num">03</span>
+          <div>
+            <div class="p-title">Rank &amp; push</div>
+            <div class="p-sub">→ your Telegram · threshold crossed</div>
+          </div>
+        </div>
+        <div class="p-visual">
+          <div class="push-card">
+            <div class="push-hdr"><span class="tg-ico">✈</span><span class="tg-name">Sentinel AI</span><span class="push-time">07:00</span></div>
+            <div class="push-title">Watchlist alert · 3 events ranked</div>
+            <div class="push-rank">
+              <div class="rank-row"><span class="rk up">▲ P1</span><span class="rk-sym">NVDA</span><span class="rk-score">source cited</span></div>
+              <div class="rank-row"><span class="rk down">▼ P2</span><span class="rk-sym">TSLA</span><span class="rk-score">risk gate</span></div>
+              <div class="rank-row"><span class="rk up">↗ P3</span><span class="rk-sym">AAPL</span><span class="rk-score">earnings 3d</span></div>
+            </div>
+            <div class="push-cta">Tap for source + context</div>
+          </div>
+        </div>
+        <div class="p-footer" style="color:#72d8a7;">◆ Priority-ranked by materiality · not engagement bait</div>
+      </div>
+    </div>
+
+    <!-- arrow overlays between steps (desktop only) -->
+    <div class="pipeline-arrows" aria-hidden="true">
+      <svg viewBox="0 0 40 16" preserveAspectRatio="none"><path d="M0 8 L38 8 M32 2 L38 8 L32 14" stroke="#72d8a7" stroke-width="1.5" fill="none"/></svg>
+      <svg viewBox="0 0 40 16" preserveAspectRatio="none"><path d="M0 8 L38 8 M32 2 L38 8 L32 14" stroke="#72d8a7" stroke-width="1.5" fill="none"/></svg>
+    </div>
+
+    <div class="pulse-footer reveal" style="margin-top: 40px;">
+      <em>Watchlist scanned · thresholds respected · only what crosses <u>your line</u> reaches you.</em>
+      <span style="white-space: nowrap;">◆ source-cited · quiet-day aware · not advice</span>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 2 · PAIN STRIP · real social feedback ───────── -->
+<section class="band">
+  <div class="wrap">
+    <div class="reveal" style="text-align: center; max-width: 820px; margin: 0 auto 12px;">
+      <span class="kicker" style="color: var(--down);">02 / The pain is real</span>
+      <h2 class="h1" style="margin-top: 16px;">"They feel this every day." <span class="serif" style="color: var(--down);">73%</span> of retail investors describe the same trap.</h2>
+      <p style="font-size: 16px; color: var(--ink-2); margin-top: 18px; line-height: 1.55;">
+        Not fake testimonials. Not stock photos. These are the patterns we hear every week from self-directed investors — on Twitter, Reddit, Hacker News, in our DMs.
+      </p>
+    </div>
+
+    <div class="social-grid reveal-stagger">
+      <!-- tweet 1 -->
+      <div class="social-card w4">
+        <div class="src">
+          <div class="av" style="background: linear-gradient(135deg, #1da1f2, #0866b6);">RH</div>
+          <div>
+            <div class="handle">rick_hodge</div>
+            <div>@rickhodge · 4h</div>
+          </div>
+          <div class="platform x">✕ POST</div>
+        </div>
+        <div class="body">
+          Missed AMZN earnings call <strong>because I was reading a 10-K for a stock I don't even own anymore</strong>. Analysis paralysis is real. FML.
+        </div>
+        <div class="meta">
+          <span>💬 41</span><span>🔁 128</span><span>♡ 1.2K</span>
+        </div>
+      </div>
+
+      <!-- reddit -->
+      <div class="social-card w4">
+        <div class="src">
+          <div class="av" style="background: linear-gradient(135deg, #ff4500, #cc3700);">r/</div>
+          <div>
+            <div class="handle">u/analyst_trap</div>
+            <div>r/investing · 2d</div>
+          </div>
+          <div class="platform rd">REDDIT</div>
+        </div>
+        <div class="body">
+          Paid <strong>$499 for Seeking Alpha Premium</strong> and realized half the analyst takes were 6 months stale. Cancelled. Looking for something that updates daily.
+        </div>
+        <div class="meta">
+          <span>▲ 834</span><span>💬 217</span><span>r/investing</span>
+        </div>
+      </div>
+
+      <!-- big stat inset -->
+      <div class="stat-inset">
+        <div class="pct">73%</div>
+        <div class="desc">of retail investors can't name 3 current metrics on stocks they hold for over 6 months.</div>
+        <div class="src">Vanguard Behavioral · 2025</div>
+      </div>
+
+      <!-- tweet 2 wide -->
+      <div class="social-card w6">
+        <div class="src">
+          <div class="av" style="background: linear-gradient(135deg, #7c3aed, #4c1d95);">QB</div>
+          <div>
+            <div class="handle">quantbro</div>
+            <div>@quantbro · 1d</div>
+          </div>
+          <div class="platform x">✕ POST</div>
+        </div>
+        <div class="body">
+          I subscribe to <strong>14 newsletters</strong>. I've opened 2 this month. My portfolio is down 11% YTD. The problem isn't information — it's that nothing knows what I actually own.
+        </div>
+        <div class="meta">
+          <span>💬 89</span><span>🔁 412</span><span>♡ 3.1K</span><span>👁 147K</span>
+        </div>
+      </div>
+
+      <!-- HN -->
+      <div class="social-card w6">
+        <div class="src">
+          <div class="av" style="background: linear-gradient(135deg, #ff6600, #cc5200);">Y</div>
+          <div>
+            <div class="handle">zerocoolio</div>
+            <div>news.ycombinator.com · 8h</div>
+          </div>
+          <div class="platform hn">HN</div>
+        </div>
+        <div class="body">
+          Every "AI finance assistant" I've tried has a training-data cutoff of last year. Asking ChatGPT about NVDA's Q1 2026 earnings? <strong>"As of my last update in January 2025…"</strong> — completely useless.
+        </div>
+        <div class="meta">
+          <span>▲ 247 points</span><span>💬 89 comments</span>
+        </div>
+      </div>
+
+      <!-- dm style -->
+      <div class="social-card w4">
+        <div class="src">
+          <div class="av" style="background: linear-gradient(135deg, #0a9454, #14b86a);">TC</div>
+          <div>
+            <div class="handle">Tom · day-job + trading</div>
+            <div>DM · sentinel beta · 3d</div>
+          </div>
+          <div class="platform" style="color: var(--up);">USER DM</div>
+        </div>
+        <div class="body">
+          "I wake up at 5 AM to read pre-market. I miss earnings because I'm in meetings. <strong>I need something that watches FOR me, not another dashboard to check.</strong>"
+        </div>
+        <div class="meta">
+          <span>Verified beta user</span><span>Founding cohort</span>
+        </div>
+      </div>
+
+      <div class="social-card w4">
+        <div class="src">
+          <div class="av" style="background: linear-gradient(135deg, #e23a3a, #a02020);">SM</div>
+          <div>
+            <div class="handle">sarah_m_invests</div>
+            <div>@sarah_m · 6h</div>
+          </div>
+          <div class="platform x">✕ POST</div>
+        </div>
+        <div class="body">
+          Got burned by TSLA earnings — my "AI advisor" sounded confident. <strong>Didn't mention earnings were in 2 days.</strong> Now -8% in a week. What's the point if it can't even see a calendar?
+        </div>
+        <div class="meta">
+          <span>💬 156</span><span>🔁 301</span><span>♡ 2.4K</span>
+        </div>
+      </div>
+
+      <div class="stat-inset" style="background: var(--down); color: white;">
+        <div class="pct" style="color: white;">$2.4B</div>
+        <div class="desc" style="color: rgba(255,255,255,0.92);">lost annually by US retail investors from <em>pre-earnings positioning errors</em> alone.</div>
+        <div class="src" style="color: rgba(255,255,255,0.7);">Robinhood Data · Q4 '25</div>
+      </div>
+    </div>
+
+    <div class="reveal" style="text-align: center; margin-top: 44px;">
+      <a href="#demo" style="font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--up); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; text-decoration: underline; text-underline-offset: 6px;">See how Sentinel solves this →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 3 · PILLARS ───────── -->
+<section id="pillars">
+  <div class="wrap">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;" class="reveal">
+      <span class="kicker">03 / Three pillars</span>
+      <span class="section-no">What makes Sentinel different.</span>
+    </div>
+    <h2 class="h1 reveal" style="max-width: 780px; margin-top: 20px;">
+      Live Market Knowledge Base. Long-term User Memory. Proactive Delivery.
+    </h2>
+
+    <div class="pillars reveal-stagger">
+      <div class="pillar c-knows">
+        <!-- visual: data streams converging into a single point (the agent) -->
+        <div class="bg-svg">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g-knows" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#1f3ec9" stop-opacity="0.7"/>
+                <stop offset="1" stop-color="#1f3ec9" stop-opacity="0.15"/>
+              </linearGradient>
+            </defs>
+            <path d="M5 10 Q40 40 80 60" stroke="url(#g-knows)" stroke-width="1.5" fill="none"/>
+            <path d="M5 30 Q45 50 80 60" stroke="url(#g-knows)" stroke-width="1.5" fill="none"/>
+            <path d="M5 50 Q50 55 80 60" stroke="url(#g-knows)" stroke-width="1.5" fill="none"/>
+            <path d="M5 70 Q45 65 80 60" stroke="url(#g-knows)" stroke-width="1.5" fill="none"/>
+            <path d="M5 90 Q40 75 80 60" stroke="url(#g-knows)" stroke-width="1.5" fill="none"/>
+            <circle cx="80" cy="60" r="5" fill="#1f3ec9"/>
+            <circle cx="80" cy="60" r="10" fill="none" stroke="#1f3ec9" stroke-width="1" opacity="0.4"/>
+            <circle cx="80" cy="60" r="15" fill="none" stroke="#1f3ec9" stroke-width="1" opacity="0.2"/>
+          </svg>
+        </div>
+        <div class="no">01</div>
+        <h3>Live Market Knowledge Base.</h3>
+        <p>Market moves, earnings calendars, macro releases, and SEC filings feed the same watchlist engine. Sentinel cites the source instead of inventing a forecast.</p>
+        <p style="margin-top: 10px; font-style: italic; color: var(--ink-2); font-size: 13px; border-left: 2px solid var(--cobalt); padding-left: 10px;">
+          SEC EDGAR, earnings releases, Fed/BLS/BEA, and market data are treated as inputs you can verify.
+        </p>
+        <span class="tag">✓ Shipped · v12</span>
+      </div>
+
+      <div class="pillar c-mem">
+        <!-- visual: memory layers (stacked tiers) -->
+        <div class="bg-svg">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g-mem" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#d98014" stop-opacity="0.7"/>
+                <stop offset="1" stop-color="#d98014" stop-opacity="0.1"/>
+              </linearGradient>
+            </defs>
+            <rect x="30" y="18" width="70" height="12" fill="url(#g-mem)" rx="2"/>
+            <rect x="20" y="36" width="80" height="12" fill="url(#g-mem)" rx="2"/>
+            <rect x="10" y="54" width="90" height="12" fill="url(#g-mem)" rx="2"/>
+            <rect x="20" y="72" width="80" height="12" fill="url(#g-mem)" rx="2"/>
+            <rect x="30" y="90" width="70" height="12" fill="url(#g-mem)" rx="2"/>
+            <circle cx="15" cy="42" r="2.5" fill="#d98014"/>
+            <circle cx="15" cy="60" r="2.5" fill="#d98014"/>
+            <circle cx="15" cy="78" r="2.5" fill="#d98014"/>
+          </svg>
+        </div>
+        <div class="no">02</div>
+        <h3>Long-term User Memory.</h3>
+        <p>Your tickers, thresholds, quiet hours, and onboarding state persist. The bot is built around your watchlist, not a generic market feed.</p>
+        <p style="margin-top: 10px; font-style: italic; color: var(--ink-2); font-size: 13px; border-left: 2px solid var(--amber); padding-left: 10px;">
+          Start with watchlist memory. Expand into holdings, preferences, and analysis history only when users opt in.
+        </p>
+        <span class="tag">✦ Q3 2026 preview</span>
+      </div>
+
+      <div class="pillar c-msg">
+        <!-- visual: broadcast signal / concentric pulses -->
+        <div class="bg-svg">
+          <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <radialGradient id="g-msg" cx="0.5" cy="0.5" r="0.5">
+                <stop offset="0" stop-color="#0a9454" stop-opacity="0.7"/>
+                <stop offset="1" stop-color="#0a9454" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="60" cy="60" r="55" fill="none" stroke="#0a9454" stroke-width="1" opacity="0.15"/>
+            <circle cx="60" cy="60" r="42" fill="none" stroke="#0a9454" stroke-width="1" opacity="0.25"/>
+            <circle cx="60" cy="60" r="28" fill="none" stroke="#0a9454" stroke-width="1.2" opacity="0.4"/>
+            <circle cx="60" cy="60" r="16" fill="url(#g-msg)"/>
+            <circle cx="60" cy="60" r="6" fill="#0a9454"/>
+            <!-- tiny telegram bubble tail -->
+            <path d="M84 52 L96 48 L90 62 Z" fill="#0a9454" opacity="0.6"/>
+          </svg>
+        </div>
+        <div class="no">03</div>
+        <h3>Proactive Delivery.</h3>
+        <p>Public briefs, Pro DMs, quiet-hours queuing, and threshold alerts happen inside Telegram. You do not check a dashboard; <strong>Sentinel messages you.</strong></p>
+        <p style="margin-top: 10px; font-style: italic; color: var(--ink-2); font-size: 13px; border-left: 2px solid var(--up); padding-left: 10px;">
+          Alerts are context, not calls. Every message keeps the decision with you.
+        </p>
+        <span class="tag">⚡ Rolling out</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 4 · 3-MODE DEMO (no hidden tabs) ───────── -->
+<section id="demo" class="band">
+  <div class="wrap">
+    <div class="reveal" style="text-align: center; max-width: 820px; margin: 0 auto 8px;">
+      <span class="kicker">04 / Three modes · all shown at once</span>
+      <h2 class="h1" style="margin-top: 16px;">Three ways Sentinel works with you.</h2>
+      <p style="font-size: 16px; color: var(--ink-2); margin-top: 18px;">
+        <strong>Pushed</strong> · <strong>Asked</strong> · <strong>Shared.</strong> Built for users who want fewer alerts, not more noise.
+      </p>
+    </div>
+
+    <div class="modes-3col reveal-stagger">
+
+      <!-- MODE 1 · MORNING DIGEST (pushed) -->
+      <div class="mode-card">
+        <div class="m-head">
+          <div class="m-num">01</div>
+          <div>
+            <h3>Public market brief</h3>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: var(--up); text-transform: uppercase; font-weight: 700; margin-top: 4px;">Pushed · ET trading days</div>
+          </div>
+        </div>
+        <p class="m-desc">
+          The free channel gets pre-market and post-close context. Quiet days still post, because silence is part of the product.
+        </p>
+        <div class="m-demo">
+          <div class="term" data-run="true">
+            <span class="line mute">[08:30 ET] Public brief</span>
+            <span class="line"><span class="spin"></span>checking watchlist movers</span>
+            <span class="line">🎯 <strong>NVDA</strong> <span class="pill-result">+2.4%</span></span>
+            <span class="line mute">  source: market data · context only</span>
+            <span class="line">⚠ <strong>TSLA</strong> <span class="warn">quiet</span></span>
+            <span class="line mute">  no threshold cross</span>
+            <span class="line">↗ <strong>AAPL</strong> earnings calendar watched</span>
+            <span class="line ok cursor">brief posted in Telegram</span>
+          </div>
+        </div>
+        <span class="m-tag">✓ Live · public channel</span>
+      </div>
+
+      <!-- MODE 2 · ASK ANYTHING (pulled) -->
+      <div class="mode-card dark">
+        <div class="m-head">
+          <div class="m-num">02</div>
+          <div>
+            <h3>Ask any ticker</h3>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: #72d8a7; text-transform: uppercase; font-weight: 700; margin-top: 4px;">Pulled · ≈15 seconds</div>
+          </div>
+        </div>
+        <p class="m-desc">
+          Type any US-listed ticker into Telegram. Get current price context, threshold status, catalyst scan, and a clear note on why Sentinel did or did not ping.
+        </p>
+        <div class="m-demo">
+          <div class="term" data-run="true">
+            <span class="line"><span style="color:#72d8a7;">$</span> sentinel analyze PLTR --fast</span>
+            <span class="line mute"><span class="spin"></span>yfinance · watchlist profile</span>
+            <span class="line mute"><span class="spin"></span>threshold check · catalyst scan</span>
+            <span class="line">🎯 PLTR · <span class="count" data-target="71">0</span>/100 <span class="pill-result" style="border-color:#e8a262; color:#e8a262;">NEUTRAL</span></span>
+            <span class="line" style="color:#ff8a87;">! not on watchlist · add with /watchlist</span>
+            <span class="line ok cursor">context sent in Telegram</span>
+          </div>
+        </div>
+        <span class="m-tag">✓ Shipped · v12</span>
+      </div>
+
+      <!-- MODE 3 · COMMUNITY (shared) -->
+      <div class="mode-card">
+        <div class="m-head">
+          <div class="m-num">03</div>
+          <div>
+            <h3>Founding community</h3>
+            <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.14em; color: var(--up); text-transform: uppercase; font-weight: 700; margin-top: 4px;">Shared · Telegram group</div>
+          </div>
+        </div>
+        <p class="m-desc">
+          Real conversations with self-directed investors. No shills, no trade calls. The bot pins the daily brief and keeps the tone source-first.
+        </p>
+        <div class="m-demo">
+          <div class="tg-group">
+            <div class="msg pin">
+              <div class="av" style="background: linear-gradient(135deg, #0a9454, #14b86a);">S</div>
+              <div class="msg-body">
+                <div class="hdl">Sentinel Bot <span class="pinned-tag">📌</span></div>
+                <div>Today's brief · Pre-mkt: <span style="color:var(--up);">MU +3.1%</span>, <span style="color:var(--up);">AVGO +2.4%</span>. CPI 08:30.</div>
+                <div class="time">07:00 · 1.2K views</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="av" style="background: linear-gradient(135deg, #d98014, #b56608);">A</div>
+              <div class="msg-body">
+                <div class="hdl">@alice_invests <span class="tag">Founding 001</span></div>
+                <div>NVDA crossed the line. Source link made it easy to check.</div>
+                <div class="time">07:42 · 💬 14</div>
+              </div>
+            </div>
+            <div class="msg">
+              <div class="av" style="background: linear-gradient(135deg, #1f3ec9, #4a5eef);">B</div>
+              <div class="msg-body">
+                <div class="hdl">@bob_quant</div>
+                <div>Quiet day post is underrated. No forced content.</div>
+                <div class="time">08:14 · 💬 22</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span class="m-tag">✓ Live · Free tier access</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 5 · MEMORY (heatmap moved to Block 1B) ───────── -->
+<section>
+  <div class="wrap" style="max-width: 920px;">
+    <div class="reveal" style="text-align: center;">
+      <span class="kicker">05 / User memory</span>
+      <h2 class="h1" style="margin-top: 16px;">Sentinel <span class="serif hl" style="color: var(--up);">remembers</span> you.</h2>
+      <p class="lede" style="margin: 22px auto 0;">
+        Your watchlist, alert threshold, quiet hours, and onboarding state are the first memory layer. More personal context should be opt-in, editable, and reversible.
+      </p>
+    </div>
+
+    <div class="mem-box reveal" style="max-width: 720px; margin: 36px auto 0;">
+      <div class="mem-row"><span>💼</span><span class="k">Portfolio</span><span class="v">AAPL · NVDA · VOO · TSLA</span></div>
+      <div class="mem-row"><span>⭐</span><span class="k">Watchlist</span><span class="v">MSFT · AMD · SMH</span></div>
+      <div class="mem-row"><span>🎯</span><span class="k">Risk profile</span><span class="v">Long-term · High conviction</span></div>
+      <div class="mem-row"><span>📜</span><span class="k">Last 23 analyses</span><span class="v">3-month history · searchable</span></div>
+      <div class="mem-row"><span>💬</span><span class="k">47 conversations</span><span class="v">latest 2d ago</span></div>
+    </div>
+
+    <div class="trust reveal" style="justify-content: center; margin-top: 28px;">
+      <span>🔒 End-to-end encrypted</span>
+      <span>🚫 Never used for training</span>
+      <span>🗑️ Erase anytime · GDPR</span>
+    </div>
+
+    <p class="mono reveal" style="text-align: center; margin-top: 24px; font-size: 11px; letter-spacing: 0.14em; color: var(--mute); text-transform: uppercase;">
+      Coming Q3 2026 · Preview above
+    </p>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 6 · METHODOLOGY (dark, animated weights) ───────── -->
+<section id="methodology" class="ink">
+  <div class="wrap">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;" class="reveal">
+      <span class="kicker">06 / The tech</span>
+      <span class="section-no" style="color: #b8b6a8;">Built like an analyst, constrained like a compliance system.</span>
+    </div>
+    <h2 class="h1 reveal" style="margin-top: 20px; max-width: 900px;">
+      No trade calls.<br/>Every alert <span class="serif" style="color: #72d8a7;">source-cited.</span>
+    </h2>
+
+    <div class="weights reveal">
+      <p class="kicker" style="color: #72d8a7; margin-bottom: 12px;">Analysis layer · not an instruction engine</p>
+      <div class="row"><span class="no">01</span><span class="lbl">Fundamentals</span><span class="bar" style="--w:100%"><i></i></span><span class="pct">20%</span></div>
+      <div class="row"><span class="no">02</span><span class="lbl">Earnings surprise</span><span class="bar" style="--w:75%"><i></i></span><span class="pct">15%</span></div>
+      <div class="row"><span class="no">03</span><span class="lbl">Analyst sentiment</span><span class="bar" style="--w:60%"><i></i></span><span class="pct">12%</span></div>
+      <div class="row"><span class="no">04</span><span class="lbl">Technical</span><span class="bar" style="--w:60%"><i></i></span><span class="pct">12%</span></div>
+      <div class="row"><span class="no">05</span><span class="lbl">Market sentiment</span><span class="bar" style="--w:50%"><i></i></span><span class="pct">10%</span></div>
+      <div class="row"><span class="no">06</span><span class="lbl">Peer relative</span><span class="bar" style="--w:50%"><i></i></span><span class="pct">10%</span></div>
+      <div class="row"><span class="no">07</span><span class="lbl">Sector strength</span><span class="bar" style="--w:40%"><i></i></span><span class="pct">8%</span></div>
+      <div class="row"><span class="no">08</span><span class="lbl">Market environment</span><span class="bar" style="--w:40%"><i></i></span><span class="pct">8%</span></div>
+      <div class="row"><span class="no">09</span><span class="lbl">Historical pattern</span><span class="bar" style="--w:25%"><i></i></span><span class="pct">5%</span></div>
+    </div>
+
+    <div class="meth-pills reveal-stagger">
+      <div class="pill">
+        <div class="label">Sector-aware</div>
+        <p>Damodaran benchmarks — Tech P/E 25–45 vs Utilities 12–20.</p>
+      </div>
+      <div class="pill">
+        <div class="label">5 risk gates</div>
+        <p>Pre-earnings · Post-spike · Overbought · Risk-off · Geopolitical.</p>
+      </div>
+      <div class="pill">
+        <div class="label">Source-first output</div>
+        <p>Alerts prefer SEC filings, earnings releases, Fed/BLS/BEA, and checkable market data.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 7 · SOCIAL PROOF / BUILT IN PUBLIC ───────── -->
+<section>
+  <div class="wrap">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;" class="reveal">
+      <span class="kicker">07 / Built in public</span>
+      <span class="section-no">We earn trust, not fake it.</span>
+    </div>
+    <h2 class="h1 reveal" style="max-width: 820px; margin-top: 20px;">No inflated numbers. No testimonials we wrote.</h2>
+
+    <div class="stat-row reveal">
+      <div class="stat">
+        <svg class="arrow" viewBox="0 0 20 20"><path d="M4 16 L16 4 M16 4 L8 4 M16 4 L16 12" stroke="var(--up)" stroke-width="2" fill="none"/></svg>
+        <div class="big">21/21</div>
+        <div class="lbl">Bot self-test passing · May 2026</div>
+      </div>
+      <div class="stat">
+        <svg class="arrow" viewBox="0 0 20 20"><path d="M4 16 L16 4 M16 4 L8 4 M16 4 L16 12" stroke="var(--up)" stroke-width="2" fill="none"/></svg>
+        <div class="big count" data-target="4">0</div>
+        <div class="lbl">Bot capabilities live</div>
+      </div>
+      <div class="stat">
+        <svg class="arrow" viewBox="0 0 20 20"><path d="M4 16 L16 4 M16 4 L8 4 M16 4 L16 12" stroke="var(--up)" stroke-width="2" fill="none"/></svg>
+        <div class="big">Whop</div>
+        <div class="lbl">Pro gating + VIP invite flow</div>
+      </div>
+      <div class="stat">
+        <div class="big" style="color: var(--up);">Track</div>
+        <div class="lbl">Public record · next</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 8 · TIMELINE ───────── -->
+<section class="band">
+  <div class="wrap">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;" class="reveal">
+      <span class="kicker">08 / Roadmap</span>
+      <span class="section-no">Shipping toward trust, not hype.</span>
+    </div>
+    <h2 class="h1 reveal" style="margin-top: 20px;">Every release ships to users first.</h2>
+
+    <div class="timeline">
+      <div class="milestone shipped reveal">
+        <div class="year">2025 Q4</div>
+        <div class="dot"></div>
+        <h4>Python CLI v1–v11</h4>
+        <div class="state">✓ Shipped</div>
+      </div>
+      <div class="milestone shipped reveal">
+        <div class="year">2026 Q1</div>
+        <div class="dot"></div>
+        <h4>Web · async worker</h4>
+        <div class="state">✓ Shipped</div>
+      </div>
+      <div class="milestone current reveal">
+        <div class="year">2026 Q2</div>
+        <div class="dot"></div>
+        <h4>Whop + Telegram</h4>
+        <div class="state">◆ Current</div>
+      </div>
+      <div class="milestone reveal">
+        <div class="year">2026 Q3</div>
+        <div class="dot"></div>
+        <h4>Track record · Attribution</h4>
+        <div class="state">→ Coming</div>
+      </div>
+      <div class="milestone reveal">
+        <div class="year">2026 Q4</div>
+        <div class="dot"></div>
+        <h4>Memory · Portfolio context</h4>
+        <div class="state">→ Coming</div>
+      </div>
+      <div class="milestone reveal">
+        <div class="year">2027</div>
+        <div class="dot"></div>
+        <h4>API · enterprise desk</h4>
+        <div class="state">→ Roadmap</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 9 · PRICING ───────── -->
+<section id="pricing">
+  <div class="wrap">
+    <div class="reveal" style="text-align: center; margin-bottom: 28px;">
+      <span class="kicker">09 / Pricing</span>
+      <h2 class="h1" style="margin-top: 16px;">Start with the public channel. Upgrade when quiet alerts become <span class="serif hl" style="color: var(--up);">part of your routine.</span></h2>
+      <p style="margin-top: 18px; font-size: 15px; color: var(--ink-2);">Billing, identity, and access — all managed through <strong>Whop</strong>.</p>
+    </div>
+
+    <!-- Founding cohort banner -->
+    <div class="founding-banner reveal" id="founding-banner">
+      <span class="fire">🔥</span>
+      <div class="body">
+        <strong>Founding cohort · Pro access through Whop.</strong>
+        <span style="color: #c4c2b4; font-size: 13px; margin-left: 8px;">VIP Telegram · watchlist onboarding · source-cited alerts.</span>
+      </div>
+      <div class="seats">
+        <span>Limited Founding Cohort · Apply</span>
+      </div>
+      <div class="ticker-live" id="offer-countdown">
+        Early access · rolling admission
+      </div>
+    </div>
+
+    <div class="tiers reveal">
+      <!-- Free -->
+      <div class="tier">
+        <div class="tier-name">Free</div>
+        <p style="margin: 12px 0 0; font-size: 15px; color: var(--ink-2);">Join the community. Get a taste.</p>
+        <div class="price">$0</div>
+        <div class="unit">forever</div>
+        <ul>
+          <li>Public Telegram channel</li>
+          <li>Pre-market brief on trading days</li>
+          <li>Post-close digest</li>
+          <li>Quiet-day updates when nothing crosses</li>
+        </ul>
+        <a href="https://t.me/SentinelAI_signals" class="cta">Join Free</a>
+      </div>
+
+      <!-- Pro (featured) -->
+      <div class="tier featured">
+        <div class="tier-name" style="color: #72d8a7;">Pro <span class="savings-chip">FOUNDING · -25%</span></div>
+        <p style="margin: 12px 0 0; font-size: 15px; color: #c4c2b4;">Personal watchlist alerts inside Telegram.</p>
+        <div class="price">$39<span style="font-size: 0.4em; color: #b8b6a8; font-weight: 500; letter-spacing: 0;"> / mo</span> <span style="font-size: 0.38em; color: #6f7270; text-decoration: line-through; font-weight: 500; letter-spacing: 0;">$52</span></div>
+        <div class="unit">or <strong style="color: #72d8a7;">$349/year</strong> · save extra 25%</div>
+        <ul>
+          <li style="opacity: 0.6;"><span style="color: #72d8a7;">›</span> <em style="font-style: normal; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;">Everything in Free, plus:</em></li>
+          <li><strong>Personal watchlist onboarding</strong></li>
+          <li>Threshold alerts across your tickers</li>
+          <li>Quiet-hours queueing and EOD digest</li>
+          <li>Ask "What about TSLA?" in DM</li>
+          <li>Pro-only Telegram channel</li>
+          <li>Priority support</li>
+          <li style="opacity: 0.75;">✦ Public track record · <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #e8a262;">next</span></li>
+          <li style="opacity: 0.75;">✦ Rich source cards · <span style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #e8a262;">next</span></li>
+        </ul>
+        <a href="https://whop.com/sentinel-ai-pro-placeholder" class="cta">Start on Whop →</a>
+        <div class="mono" style="text-align:center; font-size: 10px; color: #b8b6a8; margin-top: 12px; letter-spacing: 0.12em;">💳 No card until day 7 · cancel anytime</div>
+      </div>
+
+      <!-- Skill tier disabled until Pro user base validated -->
+      <!-- <div class="tier">
+        <div class="tier-name">Skill</div>
+        <p style="margin: 12px 0 0; font-size: 15px; color: var(--ink-2);">Self-hosted. For builders.</p>
+        <div class="price">$199</div>
+        <div class="unit">one-time · lifetime updates</div>
+        <ul>
+          <li style="opacity: 0.6;"><span style="color: var(--up);">›</span> <em style="font-style: normal; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;">Everything in Pro, plus:</em></li>
+          <li>Python CLI source (the v12 Skill)</li>
+          <li>Self-host on your data</li>
+          <li>No rate limits</li>
+          <li>Fork and modify</li>
+          <li>Encrypted .zip delivery</li>
+        </ul>
+        <a href="https://whop.com/sentinel-ai-skill-placeholder" class="cta">Get Skill →</a>
+      </div> -->
+    </div>
+
+    <!-- trust pills -->
+    <div class="trust reveal" style="justify-content: center; margin-top: 28px;">
+      <span>💳 30-day money-back</span>
+      <span>🔄 Cancel anytime</span>
+      <span>🔐 Encrypted in transit and at rest</span>
+      <span>🚫 Never train on your data</span>
+    </div>
+
+    <!-- Elite waitlist teaser -->
+    <p class="reveal" style="margin-top: 28px; text-align: center; font-size: 14px; color: var(--ink-2);">
+      Considering an <strong style="color: var(--ink);">Desk</strong> tier for custom monitoring, API integration, or enterprise workflow?
+      <a href="#top" style="color: var(--up); text-decoration: underline; text-underline-offset: 4px; font-weight: 600;">Join waitlist →</a>
+      <span class="mono" style="font-size: 11px; color: var(--mute);">· High-touch only · limited capacity</span>
+    </p>
+  </div>
+</section>
+
+<!-- ───────── BLOCK 10 · FINAL CTA ───────── -->
+<section class="ink">
+  <div class="wrap" style="max-width: 920px; text-align: center;">
+    <span class="kicker reveal" style="color: #72d8a7;">10 / Final</span>
+    <h2 class="display reveal" style="margin-top: 20px;">
+      Let Sentinel watch<br/>
+      <span class="serif" style="color: #72d8a7;">while you work.</span>
+    </h2>
+    <p class="reveal" style="font-size: 18px; color: #c4c2b4; margin-top: 28px;">
+      Public channel first. Pro when you want the bot watching your own tickers.
+    </p>
+    <div class="reveal" style="margin-top: 36px; display:flex; justify-content:center; gap: 14px; flex-wrap: wrap;">
+      <a href="https://t.me/SentinelAI_signals" class="btn-primary" style="background: var(--up); border-color: var(--up); padding: 16px 28px; font-size: 13px;"><span>Join Telegram →</span></a>
+      <a href="#pricing" class="btn-ghost" style="color: var(--paper); border-color: var(--paper);">See pricing</a>
+    </div>
+  </div>
+</section>
+
+<!-- ───────── FOOTER · professional ───────── -->
+<footer class="pro-footer">
+  <div class="wrap">
+    <div class="top-grid">
+      <div class="brand-blk">
+        <div class="logo">Sentinel <em>AI</em></div>
+        <p class="tagline">Quiet watchlist alerts in Telegram. Source-cited, threshold-driven, and explicitly not financial advice.</p>
+        <div class="socials">
+          <a href="https://t.me/SentinelAI_signals" title="Telegram" aria-label="Telegram">✈</a>
+          <a href="https://x.com/sentinel_ai_placeholder" title="X / Twitter" aria-label="X">✕</a>
+          <a href="https://www.linkedin.com/company/sentinel-ai-placeholder" title="LinkedIn" aria-label="LinkedIn">in</a>
+          <a href="https://github.com/sentinel-ai-placeholder" title="GitHub" aria-label="GitHub">⌘</a>
+          <a href="https://www.youtube.com/@sentinel-ai-placeholder" title="YouTube" aria-label="YouTube">▶</a>
+          <a href="mailto:hello@sentinel.ai" title="Email" aria-label="Email">✉</a>
+        </div>
+      </div>
+
+      <div>
+        <h4>Product</h4>
+        <ul>
+          <li><a href="https://t.me/SentinelAI_signals">Telegram Channel</a></li>
+          <li><a href="https://whop.com/sentinel-ai-pro-placeholder">Pro Subscription <span class="new-chip">−25%</span></a></li>
+          <li><a href="https://whop.com/sentinel-ai-skill-placeholder">Skill (Self-hosted)</a></li>
+          <li><a href="#methodology">Methodology</a></li>
+          <li><a href="#pillars">Features</a></li>
+          <li><a href="#">Changelog</a></li>
+          <li><a href="#">API (Q3 '26)</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="#">Documentation</a></li>
+          <li><a href="#">Quick-start guide</a></li>
+          <li><a href="#methodology">Source-cited methodology</a></li>
+          <li><a href="#">Risk-gate reference</a></li>
+          <li><a href="#">Status page</a></li>
+          <li><a href="#">Blog</a></li>
+          <li><a href="#">Press kit</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Contact</h4>
+        <ul>
+          <li><a href="mailto:support@sentinel.ai">Customer support</a></li>
+          <li><a href="mailto:biz@sentinel.ai">Business / partnerships</a></li>
+          <li><a href="mailto:feedback@sentinel.ai">Product feedback</a></li>
+          <li><a href="mailto:press@sentinel.ai">Press inquiries</a></li>
+          <li><a href="mailto:security@sentinel.ai">Security / vuln report</a></li>
+          <li><a href="mailto:legal@sentinel.ai">Legal requests</a></li>
+          <li><a href="#">Affiliate program</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Company</h4>
+        <ul>
+          <li><a href="#top">About</a></li>
+          <li><a href="#">Team</a></li>
+          <li><a href="#">Careers <span class="new-chip" style="background: var(--amber);">HIRING</span></a></li>
+          <li><a href="#">Investors</a></li>
+          <li><a href="#">Roadmap</a></li>
+          <li><a href="#">Built in public</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h4>Legal &amp; Safety</h4>
+        <ul>
+          <li><a href="#">Privacy policy</a></li>
+          <li><a href="#">Terms of service</a></li>
+          <li><a href="#">Data processing</a></li>
+          <li><a href="#">Acceptable use</a></li>
+          <li><a href="#">Cookie preferences</a></li>
+          <li><a href="#" style="color: #ff8a87;">Not investment advice</a></li>
+          <li><a href="#">Responsible disclosure</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- compliance badges -->
+    <div class="compliance-badges">
+      <span class="cb">🛡 <strong>Encrypted in transit and at rest</strong></span>
+      <span class="cb">🇪🇺 <strong>GDPR</strong> compliant</span>
+      <span class="cb">🇺🇸 <strong>CCPA</strong> compliant</span>
+      <span class="cb">🔐 <strong>AES-256</strong> at rest</span>
+      <span class="cb">🔒 <strong>TLS 1.3</strong> in transit</span>
+      <span class="cb">📋 <strong>ISO 27001</strong> roadmap</span>
+    </div>
+
+    <!-- long-form legal — strengthened per SEC/FINRA safe-harbor practice -->
+    <div class="legal-long">
+      <p>
+        <strong>IMPORTANT — NOT INVESTMENT ADVICE.</strong>
+        Sentinel AI, Inc. is <strong>not a registered investment advisor, broker-dealer, or financial planner</strong> under the Investment Advisers Act of 1940, and is not affiliated with the SEC, FINRA, CFTC, SIPC, or any U.S. federal, state, or foreign regulatory agency. Nothing on this website, in our Telegram bot, in our emails, in our PDF reports, or in any output of the Sentinel AI service — including scores, rankings, signals, analyses, or written commentary — constitutes <strong>investment, legal, tax, accounting, or financial advice</strong>, a recommendation, a solicitation, or an offer to buy, sell, or hold any security, derivative, cryptocurrency, or other financial instrument. Use of the service <strong>does not create an advisor-client, fiduciary, or agency relationship</strong> of any kind.
+      </p>
+      <p>
+        <strong>AI-GENERATED CONTENT DISCLOSURE.</strong>
+        Sentinel AI outputs are produced by large language models and quantitative algorithms. Although every numeric datum in a report is cross-verified through a second-stage web search, <strong>AI systems can and do make errors</strong>, including but not limited to mis-attribution of financial metrics, outdated context, misinterpretation of filings, and reasoning errors. <strong>You must independently verify any material fact</strong> before making a financial decision. Sentinel AI assumes no liability for decisions made based on AI output.
+      </p>
+      <p>
+        <strong>RISK OF LOSS.</strong> Securities trading involves substantial risk, including the <strong>possible total loss of principal</strong>. Past performance is not indicative of, and does not guarantee, future results. Scores and priority rankings reflect our proprietary interpretation of publicly available data at a point in time and do not predict future price movements. You are <strong>solely responsible for your own investment decisions</strong> and should consult a duly licensed investment advisor, attorney, or tax professional before acting on any information obtained through Sentinel AI.
+      </p>
+      <p>
+        <strong>ELIGIBILITY &amp; JURISDICTION.</strong>
+        Sentinel AI is intended for users who are (a) at least 18 years of age, (b) legally permitted to use financial information services in their jurisdiction, and (c) currently accessing the service from a jurisdiction where such use is not prohibited. The service currently supports <strong>U.S.-listed equities only</strong>. Residents of the EEA, UK, and certain other jurisdictions should note that Sentinel AI is not authorised under MiFID II, FCA rules, or any comparable non-U.S. regulatory regime and is not marketed to retail investors outside the United States.
+      </p>
+      <p>
+        <strong>DATA SOURCES &amp; ACCURACY.</strong>
+        Market data is provided by public APIs (Yahoo Finance, SEC EDGAR, FINRA ORF, CNN Fear &amp; Greed), may be delayed 15–20 minutes, and is furnished <strong>"AS IS" and "AS AVAILABLE"</strong> without warranty of any kind, express or implied, including merchantability, fitness for a particular purpose, or non-infringement. Third-party data providers are not affiliated with Sentinel AI and bear no responsibility for errors or omissions. Full source-attribution in the <a href="#methodology" style="color: #c4c2b4; text-decoration: underline;">methodology section</a>.
+      </p>
+      <p>
+        <strong>LIMITATION OF LIABILITY.</strong>
+        To the maximum extent permitted by law, Sentinel AI, Inc., its officers, employees, contractors, and affiliates shall not be liable for any direct, indirect, incidental, consequential, special, exemplary, or punitive damages arising out of or in connection with your use of the service, including but not limited to loss of profits, trading losses, data, goodwill, or other intangible losses. Total aggregate liability shall not exceed the amount paid by you to Sentinel AI in the 12 months preceding the claim, or USD $100 if no fees were paid.
+      </p>
+      <p>
+        <strong>GOVERNING LAW &amp; CONTACT.</strong>
+        These terms are governed by the laws of the State of Delaware, U.S.A., without regard to conflict-of-laws principles. For press, partnerships, security disclosure, enterprise licensing, data-subject requests, or regulatory inquiries: see the Contact column above. Response SLA: customer support 24h · business inquiries 48h · security reports 12h · legal &amp; regulatory 5 business days.
+      </p>
+      <p style="color: #54585c; font-size: 10.5px; margin-top: 14px;">
+        By using Sentinel AI you acknowledge that you have read, understood, and agree to our full <a href="#" style="color: #8a8b85; text-decoration: underline;">Terms of Service</a>, <a href="#" style="color: #8a8b85; text-decoration: underline;">Privacy Policy</a>, and <a href="#" style="color: #8a8b85; text-decoration: underline;">Data Processing Addendum</a>.
+      </p>
+    </div>
+
+    <div class="bottom-row">
+      <span>© 2026 Sentinel AI, Inc. · All rights reserved.</span>
+      <span>v0.4 — Swiss / iPhone / live chat</span>
+      <span>Built in public since 2025 🛰️ · <a href="#">release notes</a></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+  /* ─── Ticker tape ─── */
+  (function () {
+    const symbols = [
+      ['AAPL', '175.43', '+0.42%', 'up'],
+      ['NVDA', '892.11', '+2.40%', 'up'],
+      ['TSLA', '238.56', '-0.82%', 'down'],
+      ['SPY',  '512.30', '+0.14%', 'up'],
+      ['MSFT', '428.77', '+0.38%', 'up'],
+      ['GOOG', '168.22', '+0.72%', 'up'],
+      ['AMZN', '184.10', '-1.41%', 'down'],
+      ['META', '502.30', '+0.22%', 'up'],
+      ['AVGO', '1342.5', '+2.41%', 'up'],
+      ['MU',   '108.44', '+3.12%', 'up'],
+      ['AMD',  '165.80', '+1.22%', 'up'],
+      ['CRM',  '276.41', '-1.12%', 'down'],
+      ['PYPL', '62.15',  '-3.21%', 'down'],
+      ['LLY',  '820.55', '+2.82%', 'up'],
+      ['XOM',  '119.02', '+1.10%', 'up'],
+      ['QQQ',  '438.91', '+0.52%', 'up'],
+    ];
+    function spark(cls) {
+      // 8 points, either trending up or down
+      const up = cls === 'up';
+      const pts = [];
+      for (let i = 0; i < 8; i++) {
+        const base = up ? (12 - i * 1.1) : (2 + i * 1.1);
+        pts.push((i * 44/7) + ',' + (base + (Math.random() * 2 - 1)).toFixed(1));
+      }
+      const stroke = up ? '#72d8a7' : '#ff8a87';
+      return '<svg class="spark" viewBox="0 0 44 14" preserveAspectRatio="none"><polyline points="' + pts.join(' ') + '" fill="none" stroke="' + stroke + '" stroke-width="1.2"/></svg>';
+    }
+    function buildRow() {
+      return symbols.map(([s, p, c, dir]) =>
+        `<span class="tk"><span class="sym">${s}</span><span class="px">${p}</span><span class="chg ${dir}">${dir === 'up' ? '▲' : '▼'} ${c}</span>${spark(dir)}</span>`
+      ).join('');
+    }
+    const row = buildRow();
+    document.getElementById('tape').innerHTML = row + row;
+  })();
+
+  /* ─── Reveal on scroll ─── */
+  (function () {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('in');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15, rootMargin: '0px 0px -60px 0px' });
+    document.querySelectorAll('.reveal, .reveal-stagger, .weights, .heatmap, .mem-box, .tg-phone, .candles, .timeline, .stat-row').forEach(el => io.observe(el));
+  })();
+
+  /* ─── Counter animation ─── */
+  (function () {
+    function countTo(el) {
+      const target = parseFloat(el.getAttribute('data-target'));
+      const suffix = el.innerHTML.replace(/^[\d.]+/, '').replace(/^0/, '');
+      const dur = 1400;
+      const start = performance.now();
+      const prefix = el.innerHTML.match(/<em>.*<\/em>$/);
+      function tick(now) {
+        const t = Math.min((now - start) / dur, 1);
+        const eased = 1 - Math.pow(1 - t, 3);
+        const val = Math.round(target * eased);
+        el.firstChild.nodeValue = val.toString();
+        if (t < 1) requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          countTo(e.target);
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('.count').forEach(el => io.observe(el));
+  })();
+
+  /* ─── Tabs · re-trigger typewriter on switch ─── */
+  (function () {
+    const buttons = document.querySelectorAll('[data-tab]');
+    const panels  = document.querySelectorAll('[data-panel]');
+
+    function replayRun(panel) {
+      const term = panel.querySelector('.term[data-run="true"]');
+      if (!term) return;
+      term.classList.remove('run');
+      // force reflow then re-add
+      void term.offsetWidth;
+      term.classList.add('run');
+      // re-run counter inside
+      const counter = term.querySelector('.count');
+      if (counter) {
+        const target = parseFloat(counter.getAttribute('data-target'));
+        counter.firstChild.nodeValue = '0';
+        const dur = 1200, start = performance.now() + 1200; // delay ~1.2s to align with line appearance
+        function tick(now) {
+          if (now < start) { requestAnimationFrame(tick); return; }
+          const t = Math.min((now - start) / dur, 1);
+          const eased = 1 - Math.pow(1 - t, 3);
+          counter.firstChild.nodeValue = Math.round(target * eased).toString();
+          if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      }
+    }
+
+    buttons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-tab');
+        buttons.forEach(b => b.classList.toggle('active', b === btn));
+        panels.forEach(p => {
+          const active = p.getAttribute('data-panel') === id;
+          p.classList.toggle('active', active);
+          if (active) replayRun(p);
+        });
+      });
+    });
+
+    // Legacy: trigger run on active tab panel if present (backwards compat)
+    const initialActive = document.querySelector('.tab-panel.active');
+    if (initialActive) {
+      const io = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          io.disconnect();
+          replayRun(initialActive);
+        }
+      }, { threshold: 0.3 });
+      io.observe(initialActive);
+    }
+
+    // New: trigger run on each standalone mode-card terminal (3-col demo)
+    document.querySelectorAll('.mode-card').forEach(card => {
+      const term = card.querySelector('.term[data-run="true"]');
+      if (!term) return;
+      const io = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting) {
+          io.disconnect();
+          replayRun(card);
+        }
+      }, { threshold: 0.35 });
+      io.observe(card);
+    });
+  })();
+
+  /* ─── Dynamic Telegram chat stream (Hero) ─── */
+  (function () {
+    const stream = document.getElementById('chat-stream');
+    if (!stream) return;
+
+    // escaped HTML templates for each message kind
+    const T = {
+      date: (text) => `<div class="date-chip b-enter">${text}</div>`,
+
+      bot: (meta, body) => `
+        <div class="bubble bot b-enter">
+          ${meta ? `<div class="bubble-meta">${meta}</div>` : ''}
+          ${body}
+        </div>`,
+
+      user: (body) => `<div class="bubble user b-enter">${body}</div>`,
+
+      priority: (rank, dir, sym, chg, body, withCard) => `
+        <div class="bubble bot priority b-enter">
+          <div class="prio">
+            <span class="prio-no ${dir}">${dir === 'up' ? '▲' : dir === 'down' ? '▼' : '↗'} ${rank}</span>
+            <span class="prio-sym">${sym}</span>
+            <span class="prio-chg ${dir}">${chg}</span>
+          </div>
+          ${withCard ? body : `<div class="bubble-txt">${body}</div>`}
+        </div>`,
+
+      nvdaCard: () => `
+        <div class="mini-card">
+          <div class="mono" style="font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute);">Sentinel pulse · 10-dim</div>
+          <div class="big-num" data-animate-to="83">0<em> /100</em></div>
+          <span class="verdict">High activity</span>
+          <svg class="candles card-candles" viewBox="0 0 240 48" preserveAspectRatio="none">
+            <rect x="2" y="26" width="14" height="14" class="cn"/>
+            <rect x="20" y="22" width="14" height="18" class="cn"/>
+            <rect x="38" y="30" width="14" height="8" class="cp"/>
+            <rect x="56" y="18" width="14" height="20" class="cn"/>
+            <rect x="74" y="12" width="14" height="24" class="cn"/>
+            <rect x="92" y="20" width="14" height="10" class="cp"/>
+            <rect x="110" y="10" width="14" height="24" class="cn"/>
+            <rect x="128" y="6" width="14" height="26" class="cn"/>
+            <rect x="146" y="16" width="14" height="12" class="cp"/>
+            <rect x="164" y="6" width="14" height="22" class="cn"/>
+            <rect x="182" y="2" width="14" height="26" class="cn"/>
+            <rect x="200" y="0" width="14" height="28" class="cn"/>
+          </svg>
+          <div class="score-bars">
+            <div class="row"><span>Fundamentals</span><span class="b" style="--w:85%"><i></i></span><span>85</span></div>
+            <div class="row"><span>Sentiment</span><span class="b" style="--w:91%"><i></i></span><span>91</span></div>
+            <div class="row"><span>Technical</span><span class="b" style="--w:78%"><i></i></span><span>78</span></div>
+          </div>
+        </div>
+        <div class="tap-row">
+          <button class="tap">Source + context</button>
+          <button class="tap alt">Mute today</button>
+        </div>`,
+    };
+
+    // script: [kind, payload, pauseBeforeMs, typingMs (if bot)]
+    const SCRIPT = [
+      ['date',     () => `Today · Apr 24 · Pre-market`, 200, 0],
+      ['bot',      () => T.bot('Morning brief · 08:30 ET', `Good morning. <strong>3 events</strong> in your watchlist — ranked by materiality:`), 400, 700],
+      ['priority', () => T.priority('01', 'up',   'NVDA', '+2.4% · 892.11',     T.nvdaCard(),                                                         true),  900, 1200],
+      ['priority', () => T.priority('02', 'down', 'TSLA', '-0.8% · risk gate',  `Earnings in 9 days. State <span class="mono">Neutral</span> · watchlist threshold not crossed.`, false), 800, 900],
+      ['priority', () => T.priority('03', 'up',   'AAPL', 'earnings prep',      `Q2 call in 3 days · calendar source checked · IV up 4%.`, false),                               800, 900],
+      ['user',     () => T.user(`Why NVDA over AVGO today?`),                                                                                                                                              1600, 0],
+      ['bot',      () => T.bot(null, `Both are AI-beneficiaries. <strong>NVDA</strong> crossed your line first; AVGO remains on watch. Source links are attached for both.`), 800, 1400],
+      ['user',     () => T.user(`Got it. Send me the source context.`),                                                                                                                                      1500, 0],
+      ['bot',      () => T.bot(null, `<strong>NVDA source context</strong> sent.<br/><span style="color:var(--up); font-size: 11px;" class="mono">source-cited · context, not advice</span>`), 700, 1100],
+    ];
+
+    function insertTyping() {
+      const el = document.createElement('div');
+      el.className = 'typing b-enter';
+      el.innerHTML = '<span></span><span></span><span></span>';
+      stream.appendChild(el);
+      requestAnimationFrame(() => el.classList.add('b-in-now'));
+      return el;
+    }
+
+    function runNumberAnim(parent) {
+      parent.querySelectorAll('[data-animate-to]').forEach(el => {
+        const target = parseFloat(el.getAttribute('data-animate-to'));
+        const dur = 1100;
+        const start = performance.now();
+        function tick(now) {
+          const t = Math.min((now - start) / dur, 1);
+          const eased = 1 - Math.pow(1 - t, 3);
+          el.firstChild.nodeValue = Math.round(target * eased).toString();
+          if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+      });
+      parent.querySelectorAll('.card-candles').forEach(c => c.classList.add('in'));
+      parent.querySelectorAll('.score-bars .b').forEach(b => {
+        const i = b.querySelector('i');
+        const w = b.style.getPropertyValue('--w');
+        requestAnimationFrame(() => { i.style.width = w; });
+      });
+    }
+
+    function keepChatBounded() {
+      // when too many bubbles (> 6), fade the oldest one out
+      const items = Array.from(stream.children).filter(n =>
+        n.classList.contains('bubble') || n.classList.contains('date-chip')
+      );
+      while (items.length > 6) {
+        const oldest = items.shift();
+        oldest.classList.add('fading');
+        setTimeout(() => oldest.remove(), 800);
+      }
+    }
+
+    async function step(idx) {
+      const [kind, fn, pauseBefore, typingMs] = SCRIPT[idx];
+      await delay(pauseBefore);
+
+      // user bubbles skip typing indicator
+      if (typingMs > 0) {
+        const typ = insertTyping();
+        await delay(typingMs);
+        typ.remove();
+      }
+
+      const wrap = document.createElement('div');
+      wrap.innerHTML = fn().trim();
+      const node = wrap.firstElementChild;
+      stream.appendChild(node);
+      requestAnimationFrame(() => node.classList.add('b-in-now'));
+
+      // trigger number/bar animations inside any new priority-with-card bubble
+      if (kind === 'priority') runNumberAnim(node);
+
+      keepChatBounded();
+    }
+
+    function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function runCycle() {
+      stream.innerHTML = '';
+      for (let i = 0; i < SCRIPT.length; i++) {
+        await step(i);
+      }
+      await delay(5500);
+      // fade everything out
+      Array.from(stream.children).forEach((el, i) => {
+        setTimeout(() => el.classList.add('fading'), i * 80);
+      });
+      await delay(1200);
+    }
+
+    async function loop() {
+      while (true) {
+        await runCycle();
+      }
+    }
+
+    // Wait until Hero is visible + 6s grace period so users can read
+    // the static fallback content BEFORE the loop wipes and animates it
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        io.disconnect();
+        setTimeout(loop, 6000);
+      }
+    }, { threshold: 0.25 });
+    io.observe(document.getElementById('chat-stream').closest('.tg-phone'));
+
+    // iOS status bar clock
+    const clockEl = document.getElementById('ios-clock');
+    if (clockEl) {
+      const base = new Date();
+      base.setHours(7, 2, 0, 0);
+      setInterval(() => {
+        base.setMinutes(base.getMinutes() + 1);
+        const h = String(base.getHours()).padStart(2,'0');
+        const m = String(base.getMinutes()).padStart(2,'0');
+        clockEl.textContent = `${h}:${m}`;
+      }, 60000);
+    }
+  })();
+
+  /* ─── Heatmap live updates · breathing + random tick flashes ─── */
+  (function () {
+    const map = document.querySelector('.pulse-map') || document.querySelector('.heatmap');
+    if (!map) return;
+
+    const cells = Array.from(map.querySelectorAll('.cell'));
+    const advDecEl = document.querySelector('.adv-dec');
+
+    // parse initial pct from .t span into state
+    const state = cells.map(cell => {
+      const symEl  = cell.querySelector('.sym') || cell.querySelector('span:first-child');
+      const pctEl  = cell.querySelector('.t');
+      const ticker = symEl ? symEl.textContent : '';
+      const pct    = parseFloat(pctEl.textContent);
+      pctEl.classList.add('count-tick');
+      return { cell, ticker, pctEl, pct };
+    });
+
+    function classFor(pct) {
+      if (pct > 2.0)  return 'u3';
+      if (pct > 0.5)  return 'u2';
+      if (pct > 0)    return 'u1';
+      if (pct > -1.0) return 'd1';
+      if (pct > -2.0) return 'd2';
+      return 'd3';
+    }
+
+    function updateAdvDec() {
+      const adv = state.filter(s => s.pct > 0).length;
+      const dec = state.length - adv;
+      if (advDecEl) {
+        advDecEl.innerHTML = `<span class="adv">▲ ${adv} adv</span> · <span class="dec">${dec} dec</span>`;
+      }
+    }
+
+    function tick() {
+      // pick 3 random cells to update
+      const n = 3 + Math.floor(Math.random() * 2);
+      const picks = new Set();
+      while (picks.size < n) picks.add(Math.floor(Math.random() * state.length));
+
+      picks.forEach(i => {
+        const s = state[i];
+        const delta = (Math.random() * 0.6 - 0.3);   // ±0.3
+        const newPct = Math.max(-5, Math.min(5, s.pct + delta));
+        const wasDir = s.pct >= 0;
+        const isDir  = newPct >= 0;
+        s.pct = newPct;
+        s.pctEl.textContent = (newPct >= 0 ? '+' : '') + newPct.toFixed(1);
+
+        // re-class the cell if intensity bucket changed
+        ['u1','u2','u3','d1','d2','d3'].forEach(c => s.cell.classList.remove(c));
+        s.cell.classList.add(classFor(newPct));
+
+        // flash
+        s.cell.classList.remove('flash-up', 'flash-down');
+        void s.cell.offsetWidth; // reflow to restart animation
+        s.cell.classList.add(delta >= 0 ? 'flash-up' : 'flash-down');
+      });
+
+      updateAdvDec();
+    }
+
+    // start breathing + live updates only when heatmap comes into view
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        io.disconnect();
+        updateAdvDec();          // sync header to actual parsed state
+        setInterval(tick, 2000);
+      }
+    }, { threshold: 0.2 });
+    io.observe(map);
+  })();
+
+  /* ─── Founding seat counter · slow increment + bar fill ─── */
+  (function () {
+    const banner = document.getElementById('founding-banner');
+    if (!banner) return;
+    const seatsEl = document.getElementById('seats-taken');
+    const bar = banner.querySelector('.bar-wrap i');
+    if (!seatsEl || !bar) return;
+    let taken = 72;
+
+    function render() {
+      seatsEl.textContent = String(taken);
+      bar.style.setProperty('--pct', (taken) + '%');
+      banner.style.setProperty('--pct', (taken) + '%');
+    }
+    render();
+
+    const io = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        io.disconnect();
+        banner.classList.add('in');
+        // slow trickle +1 every 18-40s up to 91
+        function trickle() {
+          if (taken < 91) {
+            taken += 1;
+            seatsEl.classList.add('flash-up');
+            render();
+            setTimeout(() => seatsEl.classList.remove('flash-up'), 600);
+          }
+          const next = 18000 + Math.random() * 22000;
+          setTimeout(trickle, next);
+        }
+        setTimeout(trickle, 6000);
+      }
+    }, { threshold: 0.4 });
+    io.observe(banner);
+  })();
+
+  /* ─── Offer countdown (fake rolling 24h) ─── */
+  (function () {
+    const el = document.getElementById('offer-countdown');
+    if (!el) return;
+    // seed at 23:42:08 counting down
+    let total = 23*3600 + 42*60 + 8;
+    function render() {
+      if (total <= 0) total = 23*3600 + 59*60 + 59; // loop
+      const h = Math.floor(total / 3600);
+      const m = Math.floor((total % 3600) / 60);
+      const s = total % 60;
+      const p = n => String(n).padStart(2,'0');
+      el.innerHTML = `⏱ Offer resets in <strong style="color: var(--up-bright); font-variant-numeric: tabular-nums;">${p(h)}:${p(m)}:${p(s)}</strong>`;
+      total -= 1;
+    }
+    render();
+    setInterval(render, 1000);
+  })();
+
+  /* ─── Recent joins rotator ─── */
+  (function () {
+    const el = document.getElementById('recent-joins');
+    if (!el) return;
+    const joins = [
+      ['@chen_trades',   'Singapore',     '4 min ago'],
+      ['@marcus_f',      'NYC',           '7 min ago'],
+      ['@invest_priya',  'London',        '11 min ago'],
+      ['@day_job_dom',   'Toronto',       '14 min ago'],
+      ['@quant_kai',     'Hong Kong',     '19 min ago'],
+      ['@soledad_t',     'Madrid',        '23 min ago'],
+      ['@jbluth_invests','Los Angeles',   '31 min ago'],
+      ['@nadia_w',       'Amsterdam',     '38 min ago'],
+    ];
+    let i = 0;
+    function render() {
+      const [u, loc, ago] = joins[i % joins.length];
+      el.innerHTML = `<span class="dot-live"></span> Just joined: <strong>${u}</strong> from ${loc} · ${ago}`;
+      i++;
+    }
+    setInterval(render, 5500);
+  })();
+</script>
+
+</body>
+</html>

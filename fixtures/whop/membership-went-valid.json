@@ -1,0 +1,19 @@
+{
+  "action": "membership.went_valid",
+  "data": {
+    "id": "mem_fixture_0509",
+    "product_id": "prod_fixture_pro",
+    "plan_id": "plan_fixture_monthly",
+    "user": {
+      "id": "user_fixture_0509",
+      "email": "fixture-pro-user@example.com",
+      "username": "fixture_pro_user"
+    },
+    "status": "active",
+    "valid": true,
+    "renewal_period_end": 1770441600,
+    "metadata": {
+      "client_reference_id": "src_xtw_score92_aapl_20260509"
+    }
+  }
+}

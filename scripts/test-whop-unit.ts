@@ -1,17 +1,15 @@
 import "dotenv/config";
 import crypto from "node:crypto";
-
-import { verifyWhopSignature } from "../lib/whop";
-import { createVipInviteLink } from "../lib/telegram";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 
 async function testSignature() {
-  const secret = process.env.WHOP_WEBHOOK_SECRET;
-  if (!secret) {
-    console.log("[skip] signature test: WHOP_WEBHOOK_SECRET not set");
-    return;
-  }
+  const secret = process.env.WHOP_WEBHOOK_SECRET ?? "whop_fixture_secret_0509";
+  process.env.WHOP_WEBHOOK_SECRET = secret;
+  const { verifyWhopSignature } = await import("../lib/whop");
 
-  const body = JSON.stringify({ action: "membership.went_valid", data: { id: "mem_x" } });
+  const fixturePath = path.join(process.cwd(), "fixtures", "whop", "membership-went-valid.json");
+  const body = await readFile(fixturePath, "utf8");
   const goodSig = crypto.createHmac("sha256", secret).update(body).digest("hex");
 
   const okPlain = verifyWhopSignature(body, goodSig);
@@ -33,7 +31,7 @@ async function testSignature() {
     console.error("[signature] FAIL");
     process.exitCode = 1;
   } else {
-    console.log("[signature] PASS");
+    console.log(`[signature] PASS fixture=${fixturePath}`);
   }
 }
 
@@ -44,11 +42,12 @@ async function testTelegramInvite() {
   }
 
   try {
+    const { createVipInviteLink } = await import("../lib/telegram");
     const link = await createVipInviteLink({
       memberLimit: 1,
       name: `smoke-test-${Date.now()}`
     });
-    console.log("[telegram] PASS — created invite link:", link.inviteLink);
+    console.log("[telegram] PASS - created invite link:", link.inviteLink);
   } catch (error) {
     console.error("[telegram] FAIL:", error instanceof Error ? error.message : error);
     process.exitCode = 1;

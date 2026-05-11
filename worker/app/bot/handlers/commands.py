@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
@@ -238,7 +238,9 @@ async def handle_pending_wl_action(update: Update, context: ContextTypes.DEFAULT
                 val = max(0.5, min(10.0, val))
                 await db.set_threshold(user_id, val)
                 await update.message.reply_text(
-                    f"✓ <code>{ticker}</code> threshold set to ±{val:.1f}%", parse_mode="HTML"
+                    f"✓ Global threshold set to ±{val:.1f}%.\n"
+                    f"<i>Per-ticker thresholds are not enabled yet; this applies to all tickers.</i>",
+                    parse_mode="HTML",
                 )
             except ValueError:
                 await update.message.reply_text(
@@ -293,12 +295,12 @@ async def threshold_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
             val = max(0.5, min(10.0, val))
             await db.set_threshold(user_id, val)
             await update.message.reply_text(
-                f"✓ Alert threshold set to ±{val:.1f}% for all tickers.",
+                f"✓ Global alert threshold set to ±{val:.1f}% for all tickers.",
                 parse_mode="HTML",
             )
         except ValueError:
             await update.message.reply_text(
-                "Usage: <code>/threshold TSLA 2</code> or <code>/threshold all 1.5</code>",
+                "Usage: <code>/threshold all 1.5</code>",
                 parse_mode="HTML",
             )
     else:
@@ -306,7 +308,7 @@ async def threshold_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
         current = profile.get("alert_threshold", 2.0) if profile else 2.0
         await update.message.reply_text(
             f"Current threshold: ±{current:.1f}%\n\n"
-            "To change: <code>/threshold TSLA 2</code> or <code>/threshold all 1.5</code>",
+            "To change the global threshold: <code>/threshold all 1.5</code>",
             parse_mode="HTML",
         )
 
@@ -315,8 +317,10 @@ async def threshold_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 async def snooze_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     args = context.args or []
+    user_id = update.effective_user.id
     if args and args[0].lower() == "off":
         context.user_data.pop("snooze_until", None)
+        await db.clear_snooze(user_id)
         await update.message.reply_text(SNOOZE_OFF_CONFIRM)
         return
 
@@ -327,7 +331,9 @@ async def snooze_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         except ValueError:
             pass
 
-    context.user_data["snooze_until"] = datetime.utcnow() + timedelta(hours=hours)
+    snooze_until = datetime.now(timezone.utc) + timedelta(hours=hours)
+    context.user_data["snooze_until"] = snooze_until
+    await db.set_snooze_until(user_id, snooze_until)
     await update.message.reply_text(snooze_confirm(hours), parse_mode="HTML")
 
 

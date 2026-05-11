@@ -28,12 +28,32 @@ CREATE TABLE IF NOT EXISTS telegram_bot_profile (
     quiet_hours_start   INT     NOT NULL DEFAULT 22,
     quiet_hours_end     INT     NOT NULL DEFAULT 7,
     onboarding_completed BOOLEAN NOT NULL DEFAULT FALSE,
+    signup_source       TEXT,
+    signup_campaign     TEXT,
+    signup_ticker       TEXT,
+    signup_payload_raw  TEXT,
+    signup_at           TIMESTAMPTZ,
+    snooze_until        TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_tbp_onboarding
     ON telegram_bot_profile (onboarding_completed);
+
+ALTER TABLE telegram_bot_profile
+    ADD COLUMN IF NOT EXISTS signup_source TEXT,
+    ADD COLUMN IF NOT EXISTS signup_campaign TEXT,
+    ADD COLUMN IF NOT EXISTS signup_ticker TEXT,
+    ADD COLUMN IF NOT EXISTS signup_payload_raw TEXT,
+    ADD COLUMN IF NOT EXISTS signup_at TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS snooze_until TIMESTAMPTZ;
+
+CREATE INDEX IF NOT EXISTS idx_tbp_signup_source
+    ON telegram_bot_profile (signup_source);
+
+CREATE INDEX IF NOT EXISTS idx_tbp_snooze_until
+    ON telegram_bot_profile (snooze_until);
 
 -- Dedup: prevents re-alerting same ticker+direction within cooldown window
 CREATE TABLE IF NOT EXISTS alert_cooldown (
@@ -164,6 +184,14 @@ async def set_quiet_hours(
         quiet_hours_start=start,
         quiet_hours_end=end,
     )
+
+
+async def set_snooze_until(telegram_user_id: int, snooze_until) -> None:
+    await upsert_profile(telegram_user_id, snooze_until=snooze_until)
+
+
+async def clear_snooze(telegram_user_id: int) -> None:
+    await upsert_profile(telegram_user_id, snooze_until=None)
 
 
 async def mark_onboarding_done(telegram_user_id: int) -> None:

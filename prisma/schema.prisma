@@ -32,6 +32,19 @@ enum SubscriptionState {
   EXPIRED
 }
 
+enum MarketingChannel {
+  X
+  REDDIT
+  TELEGRAM
+}
+
+enum MarketingDraftStatus {
+  DRAFT
+  APPROVED
+  REJECTED
+  POSTED
+}
+
 model User {
   id              String               @id @default(cuid())
   email           String               @unique
@@ -39,6 +52,7 @@ model User {
   updatedAt       DateTime             @updatedAt
   analyses        AnalysisHistory[]
   subscription    SubscriptionStatus?
+  emailLead       EmailLead?
 }
 
 model AnalysisHistory {
@@ -48,6 +62,7 @@ model AnalysisHistory {
   deepMode          String?
   status            AnalysisStatus @default(QUEUED)
   workerJobId       String?        @unique
+  accessToken        String?        @unique
   finalScore        Int?
   rating            String?
   recommendation    String?
@@ -61,6 +76,7 @@ model AnalysisHistory {
   completedAt       DateTime?
   userId            String
   user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareLinks        ShareLink[]
 
   @@index([userId, createdAt])
   @@index([status])
@@ -84,4 +100,111 @@ model SubscriptionStatus {
   updatedAt           DateTime          @updatedAt
   userId              String            @unique
   user                User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MarketingDraft {
+  id             String               @id @default(cuid())
+  channel        MarketingChannel
+  persona        String
+  ticker         String?
+  score          Int?
+  headline       String
+  body           String
+  sourceUrl      String?
+  deepLink       String?
+  status         MarketingDraftStatus @default(DRAFT)
+  redlineOk      Boolean              @default(false)
+  redlineNotes   String?
+  scheduledFor   DateTime?
+  approvedAt     DateTime?
+  approvedBy     String?
+  rejectedAt     DateTime?
+  rejectionReason String?
+  postedAt       DateTime?
+  externalPostId String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([status, channel, createdAt])
+  @@index([ticker])
+}
+
+// Growth OS models
+
+model EmailLead {
+  id                  String    @id @default(cuid())
+  email               String
+  ticker              String?
+  sourcePath          String?
+  utmSource           String?
+  utmMedium           String?
+  utmCampaign         String?
+  utmContent          String?
+  ref                 String?
+  magicToken          String?   @unique
+  magicTokenExpiresAt DateTime?
+  verifiedAt          DateTime?
+  userId              String?   @unique
+  user                User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([email, ticker])
+  @@index([email])
+  @@index([magicToken])
+}
+
+model ShareLink {
+  id            String           @id @default(cuid())
+  shareId       String           @unique @default(cuid())
+  analysisId    String
+  analysis      AnalysisHistory  @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  views         Int              @default(0)
+  emailCaptures Int              @default(0)
+  expiresAt     DateTime?
+  createdAt     DateTime         @default(now())
+
+  @@index([shareId])
+  @@index([analysisId])
+}
+
+model VisitEvent {
+  id          String   @id @default(cuid())
+  path        String
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  ref         String?
+  sessionId   String?
+  leadId      String?
+  createdAt   DateTime @default(now())
+
+  @@index([leadId])
+  @@index([utmCampaign])
+  @@index([createdAt])
+}
+
+model ContentItem {
+  id               String   @id @default(cuid())
+  contentId        String   @unique
+  platform         String
+  ticker           String?
+  hook             String?
+  body             String
+  ctaUrl           String?
+  riskLevel        String   @default("Low")
+  redlineStatus    String   @default("PENDING")
+  redlineNotes     String?
+  reviewStatus     String   @default("PENDING")
+  reviewerComment  String?
+  feishuRecordId   String?
+  publishTime      DateTime?
+  publishedUrl     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([reviewStatus, platform])
+  @@index([ticker])
+  @@index([feishuRecordId])
 }

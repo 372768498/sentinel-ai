@@ -1,4 +1,5 @@
 import { AnalysisStatus, ReportTier } from "@prisma/client";
+import crypto from "node:crypto";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
@@ -47,9 +48,12 @@ export async function POST(request: Request) {
       );
     }
 
+    const accessToken = crypto.randomBytes(24).toString("hex");
+
     const history = await prisma.analysisHistory.create({
       data: {
         userId: user.id,
+        accessToken,
         ticker,
         requestedMode: payload.requestedMode === "deep" ? ReportTier.DEEP : ReportTier.BASIC,
         deepMode: payload.requestedMode === "deep" ? payload.deepMode ?? "valuation" : null,
@@ -60,6 +64,7 @@ export async function POST(request: Request) {
     try {
       const workerJob = await createWorkerJob({
         historyId: history.id,
+        accessToken,
         ticker,
         email,
         requestedMode: payload.requestedMode,
