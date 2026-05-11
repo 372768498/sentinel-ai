@@ -15,6 +15,7 @@ import os
 from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Optional
+from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 try:
     import asyncpg
@@ -35,11 +36,30 @@ def _database_url() -> str:
     return url
 
 
+# Prisma sometimes appends `?schema=public` / `?connection_limit=N` to
+# DATABASE_URL. asyncpg's connection parser rejects unknown query params with
+# "unrecognized configuration parameter". Strip Prisma-only keys before
+# handing the DSN to asyncpg.
+_PRISMA_ONLY_QUERY_KEYS = frozenset({"schema", "connection_limit", "pool_timeout", "pgbouncer"})
+
+
+def _strip_prisma_query_params(url: str) -> str:
+    parsed = urlparse(url)
+    if not parsed.query:
+        return url
+    kept = [
+        (k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True)
+        if k.lower() not in _PRISMA_ONLY_QUERY_KEYS
+    ]
+    return urlunparse(parsed._replace(query=urlencode(kept)))
+
+
 @asynccontextmanager
 async def _connect():
     if asyncpg is None:  # pragma: no cover
         raise KPIDBError("asyncpg is not installed in this environment")
-    conn = await asyncpg.connect(dsn=_database_url())
+    dsn = _strip_prisma_query_params(_database_url())
+    conn = await asyncpg.connect(dsn=dsn)
     try:
         yield conn
     finally:
