@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
@@ -66,6 +66,15 @@ async def _connect():
         await conn.close()
 
 
+def _to_naive_utc(dt: datetime) -> datetime:
+    """Prisma maps `DateTime` to Postgres `timestamp(3)` (tz-naive) and stores
+    everything in UTC. asyncpg won't compare tz-aware values against tz-naive
+    columns — convert to UTC then drop tzinfo at the boundary."""
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 # ---------------------------------------------------------------------------
 # Query helpers (each accepts an injected connection for testability)
 # ---------------------------------------------------------------------------
@@ -110,22 +119,26 @@ GROUP BY el."utmContent"
 async def fetch_clicks_by_content(
     start: datetime, end: datetime, *, conn=None
 ) -> dict[str, int]:
+    s = _to_naive_utc(start)
+    e = _to_naive_utc(end)
     if conn is not None:
-        rows = await conn.fetch(CLICKS_SQL, start, end)
+        rows = await conn.fetch(CLICKS_SQL, s, e)
     else:
         async with _connect() as c:
-            rows = await c.fetch(CLICKS_SQL, start, end)
+            rows = await c.fetch(CLICKS_SQL, s, e)
     return {r["content_id"]: r["clicks"] for r in rows}
 
 
 async def fetch_email_metrics_by_content(
     start: datetime, end: datetime, *, conn=None
 ) -> dict[str, dict[str, int]]:
+    s = _to_naive_utc(start)
+    e = _to_naive_utc(end)
     if conn is not None:
-        rows = await conn.fetch(EMAILS_SQL, start, end)
+        rows = await conn.fetch(EMAILS_SQL, s, e)
     else:
         async with _connect() as c:
-            rows = await c.fetch(EMAILS_SQL, start, end)
+            rows = await c.fetch(EMAILS_SQL, s, e)
     return {
         r["content_id"]: {"emails_captured": r["emails_captured"], "signups": r["signups"]}
         for r in rows
