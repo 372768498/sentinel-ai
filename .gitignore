@@ -17,6 +17,11 @@ worker/**/*.pyc
 worker/.venv/
 worker/.venv_win/
 worker/.pytest_cache/
+scripts/__pycache__/
+
+# ===== X cookies / marketing creds =====
+worker/data/
+worker/**/x-cookies.json
 
 # ===== Python skill =====
 skills/**/__pycache__/
@@ -58,3 +63,7 @@ sentinel_copy_handbook_v1.html
 sentinel_p3_backlog-迭代计划.html
 sentinel_telegram_copy_pack_zh_en.html
 sentinel_user_persona_intel.html
+
+# ===== Week 7 · Browser QA screenshots（仅本地 QA 产物） =====
+获客系统/automation/browser-qa/screenshots/
+!获客系统/automation/browser-qa/screenshots/.gitkeep

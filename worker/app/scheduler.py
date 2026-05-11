@@ -28,9 +28,73 @@ def _bot_enabled() -> bool:
     return os.environ.get("BOT_ENABLED", "").lower() in ("1", "true", "yes")
 
 
+def _marketing_enabled() -> bool:
+    return os.environ.get("MARKETING_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _daily_draft_enabled() -> bool:
+    return os.environ.get("MARKETING_DAILY_DRAFT_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _daily_draft_hour() -> int:
+    raw = os.environ.get("MARKETING_DAILY_DRAFT_HOUR_ET", "9")
+    try:
+        hour = int(raw)
+    except ValueError:
+        return 9
+    return max(0, min(23, hour))
+
+
+def _queue_poll_enabled() -> bool:
+    return os.environ.get("MARKETING_QUEUE_POLL_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _queue_poll_interval() -> int:
+    raw = os.environ.get("MARKETING_QUEUE_POLL_INTERVAL_SECONDS", "300")
+    try:
+        return max(30, int(raw))  # never poll faster than 30s
+    except ValueError:
+        return 300
+
+
+def _publish_is_live() -> bool:
+    raw = os.environ.get("MARKETING_PUBLISH_DRY_RUN", "true").strip().lower()
+    return raw in {"0", "false", "no", "off"}
+
+
+def _daily_digest_enabled() -> bool:
+    return os.environ.get("MARKETING_DAILY_DIGEST_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _daily_digest_hour_minute() -> tuple[int, int]:
+    hour_raw = os.environ.get("MARKETING_DAILY_DIGEST_HOUR_ET", "16")
+    minute_raw = os.environ.get("MARKETING_DAILY_DIGEST_MINUTE_ET", "30")
+    try:
+        hour = max(0, min(23, int(hour_raw)))
+    except ValueError:
+        hour = 16
+    try:
+        minute = max(0, min(59, int(minute_raw)))
+    except ValueError:
+        minute = 30
+    return hour, minute
+
+
 def build_scheduler() -> AsyncIOScheduler | None:
-    if not _scanner_enabled() and not _bot_enabled():
-        print("[scheduler] disabled — set SCANNER_ENABLED or BOT_ENABLED to enable", flush=True)
+    if (
+        not _scanner_enabled()
+        and not _bot_enabled()
+        and not _marketing_enabled()
+        and not _daily_draft_enabled()
+        and not _queue_poll_enabled()
+        and not _daily_digest_enabled()
+    ):
+        print(
+            "[scheduler] disabled — set SCANNER_ENABLED / BOT_ENABLED / "
+            "MARKETING_ENABLED / MARKETING_DAILY_DRAFT_ENABLED / "
+            "MARKETING_QUEUE_POLL_ENABLED / MARKETING_DAILY_DIGEST_ENABLED",
+            flush=True,
+        )
         return None
 
     # All jobs use ET timezone — APScheduler handles DST automatically via pytz/zoneinfo
@@ -132,5 +196,99 @@ def build_scheduler() -> AsyncIOScheduler | None:
             print("[bot] Whop daily forum post at 16:45 ET (mon-fri)", flush=True)
         else:
             print("[bot] Whop daily forum post DISABLED (WHOP_API_KEY not set)", flush=True)
+
+    if _marketing_enabled():
+        from .marketing.jobs import publish_marketing_alerts
+
+        # Marketing dispatch: 3 min after each scanner session so prices settle
+        # and the official channel/Pro DM has already gone out first.
+        for label, hour, minute in SESSIONS:
+            m_minute = (minute + 3) % 60
+            m_hour = hour + ((minute + 3) // 60)
+            scheduler.add_job(
+                publish_marketing_alerts,
+                trigger=CronTrigger(
+                    day_of_week="mon-fri",
+                    hour=m_hour,
+                    minute=m_minute,
+                    timezone=ET_TZ,
+                ),
+                kwargs={"session_label": label},
+                id=f"marketing-x-{label.lower().replace(' ', '-')}",
+                replace_existing=True,
+                misfire_grace_time=300,
+            )
+            print(
+                f"[marketing] X dispatch after {label} at {m_hour:02d}:{m_minute:02d} ET",
+                flush=True,
+            )
+
+    if _daily_draft_enabled():
+        from .marketing.jobs import generate_daily_review_drafts
+
+        # Daily draft generation runs once per US trading day at 09:00 ET
+        # (configurable via MARKETING_DAILY_DRAFT_HOUR_ET). This is US stock
+        # market local time (America/New_York) — APScheduler handles DST.
+        hour = _daily_draft_hour()
+        scheduler.add_job(
+            generate_daily_review_drafts,
+            trigger=CronTrigger(
+                day_of_week="mon-fri",
+                hour=hour,
+                minute=0,
+                timezone=ET_TZ,
+            ),
+            kwargs={"session_label": f"daily_{hour:02d}00_et"},
+            id="marketing-daily-drafts",
+            replace_existing=True,
+            misfire_grace_time=600,
+        )
+        print(
+            f"[marketing] daily review-draft generation at {hour:02d}:00 ET (mon-fri)",
+            flush=True,
+        )
+
+    if _queue_poll_enabled():
+        from .marketing.review_poller import run_once as poll_review_queue
+
+        interval = _queue_poll_interval()
+        live = _publish_is_live()
+        scheduler.add_job(
+            poll_review_queue,
+            trigger=IntervalTrigger(seconds=interval, timezone=ET_TZ),
+            id="marketing-review-poller",
+            replace_existing=True,
+            misfire_grace_time=interval,
+        )
+        mode = "LIVE" if live else "DRY-RUN"
+        print(
+            f"[marketing] review-queue poller every {interval}s — Telegram publisher {mode} "
+            f"(MARKETING_PUBLISH_DRY_RUN={'false' if live else 'true'})",
+            flush=True,
+        )
+
+    if _daily_digest_enabled():
+        from .marketing.kpi_aggregator import aggregate_and_push_digest
+
+        # Daily Growth Digest — defaults to 16:30 ET (post-close). Window covers
+        # 00:00 ET → fire time, attributing same-day clicks/emails to
+        # content_ids generated by the morning daily-draft job.
+        digest_hour, digest_minute = _daily_digest_hour_minute()
+        scheduler.add_job(
+            aggregate_and_push_digest,
+            trigger=CronTrigger(
+                day_of_week="mon-fri",
+                hour=digest_hour,
+                minute=digest_minute,
+                timezone=ET_TZ,
+            ),
+            id="marketing-daily-digest",
+            replace_existing=True,
+            misfire_grace_time=900,
+        )
+        print(
+            f"[marketing] daily growth digest at {digest_hour:02d}:{digest_minute:02d} ET (mon-fri)",
+            flush=True,
+        )
 
     return scheduler
