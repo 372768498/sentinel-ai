@@ -119,6 +119,9 @@ MARKETING_DAILY_DIGEST_ENABLED=true
 MARKETING_DAILY_DIGEST_HOUR_ET=16
 MARKETING_DAILY_DIGEST_MINUTE_ET=30
 MARKETING_DAILY_DRAFT_ENABLED=false
+
+# Content & Notification optimization wire-up (Sprint 1, Telegram only)
+USE_NEW_TEMPLATES=false
 ```
 
 | Var | Week 8 value | Tier | Note |
@@ -132,6 +135,7 @@ MARKETING_DAILY_DRAFT_ENABLED=false
 | `MARKETING_DAILY_DIGEST_HOUR_ET` | `16` | D | ET hour 0-23 |
 | `MARKETING_DAILY_DIGEST_MINUTE_ET` | `30` | D | |
 | `MARKETING_DAILY_DRAFT_ENABLED` | **`false`** | O | Leave off — depends on X scanner which is currently SUSPENDED |
+| `USE_NEW_TEMPLATES` | **`false`** | O | Sprint 1 wire-up flag. When `true`, free Telegram drafts come from the deterministic `free_telegram_anomaly` template (no LLM call). X and YouTube Shorts always use the LLM. Run `scripts/preview_new_templates.py` before flipping; expect 7-day gray-out under `MARKETING_PUBLISH_DRY_RUN=true` before promoting to live posts. |
 
 ## §6 Market Intelligence Layer P0 (O — none required for Week 8)
 

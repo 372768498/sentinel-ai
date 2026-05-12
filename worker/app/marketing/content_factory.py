@@ -367,6 +367,106 @@ def _extract_hook(body: str, *, max_chars: int = 140) -> str:
     return body[:max_chars].rstrip()
 
 
+# ---- Feature flag: USE_NEW_TEMPLATES → swap Telegram body source ----
+#
+# When USE_NEW_TEMPLATES env is truthy AND the platform is Telegram, the
+# body is rendered from the deterministic free_telegram_anomaly template
+# instead of the LLM composer. ALL other pipeline stages (redline scan,
+# earnings-window check, Feishu submission) run unchanged. Flipping the
+# flag back to false instantly restores the LLM path — no code revert.
+
+
+def _use_new_templates_for_telegram() -> bool:
+    return os.environ.get("USE_NEW_TEMPLATES", "").strip().lower() in (
+        "1", "true", "yes", "on",
+    )
+
+
+def _build_free_telegram_anomaly_payload(
+    opportunity: Opportunity, cta_url: str
+):
+    """Build an AnomalyPayload from an Opportunity + sensible defaults.
+
+    Sprint 1 wire-up: many free_telegram fields (uniqueness_line,
+    confirming_list, disagreeing_list, narrative_one_paragraph) need
+    data that's only partially available on Opportunity today. We
+    extract what we can from opportunity.evidence and fall back to
+    transparent placeholders. Future rounds should pass a richer
+    payload-builder or attach a structured profile_snapshot to
+    Opportunity.evidence.
+    """
+    from .state import SentinelState
+    from .templates.free_telegram import AnomalyPayload
+
+    state = SentinelState(opportunity.state)
+    evidence = opportunity.evidence or {}
+    mover = evidence.get("mover", {}) or {}
+    intel = evidence.get("intelligence_profile", {}) or {}
+
+    confirming: list[str] = []
+    disagreeing: list[str] = []
+    for label, key in (
+        ("market", "market_heat"),
+        ("social", "social_heat"),
+        ("search", "search_heat"),
+        ("news", "news_heat"),
+        ("competitor", "competitor_heat"),
+    ):
+        v = intel.get(key)
+        if isinstance(v, (int, float)):
+            if v >= 65:
+                confirming.append(label)
+            elif v <= 20:
+                disagreeing.append(label)
+
+    sources = intel.get("sources_used")
+    src_label = f"{sources} sources" if isinstance(sources, int) and sources else "internal"
+
+    change_pct = mover.get("change_pct")
+    if change_pct is None:
+        change_pct = 0.0
+    price = mover.get("price")
+    if price is None:
+        price = 0.0
+    volume_rel = mover.get("relative_volume")
+    if volume_rel is None:
+        volume_rel = 1.0
+
+    now_utc = datetime.now(timezone.utc)
+    return AnomalyPayload(
+        session_label=evidence.get("session_label", "Daily scan"),
+        timestamp_et=now_utc.strftime("%H:%M UTC"),
+        state=state,
+        ticker=opportunity.ticker,
+        price=float(price),
+        session_change_label="Intraday",
+        price_change_pct=float(change_pct),
+        volume_relative=float(volume_rel),
+        anomaly_one_liner=(opportunity.raw_text or "Signal density elevated.")[:200],
+        uniqueness_line=intel.get("uniqueness_line")
+        or "Sector context: not available this run.",
+        confirming_list=", ".join(confirming) or "anomaly signal",
+        disagreeing_list=", ".join(disagreeing) or "no strong counter-signal",
+        narrative_one_paragraph=(
+            intel.get("why_now")
+            or opportunity.raw_text
+            or "Multiple signals overlap on this ticker today."
+        )[:280],
+        risk_one_liner="Position sizing matters more than direction.",
+        source_categories=src_label,
+        cta_url=cta_url,
+        pro_url=evidence.get("pro_url", "https://app.jilo.ai/pro"),
+    )
+
+
+def _render_free_telegram_body(opportunity: Opportunity, cta_url: str) -> str:
+    """Render the free Telegram anomaly body via the deterministic template."""
+    from .templates.free_telegram import render_anomaly
+
+    payload = _build_free_telegram_anomaly_payload(opportunity, cta_url)
+    return render_anomaly(payload)
+
+
 # ---- Risk level ----
 
 
@@ -436,19 +536,34 @@ def create_drafts_for_opportunity(
     drafts: list[ContentDraft] = []
     redlines: dict[str, RedlineResult] = {}
 
+    use_new_telegram = _use_new_templates_for_telegram()
+
     for platform in PLATFORMS:
         cid = content_id_for(opportunity, platform, date=date)
         cta = build_cta_url(opportunity, platform, camp, cid, public_url=public_url)
-        try:
-            body = cmp.compose(opportunity=opportunity, platform=platform, cta_url=cta)
-        except Exception as exc:
-            logger.exception(
-                "[content_factory] composer failed for %s on %s: %s",
-                opportunity.opportunity_id,
-                platform,
-                exc,
-            )
-            continue
+        if platform == PLATFORM_TELEGRAM and use_new_telegram:
+            # Feature flag path: deterministic template, no LLM call.
+            try:
+                body = _render_free_telegram_body(opportunity, cta)
+            except Exception as exc:
+                logger.exception(
+                    "[content_factory] new-template render failed for %s on %s: %s",
+                    opportunity.opportunity_id,
+                    platform,
+                    exc,
+                )
+                continue
+        else:
+            try:
+                body = cmp.compose(opportunity=opportunity, platform=platform, cta_url=cta)
+            except Exception as exc:
+                logger.exception(
+                    "[content_factory] composer failed for %s on %s: %s",
+                    opportunity.opportunity_id,
+                    platform,
+                    exc,
+                )
+                continue
 
         redline = redline_scan(body, require_source=True, require_disclaimer=True)
         redline = _apply_earnings_window(body, redline, earnings_date)
