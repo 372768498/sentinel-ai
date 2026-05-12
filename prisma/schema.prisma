@@ -140,6 +140,21 @@ model MarketingDraft {
 
 // Growth OS models
 
+model ProWaitlist {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  // 'watch' | 'pro' — captures which tier card the user clicked.
+  // No enum yet because the pricing surface may iterate quickly; keep
+  // as a free-form string and validate at the API boundary.
+  tier      String
+  createdAt DateTime @default(now())
+  // utm_source attribution; null when joined directly from sentinel.jilo.ai
+  source    String?
+
+  @@index([tier])
+  @@index([createdAt])
+}
+
 model EmailLead {
   id                  String    @id @default(cuid())
   email               String
