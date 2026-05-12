@@ -28,11 +28,12 @@ import logging
 import os
 import re
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date as _date, datetime, timezone
 from typing import Optional, Protocol
 
 from .opportunities import Opportunity
 from .redline import RedlineResult, scan as redline_scan
+from .redline_earnings import check_earnings_window
 from .review_queue import ContentDraft
 
 logger = logging.getLogger(__name__)
@@ -382,6 +383,33 @@ def _risk_level(opportunity: Opportunity, redline: RedlineResult) -> str:
 # ---- Public API ----
 
 
+def _apply_earnings_window(
+    body: str,
+    redline: RedlineResult,
+    earnings_date: Optional[_date],
+    today: Optional[_date] = None,
+) -> RedlineResult:
+    """Overlay pre-earnings redline on top of the generic redline result.
+
+    Out-of-window or no calendar data → returns the input result unchanged.
+    Blocked phrase inside window → returns a new RedlineResult with the
+    earnings violation appended (and ok=False so risk_level escalates).
+    """
+    if earnings_date is None:
+        return redline
+    earn = check_earnings_window(
+        text=body, earnings_date=earnings_date, today=today
+    )
+    if earn.ok:
+        return redline
+    return RedlineResult(
+        ok=False,
+        violations=redline.violations + (earn.reason(),),
+        has_source=redline.has_source,
+        has_disclaimer=redline.has_disclaimer,
+    )
+
+
 def create_drafts_for_opportunity(
     opportunity: Opportunity,
     *,
@@ -389,12 +417,19 @@ def create_drafts_for_opportunity(
     campaign_id: Optional[str] = None,
     date: Optional[str] = None,
     public_url: Optional[str] = None,
+    earnings_date: Optional[_date] = None,
 ) -> DraftBundle:
     """Generate one ContentDraft per platform for an Opportunity.
 
     Each draft is redline-scanned. Drafts that fail redline are still returned
     (with `risk_level=High`) so the review queue can capture the failure for
     human inspection — they are NOT silently dropped, and they are NOT auto-fixed.
+
+    When `earnings_date` is provided AND the draft falls in the pre-earnings
+    window (default -2 to +7 days), an additional directional-language check
+    runs and may push the draft into a redline violation. Caller is
+    responsible for the earnings calendar lookup (see data_sources/
+    earnings_calendar.py::fetch_next_earnings_date).
     """
     cmp = composer or build_default_composer()
     camp = campaign_id or campaign_id_for(date)
@@ -416,6 +451,7 @@ def create_drafts_for_opportunity(
             continue
 
         redline = redline_scan(body, require_source=True, require_disclaimer=True)
+        redline = _apply_earnings_window(body, redline, earnings_date)
         redlines[cid] = redline
         drafts.append(
             ContentDraft(
