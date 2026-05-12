@@ -5,6 +5,11 @@ interface CaptureBody {
   email: string;
   ticker?: string;
   sourcePath?: string;
+  /** Up to 3 user-chosen seed tickers from the registration step 2.
+   * Each must match /^[A-Z]{1,5}$/ — anything that doesn't is silently
+   * dropped server-side so the form's optimistic uppercase + slice can
+   * be naive on the client. */
+  seedTickers?: string[];
   utm?: {
     utm_source?: string;
     utm_medium?: string;
@@ -12,6 +17,23 @@ interface CaptureBody {
     utm_content?: string;
     ref?: string;
   };
+}
+
+const SEED_TICKER_RE = /^[A-Z]{1,5}$/;
+const MAX_SEED_TICKERS = 3;
+
+function sanitiseSeedTickers(input: unknown): string[] {
+  if (!Array.isArray(input)) return [];
+  const cleaned: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== "string") continue;
+    const upper = raw.trim().toUpperCase();
+    if (!SEED_TICKER_RE.test(upper)) continue;
+    if (cleaned.includes(upper)) continue; // dedupe
+    cleaned.push(upper);
+    if (cleaned.length >= MAX_SEED_TICKERS) break;
+  }
+  return cleaned;
 }
 
 export async function POST(req: NextRequest) {
@@ -28,6 +50,8 @@ export async function POST(req: NextRequest) {
   }
 
   const utm = body.utm ?? {};
+  const seedTickers = sanitiseSeedTickers(body.seedTickers);
+  const seedTickersAddedAt = seedTickers.length > 0 ? new Date() : undefined;
 
   try {
     const lead = await prisma.emailLead.upsert({
@@ -41,6 +65,8 @@ export async function POST(req: NextRequest) {
         utmCampaign: utm.utm_campaign,
         utmContent: utm.utm_content,
         ref: utm.ref,
+        seedTickers,
+        seedTickersAddedAt,
       },
       update: {
         sourcePath: body.sourcePath ?? undefined,
@@ -49,11 +75,20 @@ export async function POST(req: NextRequest) {
         utmCampaign: utm.utm_campaign ?? undefined,
         utmContent: utm.utm_content ?? undefined,
         ref: utm.ref ?? undefined,
+        // Only overwrite seedTickers when the new payload supplied any;
+        // an empty array from "Skip" preserves the user's earlier picks.
+        ...(seedTickers.length > 0
+          ? { seedTickers, seedTickersAddedAt }
+          : {}),
         updatedAt: new Date(),
       },
     });
 
-    return NextResponse.json({ ok: true, leadId: lead.id });
+    return NextResponse.json({
+      ok: true,
+      leadId: lead.id,
+      seedTickersSaved: seedTickers.length,
+    });
   } catch (err) {
     console.error("[leads/capture]", err);
     return NextResponse.json({ error: "Internal error" }, { status: 500 });

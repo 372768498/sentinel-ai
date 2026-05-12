@@ -48,6 +48,8 @@ export default function StockPage() {
 
   const [email, setEmail] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [seedTickers, setSeedTickers] = useState<[string, string, string]>(["", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [utm, setUtm] = useState<UtmParams>({});
@@ -69,11 +71,28 @@ export default function StockPage() {
     }).catch(() => {});
   }, [ticker, searchParams]);
 
-  async function handleCapture(e: React.FormEvent) {
+  function handleStep1(e: React.FormEvent) {
     e.preventDefault();
-    if (!email) return;
+    if (!email.trim()) return;
+    setError("");
+    setStep(2);
+  }
+
+  async function captureSubmit(rawSeeds: string[]) {
     setLoading(true);
     setError("");
+
+    // Client-side: uppercase + filter on /^[A-Z]{1,5}$/ + dedupe + cap 3.
+    // Server re-validates so we don't need to be strict here, but a
+    // small clean-up keeps the network payload tidy.
+    const cleaned: string[] = [];
+    for (const raw of rawSeeds) {
+      const upper = raw.trim().toUpperCase();
+      if (!/^[A-Z]{1,5}$/.test(upper)) continue;
+      if (cleaned.includes(upper)) continue;
+      cleaned.push(upper);
+      if (cleaned.length >= 3) break;
+    }
 
     try {
       const res = await fetch("/api/leads/capture", {
@@ -83,6 +102,7 @@ export default function StockPage() {
           email,
           ticker,
           sourcePath: `/stocks/${ticker}`,
+          seedTickers: cleaned,
           utm,
         }),
       });
@@ -101,6 +121,25 @@ export default function StockPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function handleSkip() {
+    captureSubmit([]);
+  }
+
+  async function handleStep2Save(e: React.FormEvent) {
+    e.preventDefault();
+    await captureSubmit(seedTickers);
+  }
+
+  function updateSeed(index: 0 | 1 | 2, value: string) {
+    // auto-uppercase + strip non A-Z; cap 5 chars
+    const clean = value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 5);
+    setSeedTickers((prev) => {
+      const next: [string, string, string] = [...prev] as [string, string, string];
+      next[index] = clean;
+      return next;
+    });
   }
 
   const telegramUrl = process.env.NEXT_PUBLIC_TELEGRAM_FREE_URL ?? "https://t.me/SentinelAI_signals";
@@ -153,7 +192,7 @@ export default function StockPage() {
         <p>{data.riskFlag}</p>
       </section>
 
-      {/* Email gate */}
+      {/* Email gate — 2-step: email, then optional seed tickers */}
       {submitted ? (
         <section className="rounded-xl bg-neutral-900 border border-neutral-700 p-6 text-center">
           <p className="text-emerald-400 font-semibold text-lg mb-2">Check your inbox</p>
@@ -161,13 +200,13 @@ export default function StockPage() {
             We sent a link to <strong>{email}</strong>. Click it to unlock the full ${ticker} report.
           </p>
         </section>
-      ) : (
+      ) : step === 1 ? (
         <section className="rounded-xl bg-neutral-900 border border-neutral-700 p-6 mb-6">
           <p className="font-semibold mb-1">Unlock the full 10-dimension report</p>
           <p className="text-neutral-400 text-sm mb-4">
             Get the complete breakdown, risk analysis, and PDF — free.
           </p>
-          <form onSubmit={handleCapture} className="flex flex-col sm:flex-row gap-3">
+          <form onSubmit={handleStep1} className="flex flex-col sm:flex-row gap-3">
             <input
               type="email"
               required
@@ -178,11 +217,60 @@ export default function StockPage() {
             />
             <button
               type="submit"
-              disabled={loading}
-              className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60"
+              className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold transition-colors"
             >
-              {loading ? "Sending…" : `Email me the full $${ticker} report`}
+              Continue →
             </button>
+          </form>
+          {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+          <p className="text-neutral-500 text-xs mt-3">
+            One quick optional step next — nothing else.
+          </p>
+        </section>
+      ) : (
+        <section className="rounded-xl bg-neutral-900 border border-neutral-700 p-6 mb-6">
+          <p className="font-semibold mb-1">
+            What 3 tickers do you check most often?
+          </p>
+          <p className="text-neutral-400 text-sm mb-1">
+            We&apos;ll flag them when they show up in our radar.
+          </p>
+          <p className="text-neutral-600 text-xs mb-4">
+            e.g. AAPL, TSLA, NVDA — skip if you&apos;re not sure yet.
+          </p>
+          <form onSubmit={handleStep2Save} className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              {[0, 1, 2].map((i) => (
+                <input
+                  key={i}
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="characters"
+                  maxLength={5}
+                  placeholder={["AAPL", "TSLA", "NVDA"][i]}
+                  value={seedTickers[i]}
+                  onChange={(e) => updateSeed(i as 0 | 1 | 2, e.target.value)}
+                  className="rounded-lg bg-neutral-800 border border-neutral-700 px-4 py-2.5 text-sm font-mono uppercase tracking-widest text-white placeholder-neutral-600 outline-none focus:border-emerald-500"
+                />
+              ))}
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2 mt-1">
+              <button
+                type="button"
+                onClick={handleSkip}
+                disabled={loading}
+                className="rounded-lg border border-neutral-700 hover:border-neutral-500 px-5 py-2.5 text-sm font-medium text-neutral-300 transition-colors disabled:opacity-60"
+              >
+                Skip
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 px-5 py-2.5 text-sm font-semibold transition-colors disabled:opacity-60"
+              >
+                {loading ? "Saving…" : `Save & email me the $${ticker} report`}
+              </button>
+            </div>
           </form>
           {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
         </section>
