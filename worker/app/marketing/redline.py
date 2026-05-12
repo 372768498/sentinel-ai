@@ -47,6 +47,33 @@ DISCLAIMER_PHRASES: tuple[str, ...] = (
 URL_PATTERN = re.compile(r"https?://[^\s)\]]+", re.IGNORECASE)
 WORD_BOUNDARY_TERMS = {"buy", "sell", "pump", "dump"}
 
+# Sprint 1 add-on: opt-in score-reference detector.
+# NOT wired into scan() by default — existing prompts intentionally
+# emit "score" language. Callers (or Sprint 2 templates) call this
+# explicitly after the LLM responds. Wiring into scan() flips in
+# Sprint 2 after all production templates are state-based.
+SCORE_REFERENCE_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(r"\bscore\b", re.IGNORECASE),
+    re.compile(r"\brating\b", re.IGNORECASE),
+    re.compile(r"\b\d{1,3}\s*/\s*100\b"),
+    re.compile(r"\b\d{1,3}\s*out\s+of\s+(?:100|ten|10)\b", re.IGNORECASE),
+)
+
+
+def check_no_score_references(text: str) -> tuple[str, ...]:
+    """Returns tuple of violation strings if any score/rating reference
+    appears. Empty tuple means clean.
+
+    Sprint 1 wiring: opt-in; not called by scan() yet. Sprint 2 flips
+    this on by default once templates are state-based.
+    """
+    out: list[str] = []
+    for pat in SCORE_REFERENCE_PATTERNS:
+        m = pat.search(text)
+        if m:
+            out.append(f"score_reference:{m.group(0).lower()}")
+    return tuple(out)
+
 
 @dataclass(frozen=True)
 class RedlineResult:
