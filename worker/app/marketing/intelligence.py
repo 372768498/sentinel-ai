@@ -200,9 +200,11 @@ def synthesize_profile(
         recommended_angles=angles,
         evidence={
             "mover": {
+                "price": mover.price if mover else None,
                 "change_pct": mover.change_pct if mover else None,
                 "volume": mover.volume if mover else None,
                 "market_cap": mover.market_cap if mover else None,
+                "relative_volume": mover.relative_volume if mover else None,
                 "source_url": mover.source_url if mover else None,
             },
             "social_intent_counts": intent_counts,
