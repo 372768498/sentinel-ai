@@ -95,12 +95,16 @@ def main() -> int:
             print(f"  [skip-!]  {english:<22s} (no field_id in response)")
             skipped_missing += 1
             continue
+        field_type = field.get("type")
         if args.dry_run:
-            print(f"  [plan]    {english:<22s} → {chinese}  (field_id={field_id})")
+            print(f"  [plan]    {english:<22s} → {chinese}  (field_id={field_id}, type={field_type})")
             continue
         try:
+            # Feishu API requires `type` even for rename-only — passing
+            # back the existing type leaves it unchanged.
             client.bitable_update_field(
-                app_token, table_id, field_id, field_name=chinese,
+                app_token, table_id, field_id,
+                field_name=chinese, field_type=field_type,
             )
             print(f"  [rename]  {english:<22s} → {chinese}")
             renamed += 1
