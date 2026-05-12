@@ -71,7 +71,11 @@ def _record(
     ticker: str = "NVDA",
     body: str = "sample body",
     cta_url_dict: object | None = None,
+    quality_score: object = 4,
 ) -> dict:
+    """Default quality_score=4 so existing tests behave like before the
+    Task 4.2 Approve gate landed. Pass quality_score=None / 0 to verify
+    the gate holds the row back."""
     return {
         "record_id": record_id,
         "fields": {
@@ -83,6 +87,7 @@ def _record(
             "published_url": published_url,
             "body": body,
             "cta_url": cta_url_dict or {"link": "https://sentinel/stocks/NVDA", "text": "https://sentinel/stocks/NVDA"},
+            "jojo_quality_score": quality_score,
         },
     }
 
@@ -301,3 +306,78 @@ def test_idempotent_second_run_finds_zero(env: None) -> None:
     assert first.scanned == 1
     assert second.scanned == 0
     assert len(pub.calls) == 1  # publish only happened once
+
+
+# ---- Task 4.2: Approve gate (quality_score required) -------------------
+
+
+@pytest.mark.parametrize("score", [None, 0])
+def test_approved_without_quality_score_is_held(env, score) -> None:
+    """A row marked Approved but with empty/0 jojo_quality_score must
+    be held back from publishing. The gate enforces that every published
+    draft carries an explicit operator judgement."""
+    fake = FakeFeishuClient(
+        pages=[
+            {
+                "items": [_record("recHELD", status="Approved", quality_score=score)],
+                "has_more": False,
+            }
+        ]
+    )
+    pub = FakePublisher(
+        "Telegram",
+        result_factory=lambda cid, t: PublishResult(
+            platform="Telegram", content_id=cid, published=True,
+            published_url="https://t.me/x/1", dry_run=False,
+        ),
+    )
+    result = _run(run_once(client=fake, publishers={"Telegram": pub}))
+    assert result.scanned == 0  # gate filtered out
+    assert len(pub.calls) == 0   # no publisher call
+    assert len(fake.updated_records) == 0  # no Published status flip
+
+
+@pytest.mark.parametrize("score", [1, 3, 5])
+def test_approved_with_quality_score_publishes(env, score) -> None:
+    """1-5 inclusive should let the row through. Specifically guard the
+    boundary 1 (lowest valid score)."""
+    fake = FakeFeishuClient(
+        pages=[
+            {
+                "items": [_record("recOK", status="Approved", quality_score=score)],
+                "has_more": False,
+            }
+        ]
+    )
+    pub = FakePublisher(
+        "Telegram",
+        result_factory=lambda cid, t: PublishResult(
+            platform="Telegram", content_id=cid, published=True,
+            published_url="https://t.me/x/1", dry_run=False,
+        ),
+    )
+    result = _run(run_once(client=fake, publishers={"Telegram": pub}))
+    assert result.scanned == 1
+    assert len(pub.calls) == 1
+
+
+def test_approved_with_string_quality_score_parses(env) -> None:
+    """Some Bitable number fields surface as strings via API edge cases.
+    The gate should still recognise a numeric string."""
+    fake = FakeFeishuClient(
+        pages=[
+            {
+                "items": [_record("recSTR", status="Approved", quality_score="4")],
+                "has_more": False,
+            }
+        ]
+    )
+    pub = FakePublisher(
+        "Telegram",
+        result_factory=lambda cid, t: PublishResult(
+            platform="Telegram", content_id=cid, published=True,
+            published_url="https://t.me/x/1", dry_run=False,
+        ),
+    )
+    result = _run(run_once(client=fake, publishers={"Telegram": pub}))
+    assert result.scanned == 1

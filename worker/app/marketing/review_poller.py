@@ -100,12 +100,39 @@ def _is_empty_url(value: object) -> bool:
     return False
 
 
+def _has_quality_score(value: object) -> bool:
+    """True when Operator-jojo has filled a 1-5 quality score on this row.
+
+    Bitable number fields come back as int / float; missing is None.
+    Zero is treated as "not yet scored" so the gate doesn't accidentally
+    let a user-typed 0 through (we don't expose 0 as a valid score).
+    """
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value > 0
+    if isinstance(value, str):
+        try:
+            return float(value.strip()) > 0
+        except (TypeError, ValueError):
+            return False
+    return False
+
+
 # ---------------------------------------------------------------------------
 # Bitable I/O
 # ---------------------------------------------------------------------------
 
 
 def fetch_approved_unpublished(client: FeishuClient, app_token: str, table_id: str) -> list[dict]:
+    """Return Approved rows that are unpublished AND have a quality score.
+
+    Approve gate (Task 4.2): a draft whose review_status flipped to
+    Approved but has an empty jojo_quality_score field is held back
+    until the operator fills the score. We never publish without an
+    explicit numeric judgement on the row. Held rows aren't auto-
+    rejected — they just sit in the queue so the operator notices.
+    """
     page_token: Optional[str] = None
     out: list[dict] = []
     while True:
@@ -117,6 +144,8 @@ def fetch_approved_unpublished(client: FeishuClient, app_token: str, table_id: s
             if _read_text(fields.get("review_status")) != "Approved":
                 continue
             if not _is_empty_url(fields.get("published_url")):
+                continue
+            if not _has_quality_score(fields.get("jojo_quality_score")):
                 continue
             out.append(record)
         if not page.get("has_more"):

@@ -247,6 +247,50 @@ class FeishuClient:
         data = self._parse_json(resp, "Feishu bitable update_record")
         if data.get("code") != 0:
             raise FeishuAPIError(f"bitable_update_record failed: {data}")
+        return data["data"]
+
+    def bitable_list_fields(self, app_token: str, table_id: str) -> list[dict]:
+        """Return all fields of a Bitable table.
+
+        Each entry: {field_id, field_name, type, property, ui_type, ...}.
+        Used to detect whether a field already exists before bitable_add_field
+        (the API rejects duplicates with code 1254015).
+        """
+        url = f"{FEISHU_BASE}{BITABLE_APPS_PATH}/{app_token}/tables/{table_id}/fields"
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.get(url, headers=self._auth_headers(), params={"page_size": 100})
+        data = self._parse_json(resp, "Feishu bitable list_fields")
+        if data.get("code") != 0:
+            raise FeishuAPIError(f"bitable_list_fields failed: {data}")
+        return data["data"].get("items", [])
+
+    def bitable_add_field(
+        self,
+        app_token: str,
+        table_id: str,
+        *,
+        field_name: str,
+        field_type: int,
+        property: Optional[dict] = None,
+    ) -> dict:
+        """Add a new field (column) to a Bitable table.
+
+        field_type integers (most common):
+          1 = text, 2 = number, 3 = single-select, 4 = multi-select,
+          5 = date, 7 = checkbox, 11 = user, 15 = url.
+
+        For single-select pass property={"options": [{"name": "..."}, ...]}.
+        """
+        url = f"{FEISHU_BASE}{BITABLE_APPS_PATH}/{app_token}/tables/{table_id}/fields"
+        body: dict = {"field_name": field_name, "type": field_type}
+        if property is not None:
+            body["property"] = property
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.post(url, headers=self._auth_headers(), json=body)
+        data = self._parse_json(resp, "Feishu bitable add_field")
+        if data.get("code") != 0:
+            raise FeishuAPIError(f"bitable_add_field failed for '{field_name}': {data}")
+        return data["data"]["field"]
         return data["data"]["record"]
 
     # ---- Drive permissions (share Bitable with a user) ----
