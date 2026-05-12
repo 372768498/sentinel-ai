@@ -57,7 +57,7 @@ Variables are grouped by what they unlock. Copy into Railway, paste real values
 | `FEISHU_CONTENT_QUEUE_TABLE_ID` | Yes | `tblWeS9rb9UaeK32`. |
 | `FEISHU_PERFORMANCE_TABLE_ID` | Yes | `tblpahcZSdQCDCw8`. |
 
-### 2.3 LLM composer (Week 3)
+### 2.3 LLM composer (Week 3 + Week 8.5 fallback)
 
 | Variable | Required | Notes |
 |----------|----------|-------|
@@ -65,6 +65,19 @@ Variables are grouped by what they unlock. Copy into Railway, paste real values
 | `ANTHROPIC_BASE_URL` | Optional | Set when using a proxy (`https://code.newcli.com/claude/aws`). |
 | `MARKETING_COMPOSER_MODEL` | Optional | Override `claude-sonnet-4-6` (e.g. `claude-sonnet-4-5` for proxies that only stock 4.5). |
 | `GROWTH_OS_PUBLIC_URL` | Yes | The CTA hostname stamped into UTM links. Set to production Vercel origin. |
+| `MARKETING_FALLBACK_API_KEY` | Optional | **Toggles `FallbackComposer`.** Presence (any non-empty value) wires the OpenAI-compatible fallback in. Leave blank to disable fallback. |
+| `MARKETING_FALLBACK_BASE_URL` | Optional | OpenAI-Chat-Completions endpoint URL (e.g. fox / OpenRouter / vLLM). Required when proxy is not the official OpenAI API. |
+| `MARKETING_FALLBACK_MODEL` | Optional | Override default `gpt-5.5` (e.g. `gpt-4o-mini`). |
+
+**FallbackComposer rules** (`worker/app/marketing/content_factory.py`):
+- Triggers ONLY on rate-limit signals (`anthropic.RateLimitError`,
+  `APIStatusError(429)`, message containing "rate limit" / "too many
+  requests" / "请求过于频繁"). Auth / 4xx / parse errors propagate from
+  primary — fallback never silently rescues real bugs.
+- Fallback output still passes through `redline.scan` and Feishu Content
+  Queue review. Mock or unredlined content NEVER reaches Feishu.
+- There is no `MARKETING_FALLBACK_COMPOSER_ENABLED=true` flag — key presence
+  is the toggle.
 
 ### 2.4 Telegram publisher (Week 4)
 

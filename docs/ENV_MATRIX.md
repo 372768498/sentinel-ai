@@ -89,7 +89,7 @@
 | `X_ACCESS_TOKEN` | Yes (live) | — | OAuth 1.0a access token. |
 | `X_ACCESS_TOKEN_SECRET` | Yes (live) | — | OAuth 1.0a access token secret. |
 
-## Growth OS · Signal + Content Factory (Week 3)
+## Growth OS · Signal + Content Factory (Week 3 + 8.5 fallback)
 
 Daily review-draft generation. Scheduler uses `America/New_York` (US stock
 market local time) and runs Mon–Fri only — independent of host timezone.
@@ -101,6 +101,10 @@ market local time) and runs Mon–Fri only — independent of host timezone.
 | `MARKETING_TOP_OPPORTUNITIES_PER_DAY` | No | `5` | Cap on opportunities promoted to draft generation. |
 | `MARKETING_MIN_OPPORTUNITY_SCORE` | No | `70` | Filter — only opportunities scoring ≥ this become drafts. |
 | `ANTHROPIC_API_KEY` | Yes (drafts) | `sk-ant-...` | Required for live draft generation. **Mock content NEVER reaches Feishu** — if key is missing, the job aborts. |
+| `MARKETING_COMPOSER_MODEL` | No | `claude-sonnet-4-6` | Override the Anthropic model used by `MultiPlatformComposer`. |
+| `MARKETING_FALLBACK_API_KEY` | No | `sk-...` | **Toggles `FallbackComposer`.** Activates OpenAI-compatible fallback when primary is rate-limited. Fallback output still runs through redline + Feishu review. |
+| `MARKETING_FALLBACK_BASE_URL` | No | `https://api.fox.com/v1` | OpenAI-Chat-Completions endpoint used by the fallback. Required when proxy is non-OpenAI. |
+| `MARKETING_FALLBACK_MODEL` | No | `gpt-5.5` | Model name passed to the fallback chat-completions call. |
 | `FMP_API_KEY` | No | rotated secret | Financial Modeling Prep — market movers / fundamentals. |
 | `SEC_API_KEY` | No | — | SEC API filings provider (alternative to direct EDGAR). |
 | `YOUTUBE_DATA_API_KEY` | No | — | Reserved for Week 4 YouTube adapter. |
@@ -140,15 +144,21 @@ adapters land.
 4. Set `MARKETING_PUBLISH_DRY_RUN=false`.
 5. Optionally enable `MARKETING_QUEUE_POLL_ENABLED=true` so the worker polls every 5 min instead of needing manual `scripts/feishu/poll_review_status.py`.
 
-## Growth OS · Market Intelligence Layer (Week 6)
+## Growth OS · Market Intelligence Layer (Week 6 / 8.5)
 
 Data source adapters for `worker/app/marketing/intelligence.py::build_daily_profiles`.
 Each adapter handles its own key check. **All keys are optional in this phase**
 — missing keys lower `sources_used` in the profile but never abort the run.
 
+**FMP adapter (Week 8.5 update)**: uses `/stable/*` exclusively (the legacy
+`/api/v3/*` paths were deprecated by FMP on 2025-08-31). Quote enrichment
+issues one HTTP call per ticker because the free tier returns HTTP 402 on
+batch (`/stable/quote?symbol=A,B,C`). `build_daily_profiles` now invokes
+`fetch_quotes_for_tickers(tickers)` instead of `fetch_market_movers(limit=…)`.
+
 | Variable | Priority | Adapter | Notes |
 | --- | --- | --- | --- |
-| `FMP_API_KEY` | P0 | `data_sources/fmp.py` | Market movers + quote enrichment. |
+| `FMP_API_KEY` | P0 | `data_sources/fmp.py` | Per-ticker `/stable/quote`. Free tier (250 calls/day) is plenty for the default 5-ticker seed. |
 | `SEC_API_KEY` | P0 | `data_sources/sec_api.py` | sec-api.io path. Falls back to in-repo EDGAR scraper when missing. |
 | `SEC_USER_AGENT` | P0 | EDGAR fallback | Existing env; SEC requires UA on every request. |
 | `DATAFORSEO_LOGIN` + `DATAFORSEO_PASSWORD` | P0 | `data_sources/x_serp.py` | Primary X SERP query path — bypasses suspended official X API. |

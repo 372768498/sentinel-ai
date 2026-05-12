@@ -67,10 +67,16 @@ worker/.venv/Scripts/python.exe scripts/feishu/push_test_message.py
 Expected: `[ok] response: {'code': 0, ...}` and the review chat receives a
 plain test message.
 
-## 9. Growth OS · Content Factory (Week 3)
+## 9. Growth OS · Content Factory (Week 3 + 8.5 fallback)
 
 Prereq: `ANTHROPIC_API_KEY` (+ optional `ANTHROPIC_BASE_URL` /
 `MARKETING_COMPOSER_MODEL`).
+
+Optional fallback: set `MARKETING_FALLBACK_API_KEY` (+ `MARKETING_FALLBACK_BASE_URL`
++ `MARKETING_FALLBACK_MODEL`) to wire `FallbackComposer`. The wrapper only
+delegates to the OpenAI-compatible fallback when the primary raises a
+rate-limit error — fallback output still passes through redline and Feishu
+review.
 
 ```powershell
 worker/.venv/Scripts/python.exe scripts/feishu/manual_brief.py --tickers NVDA

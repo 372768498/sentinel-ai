@@ -45,16 +45,16 @@ def test_fetch_market_movers_dedupes_across_endpoints(monkeypatch: pytest.Monkey
     monkeypatch.setenv("FMP_API_KEY", "fakekey")
 
     async def fake_get(path: str, params: dict):
-        if path.endswith("/gainers"):
+        if path.endswith("biggest-gainers"):
             return [
                 {"symbol": "NVDA", "name": "NVIDIA", "price": 1.0, "changesPercentage": "1%", "volume": 1, "marketCap": 1},
                 {"symbol": "TSLA", "name": "Tesla", "price": 1.0, "changesPercentage": "1%", "volume": 1, "marketCap": 1},
             ]
-        if path.endswith("/losers"):
+        if path.endswith("biggest-losers"):
             return [
                 {"symbol": "AAPL", "name": "Apple", "price": 1.0, "changesPercentage": "-1%", "volume": 1, "marketCap": 1},
             ]
-        if path.endswith("/actives"):
+        if path.endswith("most-actives"):
             return [
                 {"symbol": "NVDA", "name": "NVIDIA Dup", "price": 1.0, "changesPercentage": "1%", "volume": 1, "marketCap": 1},
             ]

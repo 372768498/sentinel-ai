@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 
-from .data_sources.fmp import MarketMover, fetch_market_movers
+from .data_sources.fmp import MarketMover, fetch_market_movers, fetch_quotes_for_tickers
 from .data_sources.sec_api import CatalystSignal, fetch_recent_catalysts
 from .data_sources.x_serp import SocialSignal, scan_x_serp_signals
 from .data_sources.youtube import YouTubeSignal, search_stock_videos
@@ -224,7 +224,7 @@ async def build_daily_profiles(
     *,
     seed_tickers: Optional[list[str]] = None,
     limit: int = 5,
-    fmp_fetcher=fetch_market_movers,
+    fmp_fetcher=fetch_quotes_for_tickers,
     serp_fetcher=scan_x_serp_signals,
     sec_fetcher=fetch_recent_catalysts,
     youtube_fetcher=search_stock_videos,
@@ -237,10 +237,16 @@ async def build_daily_profiles(
     """
     tickers = [t.upper() for t in (seed_tickers or DEFAULT_SEED_TICKERS)]
 
+    # fmp_fetcher signature: `(tickers) -> list[MarketMover]` (per-ticker quote).
+    # The old discovery-style `(limit=N)` signature is still respected via the
+    # try/except fallback for backward-compat tests.
     try:
-        movers = await fmp_fetcher(limit=max(limit * 4, 20))
-        mover_by_ticker = {m.ticker.upper(): m for m in movers}
-        has_fmp = bool(movers)
+        try:
+            quotes = await fmp_fetcher(tickers)
+        except TypeError:
+            quotes = await fmp_fetcher(limit=max(limit * 4, 20))
+        mover_by_ticker = {m.ticker.upper(): m for m in quotes}
+        has_fmp = bool(quotes)
     except Exception as exc:
         logger.warning("[intelligence] FMP fetcher failed: %s", exc)
         mover_by_ticker = {}

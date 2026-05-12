@@ -219,6 +219,126 @@ class MultiPlatformComposer:
         return response.content[0].text.strip()
 
 
+# ---- OpenAI-compatible fallback composer ----
+
+
+def _resolve_fallback_model() -> str:
+    """Configured model for the fallback proxy (e.g. fox serves `gpt-5.5`)."""
+    return os.environ.get("MARKETING_FALLBACK_MODEL", "").strip() or "gpt-5.5"
+
+
+class OpenAICompatibleComposer:
+    """OpenAI-Chat-Completions composer used as a fallback when the Anthropic
+    proxy is rate-limited. Works with any provider exposing
+    `POST /chat/completions` — fox, OpenRouter, vLLM, etc.
+
+    Like `MultiPlatformComposer`, raises `ContentFactoryError` at construction
+    if no API key is available — mock content NEVER reaches Feishu.
+    """
+
+    def __init__(
+        self,
+        *,
+        client=None,
+        model: Optional[str] = None,
+        max_tokens: int = 800,
+    ) -> None:
+        if client is None:
+            api_key = os.environ.get("MARKETING_FALLBACK_API_KEY", "").strip()
+            if not api_key:
+                raise ContentFactoryError(
+                    "MARKETING_FALLBACK_API_KEY missing — cannot construct fallback composer."
+                )
+            from openai import OpenAI
+
+            base_url = os.environ.get("MARKETING_FALLBACK_BASE_URL", "").strip()
+            kwargs: dict = {"api_key": api_key}
+            if base_url:
+                kwargs["base_url"] = base_url
+            client = OpenAI(**kwargs)
+        self.client = client
+        self.model = model or _resolve_fallback_model()
+        self.max_tokens = max_tokens
+
+    def compose(self, *, opportunity: Opportunity, platform: str, cta_url: str) -> str:
+        if platform not in SYSTEM_PROMPTS:
+            raise ContentFactoryError(f"Unsupported platform: {platform}")
+        system = SYSTEM_PROMPTS[platform]
+        user = _format_user_prompt(opportunity, platform, cta_url)
+        response = self.client.chat.completions.create(
+            model=self.model,
+            max_tokens=self.max_tokens,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+        )
+        return response.choices[0].message.content.strip()
+
+
+# ---- Fallback wrapper ----
+
+
+class FallbackComposer:
+    """Tries `primary.compose(...)` first. On `anthropic.RateLimitError` (or
+    any anthropic.APIStatusError 429-class), delegates to `fallback.compose(...)`.
+
+    All other exceptions propagate from the primary path — only rate limits
+    trigger the fallback by design (so we don't silently mask real bugs).
+    """
+
+    def __init__(self, *, primary, fallback) -> None:
+        self.primary = primary
+        self.fallback = fallback
+
+    def compose(self, *, opportunity: Opportunity, platform: str, cta_url: str) -> str:
+        try:
+            return self.primary.compose(
+                opportunity=opportunity, platform=platform, cta_url=cta_url
+            )
+        except Exception as exc:
+            if not self._is_rate_limited(exc):
+                raise
+            logger.warning(
+                "[content_factory] primary composer rate-limited on %s — using fallback (%s)",
+                platform,
+                type(exc).__name__,
+            )
+            return self.fallback.compose(
+                opportunity=opportunity, platform=platform, cta_url=cta_url
+            )
+
+    @staticmethod
+    def _is_rate_limited(exc: Exception) -> bool:
+        # anthropic.RateLimitError is the canonical signal; but proxies sometimes
+        # raise APIStatusError with status 429 or a string body containing rate
+        # limit phrasing. Catch both shapes.
+        try:
+            from anthropic import APIStatusError, RateLimitError
+
+            if isinstance(exc, RateLimitError):
+                return True
+            if isinstance(exc, APIStatusError) and getattr(exc, "status_code", None) == 429:
+                return True
+        except ImportError:
+            pass
+        msg = str(exc).lower()
+        return any(needle in msg for needle in ("rate limit", "too many requests", "请求过于频繁"))
+
+
+def build_default_composer() -> ComposerLike:
+    """Construct the production composer: Anthropic primary, optional fallback.
+
+    Returns a plain `MultiPlatformComposer` when no fallback creds are set;
+    wraps in `FallbackComposer` when `MARKETING_FALLBACK_API_KEY` is present.
+    """
+    primary = MultiPlatformComposer()
+    if not os.environ.get("MARKETING_FALLBACK_API_KEY", "").strip():
+        return primary
+    fallback = OpenAICompatibleComposer()
+    return FallbackComposer(primary=primary, fallback=fallback)
+
+
 # ---- Hook extraction ----
 
 
@@ -263,7 +383,7 @@ def create_drafts_for_opportunity(
     (with `risk_level=High`) so the review queue can capture the failure for
     human inspection — they are NOT silently dropped, and they are NOT auto-fixed.
     """
-    cmp = composer or MultiPlatformComposer()
+    cmp = composer or build_default_composer()
     camp = campaign_id or campaign_id_for(date)
     drafts: list[ContentDraft] = []
     redlines: dict[str, RedlineResult] = {}

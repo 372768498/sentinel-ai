@@ -22,6 +22,9 @@ whop-sdk>=0.0.38
 # X (Twitter) marketing pipeline
 tweepy>=4.16.0
 anthropic>=0.100.0
+# OpenAI-compatible fallback composer (chat completions) for when the
+# Anthropic proxy is rate-limited; works with fox / openrouter / etc.
+openai>=1.40.0
 # Test runner (worker/pytest.ini)
 pytest>=9.0
 pytest-asyncio>=1.0

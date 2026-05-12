@@ -63,6 +63,14 @@ ANTHROPIC_API_KEY=
 ANTHROPIC_BASE_URL=
 MARKETING_COMPOSER_MODEL=
 GROWTH_OS_PUBLIC_URL=
+
+# OpenAI-compatible fallback composer (Week 8.5)
+# Activates automatically when MARKETING_FALLBACK_API_KEY is set.
+# Used only when the primary (Anthropic) composer raises a rate-limit error;
+# every fallback output still goes through redline scan + Feishu review.
+MARKETING_FALLBACK_API_KEY=
+MARKETING_FALLBACK_BASE_URL=
+MARKETING_FALLBACK_MODEL=
 ```
 
 | Var | Tier | Note |
@@ -71,6 +79,17 @@ GROWTH_OS_PUBLIC_URL=
 | `ANTHROPIC_BASE_URL` | O | Proxy override (e.g. `https://code.newcli.com/claude/aws`) |
 | `MARKETING_COMPOSER_MODEL` | O | Override default `claude-sonnet-4-6` (e.g. `claude-sonnet-4-5` for proxies) |
 | `GROWTH_OS_PUBLIC_URL` | R | Hostname stamped into CTA UTM links — set to production Vercel origin |
+| `MARKETING_FALLBACK_API_KEY` | O | Presence of this key toggles `FallbackComposer`. Leave blank to disable fallback. |
+| `MARKETING_FALLBACK_BASE_URL` | O | OpenAI-Chat-Completions endpoint (e.g. fox / OpenRouter / vLLM). Required when proxy is non-OpenAI. |
+| `MARKETING_FALLBACK_MODEL` | O | Override default `gpt-5.5` (e.g. `gpt-4o-mini`, `gpt-4.1`). |
+
+**Fallback contract** (`worker/app/marketing/content_factory.py:FallbackComposer`):
+- Triggered ONLY on `anthropic.RateLimitError` / `APIStatusError(429)` / message
+  containing "rate limit" / "too many requests" / "请求过于频繁". Other errors
+  propagate from primary — fallback never masks real bugs.
+- Output is still scanned by `redline.scan(require_source, require_disclaimer)`.
+- Output is still submitted to Feishu Content Queue for human approval.
+- There is **no `_ENABLED=true` flag** — env-key presence is the toggle.
 
 ## §4 Telegram Publisher (D for dry-run, L for live)
 
@@ -128,6 +147,17 @@ YOUTUBE_DATA_API_KEY=
 
 All optional in Week 8 dry-run. The Intelligence Layer has graceful fallback —
 missing keys lower `sources_used` in profiles but never abort the run.
+
+**FMP usage notes (Week 8.5)**:
+- FMP deprecated `/api/v3/*` on 2025-08-31. The adapter now uses `/stable/*`
+  exclusively (`/stable/biggest-gainers`, `/stable/biggest-losers`,
+  `/stable/most-actives`, `/stable/quote`).
+- FMP free tier returns **HTTP 402 on batch quote** (`/stable/quote?symbol=A,B,C`).
+  `intelligence.build_daily_profiles` now drives FMP via
+  `fetch_quotes_for_tickers` which issues one request **per ticker** (5/day
+  on the default seed list ≈ 5/250 daily quota — well under the free tier cap).
+- Missing key → adapter returns `[]` silently; HTTP 402/403/non-200 → logged
+  warning then `[]`. Never raises.
 
 Recommended Phase 9 minimum (after first live Telegram post):
 `FMP_API_KEY` + `DATAFORSEO_LOGIN`+`DATAFORSEO_PASSWORD` + `YOUTUBE_DATA_API_KEY`.
