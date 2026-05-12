@@ -112,9 +112,24 @@ export async function POST(req: NextRequest) {
       update: { tier, ...(source ? { source } : {}) },
     });
 
-    const position = await db.proWaitlist.count();
+    const total = await db.proWaitlist.count();
+
+    // Message bands — avoid showing tiny absolute positions when the
+    // waitlist is brand new (says "#3" → reads as "they have no users").
+    //   < 50   → neutral thanks, no number
+    //   < 500  → social-proof framing (`N+ investors waiting`)
+    //   ≥ 500  → exact position
+    let message: string;
+    if (total < 50) {
+      message = "Thanks. We'll email you when Pro opens (early 2026).";
+    } else if (total < 500) {
+      message = `You're in. ${total}+ investors waiting.`;
+    } else {
+      message = `You're #${total} on the waitlist. We'll email you when Pro opens.`;
+    }
+
     return NextResponse.json(
-      { ok: true, position },
+      { ok: true, position: total, message },
       { status: 200, headers: cors },
     );
   } catch (err) {
