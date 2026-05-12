@@ -46,13 +46,22 @@ enum MarketingDraftStatus {
 }
 
 model User {
-  id              String               @id @default(cuid())
-  email           String               @unique
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
-  analyses        AnalysisHistory[]
-  subscription    SubscriptionStatus?
-  emailLead       EmailLead?
+  id                String               @id @default(cuid())
+  email             String               @unique
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  // Growth OS Sprint 1 — notification preferences (P2-1 schema)
+  notificationMode  String               @default("morning") // morning|active|sleep|vacation|custom
+  quietHoursStart   Int?
+  quietHoursEnd     Int?
+  timezone          String               @default("America/New_York")
+  vacationUntil     DateTime?
+  // Growth OS Sprint 1 — pricing tier (P3-1 schema, gating via can_user_see)
+  proTier           String?              // null|watch|pro|desk
+  watchlistLimit    Int                  @default(0)
+  analyses          AnalysisHistory[]
+  subscription      SubscriptionStatus?
+  emailLead         EmailLead?
 }
 
 model AnalysisHistory {
@@ -144,6 +153,10 @@ model EmailLead {
   magicToken          String?   @unique
   magicTokenExpiresAt DateTime?
   verifiedAt          DateTime?
+  // Growth OS Sprint 1 — up to 3 top-of-funnel ticker seeds from
+  // registration step 2. GIN index added in migration SQL.
+  seedTickers         String[]  @default([])
+  seedTickersAddedAt  DateTime?
   userId              String?   @unique
   user                User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   createdAt           DateTime  @default(now())
