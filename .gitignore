@@ -67,3 +67,5 @@ sentinel_user_persona_intel.html
 # ===== Week 7 · Browser QA screenshots（仅本地 QA 产物） =====
 获客系统/automation/browser-qa/screenshots/
 !获客系统/automation/browser-qa/screenshots/.gitkeep
+
+.vercel
