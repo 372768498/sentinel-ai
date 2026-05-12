@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from app.marketing import bitable_fields as bf
 from app.marketing.publishers.base import PublishResult
 from app.marketing.review_poller import (
     PollResult,
@@ -146,8 +147,8 @@ def test_redline_blocked_marks_failed_without_publishing(env: None) -> None:
     assert len(result.failed) == 1
     assert pub.calls == []  # publisher MUST NOT be called for redline-blocked
     updated = fake.updated_records[0]
-    assert updated["fields"]["review_status"] == "Failed"
-    assert "redline_result=Blocked" in updated["fields"]["reviewer_comment"]
+    assert updated["fields"][bf.REVIEW_STATUS] == "Failed"
+    assert "redline_result=Blocked" in updated["fields"][bf.REVIEWER_COMMENT]
     assert fake.sent_cards[0]["header"]["template"] == "red"
 
 
@@ -178,8 +179,8 @@ def test_telegram_live_publish_marks_published(env: None) -> None:
     assert pub.calls[0]["content_id"] == "CT-1"
 
     updated = fake.updated_records[0]
-    assert updated["fields"]["review_status"] == "Published"
-    assert updated["fields"]["published_url"]["link"] == "https://t.me/SentinelAI_signals/42"
+    assert updated["fields"][bf.REVIEW_STATUS] == "Published"
+    assert updated["fields"][bf.PUBLISHED_URL]["link"] == "https://t.me/SentinelAI_signals/42"
     assert fake.sent_cards[0]["header"]["template"] == "blue"
 
 
@@ -202,8 +203,8 @@ def test_telegram_publish_failure_marks_failed(env: None) -> None:
     assert result.processed == []
     assert len(result.failed) == 1
     updated = fake.updated_records[0]
-    assert updated["fields"]["review_status"] == "Failed"
-    assert "telegram 401" in updated["fields"]["reviewer_comment"]
+    assert updated["fields"][bf.REVIEW_STATUS] == "Failed"
+    assert "telegram 401" in updated["fields"][bf.REVIEWER_COMMENT]
     assert fake.sent_cards[0]["header"]["template"] == "red"
 
 
@@ -220,7 +221,7 @@ def test_telegram_publish_exception_marks_failed(env: None) -> None:
 
     result = _run(run_once(client=fake, publishers={"Telegram": BoomPublisher()}))
     assert len(result.failed) == 1
-    assert "publisher_exception" in fake.updated_records[0]["fields"]["reviewer_comment"]
+    assert "publisher_exception" in fake.updated_records[0]["fields"][bf.REVIEWER_COMMENT]
 
 
 def test_non_telegram_platform_dry_runs(env: None) -> None:
@@ -250,8 +251,8 @@ def test_non_telegram_platform_dry_runs(env: None) -> None:
     # Both records updated to Published (dry-run is acceptable)
     assert len(fake.updated_records) == 2
     for u in fake.updated_records:
-        assert u["fields"]["review_status"] == "Published"
-        assert u["fields"]["published_url"]["link"].startswith("about:dryrun")
+        assert u["fields"][bf.REVIEW_STATUS] == "Published"
+        assert u["fields"][bf.PUBLISHED_URL]["link"].startswith("about:dryrun")
 
 
 def test_run_once_with_no_publishers_dict_uses_default_registry(env: None, monkeypatch: pytest.MonkeyPatch) -> None:

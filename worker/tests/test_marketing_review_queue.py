@@ -9,6 +9,7 @@ from typing import Any
 
 import pytest
 
+from app.marketing import bitable_fields as bf
 from app.marketing.review_queue import (
     ContentDraft,
     ReviewQueueError,
@@ -79,11 +80,11 @@ def test_clean_draft_passes_and_posts(env: None) -> None:
     assert fake.sent_messages == []
 
     fields = fake.created_records[0]["fields"]
-    assert fields["content_id"] == "CT-20260511-NVDA-x"
-    assert fields["platform"] == "X"
-    assert fields["review_status"] == "Pending"
-    assert fields["redline_result"] == "Pass"
-    assert fields["cta_url"] == {"link": "https://sentinel.ai/stocks/NVDA", "text": "https://sentinel.ai/stocks/NVDA"}
+    assert fields[bf.CONTENT_ID] == "CT-20260511-NVDA-x"
+    assert fields[bf.PLATFORM] == "X"
+    assert fields[bf.REVIEW_STATUS] == "Pending"
+    assert fields[bf.REDLINE_RESULT] == "Pass"
+    assert fields[bf.CTA_URL] == {"link": "https://sentinel.ai/stocks/NVDA", "text": "https://sentinel.ai/stocks/NVDA"}
 
     card = fake.sent_cards[0]
     assert card["header"]["template"] == "green"
@@ -106,9 +107,9 @@ def test_redline_block_writes_record_with_blocked_status(env: None) -> None:
     assert "forbidden:buy" in result.redline.violations
     assert "forbidden:price target" in result.redline.violations
     fields = fake.created_records[0]["fields"]
-    assert fields["review_status"] == "Blocked"
-    assert fields["redline_result"] == "Blocked"
-    assert "forbidden:buy" in fields["redline_hits"]
+    assert fields[bf.REVIEW_STATUS] == "Blocked"
+    assert fields[bf.REDLINE_RESULT] == "Blocked"
+    assert "forbidden:buy" in fields[bf.REDLINE_HITS]
 
 
 def test_invalid_platform_raises(env: None) -> None:
@@ -159,4 +160,4 @@ def test_publish_time_serialised_to_millis(env: None) -> None:
     ts = datetime(2026, 5, 11, 13, 0, tzinfo=timezone.utc)
     submit_to_review(_clean_draft(publish_time=ts), client=fake)
     fields = fake.created_records[0]["fields"]
-    assert fields["publish_time"] == int(ts.timestamp() * 1000)
+    assert fields[bf.PUBLISH_TIME] == int(ts.timestamp() * 1000)

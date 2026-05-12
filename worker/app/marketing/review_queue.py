@@ -73,28 +73,30 @@ class SubmissionResult:
 
 
 def _fields_payload(draft: ContentDraft, redline: RedlineResult, review_status: str) -> dict:
+    from . import bitable_fields as bf
+
     redline_result = "Pass" if redline.ok else ("Blocked" if not redline.has_source or not redline.has_disclaimer or redline.violations else "Needs Edit")
     if not redline.ok:
         redline_result = "Blocked"
 
     fields: dict = {
-        "content_id": draft.content_id,
-        "campaign_id": draft.campaign_id,
-        "platform": draft.platform,
-        "ticker": draft.ticker,
-        "hook": draft.hook,
-        "body": draft.body,
-        "cta_url": {"link": draft.cta_url, "text": draft.cta_url},
-        "risk_level": draft.risk_level,
-        "redline_result": redline_result,
-        "redline_hits": redline.reason(),
-        "review_status": review_status,
+        bf.CONTENT_ID: draft.content_id,
+        bf.CAMPAIGN_ID: draft.campaign_id,
+        bf.PLATFORM: draft.platform,
+        bf.TICKER: draft.ticker,
+        bf.HOOK: draft.hook,
+        bf.BODY: draft.body,
+        bf.CTA_URL: {"link": draft.cta_url, "text": draft.cta_url},
+        bf.RISK_LEVEL: draft.risk_level,
+        bf.REDLINE_RESULT: redline_result,
+        bf.REDLINE_HITS: redline.reason(),
+        bf.REVIEW_STATUS: review_status,
     }
     if draft.publish_time is not None:
         ts = draft.publish_time
         if ts.tzinfo is None:
             ts = ts.replace(tzinfo=timezone.utc)
-        fields["publish_time"] = int(ts.timestamp() * 1000)
+        fields[bf.PUBLISH_TIME] = int(ts.timestamp() * 1000)
     return fields
 
 

@@ -140,12 +140,13 @@ def fetch_approved_unpublished(client: FeishuClient, app_token: str, table_id: s
             app_token, table_id, page_size=100, page_token=page_token
         )
         for record in page.get("items", []):
-            fields = record.get("fields", {})
-            if _read_text(fields.get("review_status")) != "Approved":
+            from . import bitable_fields as bf
+            fields = bf.normalize_fields(record.get("fields", {}))
+            if _read_text(fields.get(bf.REVIEW_STATUS)) != "Approved":
                 continue
-            if not _is_empty_url(fields.get("published_url")):
+            if not _is_empty_url(fields.get(bf.PUBLISHED_URL)):
                 continue
-            if not _has_quality_score(fields.get("jojo_quality_score")):
+            if not _has_quality_score(fields.get(bf.QUALITY_SCORE)):
                 continue
             out.append(record)
         if not page.get("has_more"):
@@ -250,13 +251,14 @@ def _mark_failed(
     record_id: str,
     reason: str,
 ) -> None:
+    from . import bitable_fields as bf
     client.bitable_update_record(
         app_token,
         table_id,
         record_id,
         {
-            "review_status": "Failed",
-            "reviewer_comment": f"[auto] {reason[:480]}",
+            bf.REVIEW_STATUS: "Failed",
+            bf.REVIEWER_COMMENT: f"[auto] {reason[:480]}",
         },
     )
 
@@ -268,14 +270,15 @@ def _mark_published(
     record_id: str,
     published_url: str,
 ) -> None:
+    from . import bitable_fields as bf
     client.bitable_update_record(
         app_token,
         table_id,
         record_id,
         {
-            "review_status": "Published",
-            "published_url": {"link": published_url, "text": published_url},
-            "publish_time": int(datetime.now(timezone.utc).timestamp() * 1000),
+            bf.REVIEW_STATUS: "Published",
+            bf.PUBLISHED_URL: {"link": published_url, "text": published_url},
+            bf.PUBLISH_TIME: int(datetime.now(timezone.utc).timestamp() * 1000),
         },
     )
 
@@ -289,14 +292,15 @@ async def process_one(
     publishers: PublisherRegistry,
     notify_chat: bool = True,
 ) -> dict:
-    fields = record.get("fields", {})
+    from . import bitable_fields as bf
+    fields = bf.normalize_fields(record.get("fields", {}))
     record_id = record["record_id"]
-    content_id = _read_text(fields.get("content_id"))
-    platform = _read_text(fields.get("platform"))
-    ticker = _read_text(fields.get("ticker"))
-    body = _read_text(fields.get("body"))
-    cta_url = _read_url(fields.get("cta_url"))
-    redline_result = _read_text(fields.get("redline_result"))
+    content_id = _read_text(fields.get(bf.CONTENT_ID))
+    platform = _read_text(fields.get(bf.PLATFORM))
+    ticker = _read_text(fields.get(bf.TICKER))
+    body = _read_text(fields.get(bf.BODY))
+    cta_url = _read_url(fields.get(bf.CTA_URL))
+    redline_result = _read_text(fields.get(bf.REDLINE_RESULT))
 
     # ── 1. Redline-blocked rows never publish, even if a human Approved them. ──
     if redline_result == "Blocked":

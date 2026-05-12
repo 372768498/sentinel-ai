@@ -264,6 +264,38 @@ class FeishuClient:
             raise FeishuAPIError(f"bitable_list_fields failed: {data}")
         return data["data"].get("items", [])
 
+    def bitable_update_field(
+        self,
+        app_token: str,
+        table_id: str,
+        field_id: str,
+        *,
+        field_name: Optional[str] = None,
+        field_type: Optional[int] = None,
+        property: Optional[dict] = None,
+    ) -> dict:
+        """Rename / re-type an existing field by field_id (immutable).
+
+        Most common use: rename. Pass only `field_name`. Type and
+        property are optional and left unchanged when omitted.
+        """
+        url = f"{FEISHU_BASE}{BITABLE_APPS_PATH}/{app_token}/tables/{table_id}/fields/{field_id}"
+        body: dict = {}
+        if field_name is not None:
+            body["field_name"] = field_name
+        if field_type is not None:
+            body["type"] = field_type
+        if property is not None:
+            body["property"] = property
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.put(url, headers=self._auth_headers(), json=body)
+        data = self._parse_json(resp, "Feishu bitable update_field")
+        if data.get("code") != 0:
+            raise FeishuAPIError(
+                f"bitable_update_field failed for field_id={field_id}: {data}"
+            )
+        return data["data"]["field"]
+
     def bitable_add_field(
         self,
         app_token: str,
