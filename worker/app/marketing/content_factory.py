@@ -125,19 +125,26 @@ SYSTEM_PROMPTS: dict[str, str] = {
         "Write a 4-tweet thread. Tone: factual, calm, no hype. "
         "FORBIDDEN words (auto-rejection): buy, sell, hold, price target, predict, "
         "guaranteed, moonshot, 100x, pump, dump, go long, go short. "
-        "Use the analysis vocabulary: 'score', 'context', 'risk flag', 'analysis'. "
+        "ALSO FORBIDDEN — DO NOT use these words at all: score, rating, "
+        "X/100, out of 100, out of ten. Sentinel positioning is anomaly "
+        "detection, not numeric scoring. "
+        "Use the anomaly vocabulary instead: 'state', 'signal', 'context', "
+        "'risk flag', 'anomaly', 'watching', 'calm', 'heated', 'inflection'. "
         "Never give recommendations."
     ),
     PLATFORM_TELEGRAM: (
         "You are Sentinel AI's Telegram channel writer for US equity context. "
         "Write a single broadcast post under 500 chars. Tone: tight, scan-friendly. "
-        "Same forbidden-word list as X. No emojis."
+        "Same forbidden-word list as X (including no 'score'/'rating'/'X/100'). "
+        "Frame the post around the ticker's current Sentinel state. No emojis."
     ),
     PLATFORM_SHORTS: (
         "You are Sentinel AI's video scripts writer. "
         "Write a 45-60 second vertical short-video script with time stamps: "
-        "0-3s Hook, 3-10s Score reveal, 10-40s 3 reasons, 40-55s CTA. "
-        "Same forbidden-word list. End with 'Context, not financial advice.'"
+        "0-3s Hook, 3-10s State reveal, 10-40s 3 reasons, 40-55s CTA. "
+        "Same forbidden-word list (including no 'score'/'rating'/'X/100'). "
+        "Lead with the ticker's Sentinel state. "
+        "End with 'Context, not financial advice.'"
     ),
 }
 
@@ -146,26 +153,32 @@ USER_PROMPT_TEMPLATE = (
     "- Ticker: ${ticker}\n"
     "- Source: {source}\n"
     "- Intent: {intent}\n"
-    "- Opportunity score (0-100): {score}\n"
+    "- Sentinel state: {state_label} — {state_one_liner}\n"
     "- Top tweet sample: {raw_text}\n"
     "- Evidence: {evidence}\n\n"
     "Platform: {platform}\n"
     "CTA URL (must appear inline, no shortening): {cta_url}\n\n"
     "Requirements:\n"
     "- Include the ticker as ${ticker}.\n"
+    "- Frame the post around the Sentinel state above. Do NOT invent or echo "
+    "  numeric scores or ratings.\n"
     "- Include at least one risk-flag sentence.\n"
     "- Include the CTA URL inline (Markdown link OK).\n"
     "- End with: Context, not financial advice.\n"
-    "- Do not invent numerical scores or price targets. Use the score given.\n"
 )
 
 
 def _format_user_prompt(opportunity: Opportunity, platform: str, cta_url: str) -> str:
+    from .state import STATE_DISPLAY, SentinelState
+
+    state = SentinelState(opportunity.state)
+    display = STATE_DISPLAY[state]
     return USER_PROMPT_TEMPLATE.format(
         ticker=opportunity.ticker.upper(),
         source=opportunity.source,
         intent=opportunity.intent,
-        score=opportunity.opportunity_score,
+        state_label=display["label"],
+        state_one_liner=display["one_liner"],
         raw_text=opportunity.raw_text[:200],
         evidence=opportunity.evidence,
         platform=platform,

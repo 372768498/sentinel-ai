@@ -5,9 +5,12 @@ Adapters are responsible for shaping their raw output into `Opportunity`.
 The Content Factory consumes ONLY this shape — keeps the core decoupled
 from any one platform's data model.
 
-Score range conventions:
-  - opportunity_score  : 0-100, higher = more worth creating content for
+Field conventions:
+  - opportunity_score  : 0-100, internal ranking signal (NOT user-visible)
   - compliance_risk    : 0-100, higher = more likely to need extra scrutiny
+  - state              : public-facing 4-state classification (calm /
+                         watching / heated / inflection). This is what
+                         user-visible templates render — never the score.
 """
 
 from __future__ import annotations
@@ -40,6 +43,10 @@ class Opportunity:
     compliance_risk: int
     suggested_action: str
     evidence: dict[str, Any] = field(default_factory=dict)
+    # Public state. Defaults to "calm" so existing Opportunity constructions
+    # (test fixtures, legacy adapters) keep working. New adapters populate
+    # this via state_resolver.resolve_state().
+    state: str = "calm"
 
 
 def derive_action(score: int) -> str:

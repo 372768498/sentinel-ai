@@ -319,6 +319,9 @@ def profile_to_opportunity(profile: TickerIntelligenceProfile):
 
     Keeps the existing Content Factory contract unchanged. Caller can pass the
     returned Opportunity straight into `create_drafts_for_opportunity`.
+
+    Populates Opportunity.state via resolve_state() so user-visible templates
+    render the public 4-state classification rather than the internal score.
     """
     from .opportunities import (
         ACTION_CREATE_CONTENT,
@@ -326,9 +329,11 @@ def profile_to_opportunity(profile: TickerIntelligenceProfile):
         INTENT_TICKER_BUZZ,
         Opportunity,
     )
+    from .state_resolver import resolve_state
 
     today = datetime.now(timezone.utc).strftime("%Y%m%d")
     action = ACTION_CREATE_CONTENT if profile.overall_opportunity >= 70 else ACTION_WATCH
+    state = resolve_state(profile)
     return Opportunity(
         opportunity_id=f"OP-INTEL-{today}-{profile.ticker}",
         source="intelligence",
@@ -340,6 +345,7 @@ def profile_to_opportunity(profile: TickerIntelligenceProfile):
         opportunity_score=profile.overall_opportunity,
         compliance_risk=0,
         suggested_action=action,
+        state=state.value,
         evidence={
             **profile.evidence,
             "intelligence_profile": {
