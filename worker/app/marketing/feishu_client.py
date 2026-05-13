@@ -234,6 +234,41 @@ class FeishuClient:
             raise FeishuAPIError(f"bitable_list_records failed: {data}")
         return data["data"]
 
+    def bitable_search_records(
+        self,
+        app_token: str,
+        table_id: str,
+        *,
+        filter: Optional[dict] = None,
+        page_size: int = 100,
+        page_token: Optional[str] = None,
+    ) -> dict:
+        """Search records using Bitable's filter endpoint.
+
+        `filter` shape (Feishu Bitable v1):
+            {"conjunction": "and",
+             "conditions": [
+                 {"field_name": "内容ID", "operator": "is", "value": ["CT-..."]},
+             ]}
+
+        Returns the full data dict including `items`, `has_more`,
+        `page_token`, `total`. Used by review_queue dedup to find an
+        existing row by content_id before deciding create vs update.
+        """
+        url = f"{FEISHU_BASE}{BITABLE_APPS_PATH}/{app_token}/tables/{table_id}/records/search"
+        params: dict[str, str | int] = {"page_size": page_size}
+        if page_token:
+            params["page_token"] = page_token
+        body: dict = {}
+        if filter is not None:
+            body["filter"] = filter
+        with httpx.Client(timeout=self.timeout) as client:
+            resp = client.post(url, headers=self._auth_headers(), params=params, json=body)
+        data = self._parse_json(resp, "Feishu bitable search_records")
+        if data.get("code") != 0:
+            raise FeishuAPIError(f"bitable_search_records failed: {data}")
+        return data["data"]
+
     def bitable_update_record(
         self,
         app_token: str,

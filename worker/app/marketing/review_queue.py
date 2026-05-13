@@ -105,6 +105,37 @@ def _record_url(app_token: str, table_id: str, record_id: str) -> str:
     return f"{host}/base/{app_token}?table={table_id}&view=&record={record_id}"
 
 
+def _find_existing_record_id(
+    client: FeishuClient,
+    app_token: str,
+    table_id: str,
+    content_id: str,
+) -> Optional[str]:
+    """Look up an existing Content Queue record by content_id.
+
+    Bitable columns have been renamed to Chinese (see bitable_fields.py),
+    so we search by the Chinese 内容ID field. Returns the first matching
+    record_id or None.
+    """
+    from . import bitable_fields as bf
+
+    data = client.bitable_search_records(
+        app_token,
+        table_id,
+        filter={
+            "conjunction": "and",
+            "conditions": [
+                {"field_name": bf.CONTENT_ID, "operator": "is", "value": [content_id]}
+            ],
+        },
+        page_size=10,
+    )
+    items = data.get("items", [])
+    if not items:
+        return None
+    return items[0].get("record_id")
+
+
 def _build_review_card(
     draft: ContentDraft,
     redline: RedlineResult,
@@ -219,11 +250,21 @@ def submit_to_review(
     fields = _fields_payload(draft, redline, review_status)
 
     try:
-        record = fb.bitable_create_record(app_token, table_id, fields)
+        existing_record_id = _find_existing_record_id(fb, app_token, table_id, draft.content_id)
     except FeishuAPIError as exc:
-        raise ReviewQueueError(f"Feishu create_record failed: {exc}") from exc
+        raise ReviewQueueError(f"Feishu search_records failed: {exc}") from exc
 
-    record_id = record["record_id"]
+    try:
+        if existing_record_id:
+            fb.bitable_update_record(app_token, table_id, existing_record_id, fields)
+            record_id = existing_record_id
+        else:
+            record = fb.bitable_create_record(app_token, table_id, fields)
+            record_id = record["record_id"]
+    except FeishuAPIError as exc:
+        verb = "update_record" if existing_record_id else "create_record"
+        raise ReviewQueueError(f"Feishu {verb} failed: {exc}") from exc
+
     record_url = _record_url(app_token, table_id, record_id)
 
     if notify_chat:
