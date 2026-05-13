@@ -66,6 +66,24 @@ def _daily_digest_enabled() -> bool:
     return os.environ.get("MARKETING_DAILY_DIGEST_ENABLED", "").lower() in ("1", "true", "yes")
 
 
+def _email_daily_enabled() -> bool:
+    return os.environ.get("MARKETING_EMAIL_DAILY_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _email_daily_hour_minute() -> tuple[int, int]:
+    hour_raw = os.environ.get("MARKETING_EMAIL_DAILY_HOUR_ET", "7")
+    minute_raw = os.environ.get("MARKETING_EMAIL_DAILY_MINUTE_ET", "0")
+    try:
+        hour = max(0, min(23, int(hour_raw)))
+    except ValueError:
+        hour = 7
+    try:
+        minute = max(0, min(59, int(minute_raw)))
+    except ValueError:
+        minute = 0
+    return hour, minute
+
+
 def _daily_digest_hour_minute() -> tuple[int, int]:
     hour_raw = os.environ.get("MARKETING_DAILY_DIGEST_HOUR_ET", "16")
     minute_raw = os.environ.get("MARKETING_DAILY_DIGEST_MINUTE_ET", "30")
@@ -88,11 +106,13 @@ def build_scheduler() -> AsyncIOScheduler | None:
         and not _daily_draft_enabled()
         and not _queue_poll_enabled()
         and not _daily_digest_enabled()
+        and not _email_daily_enabled()
     ):
         print(
             "[scheduler] disabled — set SCANNER_ENABLED / BOT_ENABLED / "
             "MARKETING_ENABLED / MARKETING_DAILY_DRAFT_ENABLED / "
-            "MARKETING_QUEUE_POLL_ENABLED / MARKETING_DAILY_DIGEST_ENABLED",
+            "MARKETING_QUEUE_POLL_ENABLED / MARKETING_DAILY_DIGEST_ENABLED / "
+            "MARKETING_EMAIL_DAILY_ENABLED",
             flush=True,
         )
         return None
@@ -288,6 +308,34 @@ def build_scheduler() -> AsyncIOScheduler | None:
         )
         print(
             f"[marketing] daily growth digest at {digest_hour:02d}:{digest_minute:02d} ET (mon-fri)",
+            flush=True,
+        )
+
+    if _email_daily_enabled():
+        from .marketing.email_jobs import run_scheduled_email_digest
+
+        # Free Email Daily Radar — defaults to 07:00 ET (pre-market). The job
+        # itself is double-gated: MARKETING_EMAIL_DAILY_DRY_RUN=true skips the
+        # Resend POST, and MARKETING_EMAIL_DAILY_ALLOW_BULK=false refuses bulk
+        # live sends. Both must be flipped before real fan-out happens.
+        email_hour, email_minute = _email_daily_hour_minute()
+        scheduler.add_job(
+            run_scheduled_email_digest,
+            trigger=CronTrigger(
+                day_of_week="mon-fri",
+                hour=email_hour,
+                minute=email_minute,
+                timezone=ET_TZ,
+            ),
+            id="marketing-email-daily",
+            replace_existing=True,
+            misfire_grace_time=900,
+        )
+        dry_flag = os.environ.get("MARKETING_EMAIL_DAILY_DRY_RUN", "true").strip().lower()
+        bulk_flag = os.environ.get("MARKETING_EMAIL_DAILY_ALLOW_BULK", "false").strip().lower()
+        print(
+            f"[marketing] email daily radar at {email_hour:02d}:{email_minute:02d} ET (mon-fri) "
+            f"— dry_run={dry_flag} allow_bulk={bulk_flag}",
             flush=True,
         )
 

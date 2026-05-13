@@ -203,6 +203,54 @@ worker/.venv/Scripts/python.exe scripts/feishu/push_daily_growth_digest.py
 `EmailLead.utmContent`, `EmailLead.verifiedAt`, `EmailLead.userId`,
 `SubscriptionStatus.plan`, `SubscriptionStatus.state` — all already present.
 
+## Growth OS · Email Daily Radar (Worker)
+
+Free-tier email digest. Scans `EmailLead.verifiedAt IS NOT NULL`, renders
+the `free_email_daily` template (anomaly / nothing branch), and sends via
+Resend. **Default-off**; safety guards layered so a single env flip cannot
+trigger bulk live email.
+
+| Variable | Required | Example | Notes |
+| --- | --- | --- | --- |
+| `MARKETING_EMAIL_DAILY_ENABLED` | No | `false` | Master switch. When `true`, scheduler registers the cron — but the job itself still respects `DRY_RUN` + `ALLOW_BULK` below. |
+| `MARKETING_EMAIL_DAILY_DRY_RUN` | No | `true` | When `true` (default) the cron renders payloads + logs subject/preview but does NOT POST to Resend. |
+| `MARKETING_EMAIL_DAILY_HOUR_ET` | No | `7` | Hour-of-day in ET (0-23). Default `7` = pre-market. |
+| `MARKETING_EMAIL_DAILY_MINUTE_ET` | No | `0` | Minute-of-hour (0-59). Default `0`. |
+| `MARKETING_EMAIL_DAILY_LIMIT` | No | `50` | Max verified leads scanned per cron firing. Caps blast radius until ramp-up. |
+| `MARKETING_EMAIL_DAILY_ALLOW_BULK` | No | `false` | Second key for bulk live send. The cron refuses to fan out unless this is `true` AND `DRY_RUN` is `false`. |
+| `RESEND_API_KEY` | Yes (live) | `re_xxx` | Reused from §Worker. Missing key forces dry-run. |
+| `RESEND_FROM_EMAIL` | Yes (live) | `Sentinel AI <noreply@mail.jilo.ai>` | Reused. Must be a verified Resend sender (see `docs/RESEND_DNS.md`). |
+
+**Manual smoke** (single recipient — preferred for verification):
+
+```powershell
+worker/.venv/Scripts/python.exe scripts/marketing_send_email_digest.py \
+    --live --only-email 372768498@qq.com
+```
+
+Dry-run (no Resend traffic), one recipient:
+
+```powershell
+worker/.venv/Scripts/python.exe scripts/marketing_send_email_digest.py \
+    --only-email 372768498@qq.com
+```
+
+Dry-run over the next 50 verified leads (renders only, no send):
+
+```powershell
+worker/.venv/Scripts/python.exe scripts/marketing_send_email_digest.py --limit 50
+```
+
+Bulk live (requires three explicit flags as a "are you sure" check):
+
+```powershell
+worker/.venv/Scripts/python.exe scripts/marketing_send_email_digest.py \
+    --live --allow-bulk --confirm-bulk --limit 50
+```
+
+The job never touches `MARKETING_PUBLISH_DRY_RUN` (Telegram kill-switch),
+never publishes to Telegram or X, and never bypasses Feishu review.
+
 ## Growth OS · Feishu Review Hub (Week 2)
 
 | Variable | Required | Example | Notes |
