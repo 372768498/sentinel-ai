@@ -48,10 +48,12 @@
 
 ## 7. Growth OS · Conversion Foundation (Week 1)
 
+> **Status (2026-05-13)**: LIVE with real brand sender `Sentinel AI <noreply@mail.jilo.ai>`. Resend domain `mail.jilo.ai` is Verified — magic-link emails can land in any inbox (no sandbox cap). See `docs/RESEND_DNS.md` for the DNS records.
+
 1. Visit `/stocks/NVDA?utm_source=test&utm_campaign=smoke&utm_content=manual`.
 2. Confirm score card renders with rating word (STRONG / SOLID / NEUTRAL / CAUTION / WEAK).
 3. Submit email through the gate. Confirm `EmailLead` row created with the UTM fields populated.
-4. Confirm magic-link email arrives via Resend.
+4. Confirm magic-link email arrives via Resend with `From: Sentinel AI <noreply@mail.jilo.ai>`.
 5. Click magic link → confirm redirect to `/stocks/NVDA?verified=1` and `EmailLead.verifiedAt` set.
 6. Confirm `VisitEvent` row written for the page visit with matching UTM tags.
 

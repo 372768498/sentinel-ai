@@ -29,7 +29,7 @@
 | `OPS_ALERT_WEBHOOK_URL` | Recommended | `https://hooks.slack.com/...` | Receives high-priority stale-task alerts. |
 | `REAP_STALE_MINUTES` | No | `45` | Stale task cutoff. |
 | `REAP_ALERT_FAILURE_RATE_THRESHOLD` | No | `0.2` | Alert if stale reaps exceed 20% of daily tasks. |
-| `RESEND_FROM_EMAIL` | Yes | `Sentinel AI <briefing@updates.example.com>` | Must use a verified Resend domain/subdomain. |
+| `RESEND_FROM_EMAIL` | Yes | `Sentinel AI <noreply@mail.jilo.ai>` | Must use a verified Resend domain/subdomain (see `docs/RESEND_DNS.md`). |
 
 ## Worker / Railway
 
@@ -40,7 +40,7 @@
 | `NEXT_PUBLIC_WORKER_URL` | Optional | same as above | Optional fallback. |
 | `WORKER_CORS_ALLOWED_ORIGINS` | Yes | `https://sentinel.example.com` | Comma-separated frontend origins allowed to open worker SSE. |
 | `RESEND_API_KEY` | Recommended | `re_xxx` | Required for real email delivery. |
-| `RESEND_FROM_EMAIL` | Yes | `Sentinel AI <briefing@updates.example.com>` | Must match verified Resend domain. |
+| `RESEND_FROM_EMAIL` | Yes | `Sentinel AI <noreply@mail.jilo.ai>` | Must match verified Resend domain (see `docs/RESEND_DNS.md`). |
 | `PYTHON_SKILL_DIR` | Yes | `./skills/xiangyu-finance-stock-analyzing/scripts/python` | Python analyzer location. |
 | `PYTHON_EXECUTABLE` | No | `python` | Override if Railway image differs. |
 | `PLAYWRIGHT_CHROMIUM_EXECUTABLE` | Optional | absolute path | Needed only if PDF generation cannot find Chromium automatically. |
