@@ -20,6 +20,7 @@ Public API:
 """
 
 from .engine import ScoreSnapshot, rating_label_for, score_one, score_watchlist
+from .narrative import Narrative, generate_narrative
 from .store import (
     ScoreRow,
     get_latest_scores,
@@ -31,9 +32,11 @@ from .store import (
 __all__ = [
     "ScoreSnapshot",
     "ScoreRow",
+    "Narrative",
     "rating_label_for",
     "score_one",
     "score_watchlist",
+    "generate_narrative",
     "init_db",
     "store_score",
     "get_latest_scores",

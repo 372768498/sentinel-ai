@@ -436,6 +436,8 @@ def _mover_block(m: dict) -> str:
     price = m.get("price")
     prev = m.get("prev_close")
     rel_vol = m.get("relative_volume")
+    why = (m.get("why_moving") or "").strip() or None
+    risk = (m.get("risk_flag") or "").strip() or None
 
     head = f"{arrow} <b>{m['ticker']}</b>"
     if price is not None:
@@ -455,6 +457,11 @@ def _mover_block(m: dict) -> str:
     score_part = _score_line(m)
     if score_part:
         lines.append(f"   {score_part}")
+
+    if why:
+        lines.append(f"   ↳ <i>{why}</i>")
+    if risk:
+        lines.append(f"   ⚠ {risk}")
 
     return "\n".join(lines)
 
@@ -539,6 +546,8 @@ def pro_daily_brief_card(
     score_100: int | None,
     rating: str | None,
     score_change: int | None,
+    why_moving: str | None = None,
+    risk_flag: str | None = None,
     strongest: list[tuple[str, str]],   # [(label, highlight), ...]
     weakest: list[tuple[str, str]],
     peer_tickers: list[str],
@@ -546,6 +555,7 @@ def pro_daily_brief_card(
     """
     Build the Pro DM detail card. `mover` carries ticker/price/change_pct/
     relative_volume/prev_close. Strongest/weakest each up to 3 entries.
+    why_moving / risk_flag come from the Haiku 4.5 narrative pass.
     """
     sign = "+" if mover["change_pct"] > 0 else ""
     arrow = "📈" if mover["change_pct"] > 0 else "📉"
@@ -578,6 +588,17 @@ def pro_daily_brief_card(
         if line:
             score_block = f"\n\n<b>{line}</b>"
 
+    narrative_block = ""
+    why = (why_moving or "").strip()
+    risk = (risk_flag or "").strip()
+    if why or risk:
+        bits: list[str] = []
+        if why:
+            bits.append(f"<b>Why it's moving:</b>\n{why}")
+        if risk:
+            bits.append(f"<b>Risk flag:</b>\n⚠ {risk}")
+        narrative_block = "\n\n" + "\n\n".join(bits)
+
     strongest_block = ""
     if strongest:
         lines = [f"✓ <b>{label}</b>: {hi}" for label, hi in strongest]
@@ -600,7 +621,11 @@ def pro_daily_brief_card(
     )
 
     body = "\n".join(price_block_lines)
-    return f"{header}\n\n{body}{score_block}{strongest_block}{weakest_block}{peer_block}{footer}"
+    return (
+        f"{header}\n\n{body}"
+        f"{score_block}{narrative_block}{strongest_block}{weakest_block}{peer_block}"
+        f"{footer}"
+    )
 
 
 def pro_daily_brief_quiet(date_str: str, user_first_name: str) -> str:

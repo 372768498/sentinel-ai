@@ -48,9 +48,16 @@ CREATE TABLE IF NOT EXISTS daily_scores (
     components_json JSONB       NOT NULL DEFAULT '{}'::jsonb,
     supporting_json JSONB       NOT NULL DEFAULT '[]'::jsonb,
     caveats_json    JSONB       NOT NULL DEFAULT '[]'::jsonb,
+    why_moving      TEXT,
+    risk_flag       TEXT,
     computed_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (ticker, date)
 );
+
+-- Idempotent column adds for upgrade-in-place
+ALTER TABLE daily_scores
+    ADD COLUMN IF NOT EXISTS why_moving TEXT,
+    ADD COLUMN IF NOT EXISTS risk_flag  TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_daily_scores_ticker_date_desc
     ON daily_scores (ticker, date DESC);
@@ -64,6 +71,8 @@ class ScoreRow:
     score_100: int
     rating: str
     recommendation: str
+    why_moving: str | None = None
+    risk_flag: str | None = None
 
 
 async def init_db(pool: asyncpg.Pool) -> None:
@@ -73,16 +82,23 @@ async def init_db(pool: asyncpg.Pool) -> None:
 
 
 async def store_score(
-    pool: asyncpg.Pool, snapshot: ScoreSnapshot, et_date: date,
+    pool: asyncpg.Pool,
+    snapshot: ScoreSnapshot,
+    et_date: date,
+    *,
+    why_moving: str | None = None,
+    risk_flag: str | None = None,
 ) -> None:
-    """Upsert today's score for one ticker."""
+    """Upsert today's score (and optional narrative) for one ticker."""
     async with pool.acquire() as conn:
         await conn.execute(
             """
             INSERT INTO daily_scores
                 (ticker, date, score_100, rating, recommendation,
-                 components_json, supporting_json, caveats_json, computed_at)
-            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, NOW())
+                 components_json, supporting_json, caveats_json,
+                 why_moving, risk_flag, computed_at)
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb,
+                    $9, $10, NOW())
             ON CONFLICT (ticker, date) DO UPDATE SET
                 score_100       = EXCLUDED.score_100,
                 rating          = EXCLUDED.rating,
@@ -90,6 +106,8 @@ async def store_score(
                 components_json = EXCLUDED.components_json,
                 supporting_json = EXCLUDED.supporting_json,
                 caveats_json    = EXCLUDED.caveats_json,
+                why_moving      = COALESCE(EXCLUDED.why_moving, daily_scores.why_moving),
+                risk_flag       = COALESCE(EXCLUDED.risk_flag,  daily_scores.risk_flag),
                 computed_at     = NOW()
             """,
             snapshot.ticker.upper(),
@@ -100,6 +118,8 @@ async def store_score(
             json.dumps(snapshot.components, ensure_ascii=False),
             json.dumps(snapshot.supporting_points, ensure_ascii=False),
             json.dumps(snapshot.caveats, ensure_ascii=False),
+            why_moving,
+            risk_flag,
         )
 
 
@@ -116,7 +136,8 @@ async def get_latest_scores(
         rows = await conn.fetch(
             """
             SELECT DISTINCT ON (ticker)
-                   ticker, date, score_100, rating, recommendation
+                   ticker, date, score_100, rating, recommendation,
+                   why_moving, risk_flag
               FROM daily_scores
              WHERE ticker = ANY($1::text[])
              ORDER BY ticker, date DESC
@@ -130,6 +151,8 @@ async def get_latest_scores(
             score_100=r["score_100"],
             rating=r["rating"],
             recommendation=r["recommendation"],
+            why_moving=r["why_moving"],
+            risk_flag=r["risk_flag"],
         )
         for r in rows
     }
@@ -145,7 +168,8 @@ async def get_score_delta(
     async with pool.acquire() as conn:
         rows = await conn.fetch(
             """
-            SELECT ticker, date, score_100, rating, recommendation
+            SELECT ticker, date, score_100, rating, recommendation,
+                   why_moving, risk_flag
               FROM daily_scores
              WHERE ticker = $1
              ORDER BY date DESC
@@ -157,6 +181,7 @@ async def get_score_delta(
         ScoreRow(
             ticker=r["ticker"], date=r["date"], score_100=r["score_100"],
             rating=r["rating"], recommendation=r["recommendation"],
+            why_moving=r["why_moving"], risk_flag=r["risk_flag"],
         )
         for r in rows
     ]

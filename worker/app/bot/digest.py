@@ -18,8 +18,10 @@ from datetime import date
 
 from ..scanner import TickerMove, fetch_watchlist_moves
 from ..scoring import (
+    Narrative,
     ScoreRow,
     ScoreSnapshot,
+    generate_narrative,
     get_latest_scores,
     get_score_delta,
     score_watchlist,
@@ -113,6 +115,8 @@ async def _fetch_score_overlay(tickers: list[str]) -> dict[str, dict]:
             "score_100": row.score_100,
             "rating": row.rating,
             "score_change": delta,
+            "why_moving": row.why_moving,
+            "risk_flag": row.risk_flag,
         }
     return overlay
 
@@ -185,11 +189,20 @@ async def public_midday_brief() -> None:
     logger.info("public mid-day brief sent (%d notable)", len(notable))
 
 
-async def _compute_and_store_today_scores() -> None:
+async def _compute_and_store_today_scores(
+    moves_by_ticker: dict[str, TickerMove] | None = None,
+) -> None:
     """
-    Run xiangyu --fast on the watchlist and upsert today's scores into
-    daily_scores. Best-effort: any failure is logged and swallowed so the
-    post-close digest still goes out (the score line just won't render).
+    Run xiangyu --fast on the watchlist, generate why_moving/risk_flag
+    via Haiku 4.5, and upsert today's daily_scores row per ticker.
+
+    `moves_by_ticker` carries today's intraday quotes so the narrative
+    can fuse "what moved today" with "why fundamentally". When None
+    (e.g. cold start), narrative still runs with components-only context.
+
+    Best-effort across the board: any single failure is logged and the
+    rest of the watchlist proceeds. Both the score AND the narrative are
+    nice-to-have for downstream rendering — the radar push works either way.
     """
     try:
         pool = await db.get_pool()
@@ -207,17 +220,49 @@ async def _compute_and_store_today_scores() -> None:
         logger.warning("scoring: zero snapshots returned for watchlist")
         return
 
+    moves_map = moves_by_ticker or {}
+
+    async def _narrate(snap: ScoreSnapshot) -> Narrative:
+        move = moves_map.get(snap.ticker.upper())
+        return await generate_narrative(
+            ticker=snap.ticker,
+            last_price=move.last_price if move else None,
+            change_pct=move.change_pct if move else None,
+            volume=move.volume if move else None,
+            relative_volume=move.relative_volume if move else None,
+            session_label="Post-close",
+            score_100=snap.score_100,
+            recommendation=snap.recommendation,
+            components=snap.components,
+        )
+
+    narratives = await asyncio.gather(
+        *[_narrate(s) for s in snapshots], return_exceptions=True,
+    )
+
     et_date = today_et()
     stored = 0
-    for snap in snapshots:
+    with_narrative = 0
+    for snap, narr in zip(snapshots, narratives):
+        why = None
+        risk = None
+        if isinstance(narr, Narrative):
+            why = narr.why_moving
+            risk = narr.risk_flag
+            if why or risk:
+                with_narrative += 1
+        elif isinstance(narr, Exception):
+            logger.warning("narrative: %s raised: %s", snap.ticker, narr)
         try:
-            await store_score(pool, snap, et_date)
+            await store_score(pool, snap, et_date, why_moving=why, risk_flag=risk)
             stored += 1
         except Exception as exc:
             logger.warning("scoring: store_score failed for %s: %s",
                            snap.ticker, exc)
-    logger.info("scoring: stored %d/%d daily_scores rows for %s",
-                stored, len(snapshots), et_date.isoformat())
+    logger.info(
+        "scoring: stored %d/%d daily_scores rows (%d with narrative) for %s",
+        stored, len(snapshots), with_narrative, et_date.isoformat(),
+    )
 
 
 async def public_eod_digest() -> None:
@@ -227,12 +272,15 @@ async def public_eod_digest() -> None:
     if not _claim("digest-postclose-public"):
         return
 
-    # Compute today's score first so the digest's "▲ +3 vs prev" arrows
-    # reflect the value we're about to persist for tomorrow's briefs.
-    await _compute_and_store_today_scores()
-
+    # Pull today's quotes first; pass them into _compute_and_store so the
+    # narrative LLM call has "what moved today" alongside fundamentals.
     date_str = today_et().strftime("%a %b %d")
     moves = await fetch_watchlist_moves(DEFAULT_WATCHLIST)
+    moves_by_ticker = {m.ticker.upper(): m for m in moves}
+
+    # Compute today's score + narrative, persist, then read back via overlay.
+    await _compute_and_store_today_scores(moves_by_ticker=moves_by_ticker)
+
     significant = [m for m in moves if abs(m.change_pct) >= MOVE_THRESHOLD_PCT]
 
     movers = await _build_mover_items(significant)
@@ -316,6 +364,8 @@ def _build_pro_brief_for_mover(
         score_100=score_row.score_100 if score_row else None,
         rating=score_row.rating if score_row else None,
         score_change=score_change,
+        why_moving=score_row.why_moving if score_row else None,
+        risk_flag=score_row.risk_flag if score_row else None,
         strongest=strongest_pairs,
         weakest=weakest_pairs,
         peer_tickers=peer_tickers,
