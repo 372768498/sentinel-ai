@@ -71,6 +71,27 @@ def _email_daily_enabled() -> bool:
     return os.environ.get("MARKETING_EMAIL_DAILY_ENABLED", "").lower() in ("1", "true", "yes")
 
 
+def _pro_email_daily_enabled() -> bool:
+    return os.environ.get("MARKETING_PRO_EMAIL_DAILY_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _pro_email_daily_hour_minute() -> tuple[int, int]:
+    # Default 09:30 ET — fires 30 min after the Pro DM (09:00 ET) so the
+    # detail card lands first as the "snackable" surface and email lands
+    # second as the archivable deep-dive.
+    hour_raw = os.environ.get("MARKETING_PRO_EMAIL_DAILY_HOUR_ET", "9")
+    minute_raw = os.environ.get("MARKETING_PRO_EMAIL_DAILY_MINUTE_ET", "30")
+    try:
+        hour = max(0, min(23, int(hour_raw)))
+    except ValueError:
+        hour = 9
+    try:
+        minute = max(0, min(59, int(minute_raw)))
+    except ValueError:
+        minute = 30
+    return hour, minute
+
+
 def _email_daily_hour_minute() -> tuple[int, int]:
     # Default 08:15 ET — fires 15 min before the Telegram public radar (08:30 ET)
     # so desktop users see the email first and Telegram is the reminder.
@@ -110,12 +131,13 @@ def build_scheduler() -> AsyncIOScheduler | None:
         and not _queue_poll_enabled()
         and not _daily_digest_enabled()
         and not _email_daily_enabled()
+        and not _pro_email_daily_enabled()
     ):
         print(
             "[scheduler] disabled — set SCANNER_ENABLED / BOT_ENABLED / "
             "MARKETING_ENABLED / MARKETING_DAILY_DRAFT_ENABLED / "
             "MARKETING_QUEUE_POLL_ENABLED / MARKETING_DAILY_DIGEST_ENABLED / "
-            "MARKETING_EMAIL_DAILY_ENABLED",
+            "MARKETING_EMAIL_DAILY_ENABLED / MARKETING_PRO_EMAIL_DAILY_ENABLED",
             flush=True,
         )
         return None
@@ -358,6 +380,35 @@ def build_scheduler() -> AsyncIOScheduler | None:
         print(
             f"[marketing] email daily radar at {email_hour:02d}:{email_minute:02d} ET (mon-fri) "
             f"— dry_run={dry_flag} allow_bulk={bulk_flag}",
+            flush=True,
+        )
+
+    if _pro_email_daily_enabled():
+        from .marketing.pro_email_jobs import run_scheduled_pro_email_digest
+
+        # Pro Email Daily Intelligence Report — defaults to 09:30 ET (30 min
+        # after the Pro DM detail card at 09:00 ET). Double-gated like the
+        # Free email path: MARKETING_PRO_EMAIL_DAILY_DRY_RUN=true skips the
+        # Resend POST, MARKETING_PRO_EMAIL_DAILY_ALLOW_BULK=false refuses
+        # bulk live sends. Both flags must be flipped before fan-out.
+        pro_hour, pro_minute = _pro_email_daily_hour_minute()
+        scheduler.add_job(
+            run_scheduled_pro_email_digest,
+            trigger=CronTrigger(
+                day_of_week="mon-fri",
+                hour=pro_hour,
+                minute=pro_minute,
+                timezone=ET_TZ,
+            ),
+            id="marketing-pro-email-daily",
+            replace_existing=True,
+            misfire_grace_time=900,
+        )
+        pro_dry_flag = os.environ.get("MARKETING_PRO_EMAIL_DAILY_DRY_RUN", "true").strip().lower()
+        pro_bulk_flag = os.environ.get("MARKETING_PRO_EMAIL_DAILY_ALLOW_BULK", "false").strip().lower()
+        print(
+            f"[marketing] pro email daily report at {pro_hour:02d}:{pro_minute:02d} ET (mon-fri) "
+            f"— dry_run={pro_dry_flag} allow_bulk={pro_bulk_flag}",
             flush=True,
         )
 

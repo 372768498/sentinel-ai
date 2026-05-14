@@ -228,79 +228,115 @@ def test_pro_tg_alert_renders_with_state_transition() -> None:
 # ============================================================
 
 
-def test_pro_email_watchlist_table_has_no_score_column() -> None:
-    items = [
-        pro_email.TickerStatus(
-            ticker="NVDA",
-            state=SentinelState.HEATED,
-            volume_relative=2.1,
-            days_in_calm=0,
-            short_note="multi-signal",
-        ),
-        pro_email.TickerStatus(
-            ticker="AMD",
-            state=SentinelState.CALM,
-            volume_relative=0.9,
-            days_in_calm=20,
-            short_note="—",
-        ),
-    ]
-    table = pro_email.render_watchlist_table(items)
-    assert "NVDA" in table and "AMD" in table
-    assert "State" in table
-    _assert_no_score_language(table)
-    # The 14+ days nudge fires for AMD
-    assert "AMD" in table and "Calm for 14+ days" in table
-    assert "Consider removing" in table
-
-
-def test_pro_email_watchlist_no_nudge_when_no_quiet_tickers() -> None:
-    items = [
-        pro_email.TickerStatus(
-            ticker="NVDA",
-            state=SentinelState.WATCHING,
-            volume_relative=1.5,
-            days_in_calm=2,
-            short_note="-",
-        ),
-    ]
-    table = pro_email.render_watchlist_table(items)
-    assert "Calm for 14+ days" not in table
-    assert "Consider removing" not in table
-
-
-def test_pro_email_render_full() -> None:
-    items = [
-        pro_email.TickerStatus(
-            ticker="NVDA",
-            state=SentinelState.HEATED,
-            volume_relative=2.1,
-            days_in_calm=0,
-            short_note="multi-signal",
-        ),
-    ]
-    payload = pro_email.ProEmailDailyPayload(
-        subject_dynamic="3 alerts today",
-        preview_dynamic="NVDA Heated, AMD Calm, MSFT Watching",
-        date_long="Mon May 12 2026",
-        delivery_time_et="07:00",
-        watchlist_count=5,
-        alert_count_today=3,
-        state_distribution="2 Calm, 2 Watching, 1 Heated",
-        biggest_change_block="NVDA: Watching → Heated at 09:02 ET",
-        week_ahead_calendar="Tue: AMD earnings\nThu: NVDA Investor Day",
-        watchlist_table=pro_email.render_watchlist_table(items),
-        sector_context_paragraph="Semis pattern is uniquely NVDA today.",
-        manage_url="https://app.jilo.ai/manage",
-        mode_url="https://app.jilo.ai/mode",
-        current_mode="active",
-        quiet_hours_url="https://app.jilo.ai/quiet",
-        methodology_url="https://app.jilo.ai/method",
+def _pro_email_minimal_payload(**overrides) -> "pro_email.ProEmailDailyPayload":
+    """Build a payload with defaults, override per-test."""
+    defaults = dict(
+        subject_line="NVDA +3.8% pre-market — Sentinel score 67",
+        preview_line="Watchlist signal pulled forward today",
+        date_long="Wed May 13, 2026",
+        delivery_time_et="09:30",
+        watchlist_tickers_line="NVDA · AMD · TSLA · MSFT · GOOGL",
+        top_ticker="NVDA",
+        top_price=245.50,
+        top_change_pct=3.80,
+        top_session="pre-market",
+        top_relative_volume=1.8,
+        top_prev_close=236.50,
+        top_score=67,
+        top_rating="Buy",
+        top_score_change=3,
+        why_moving="EPS beat 5.2%; analyst upgrades push targets higher.",
+        risk_flag="Trading at peer P/E premium",
+        dimensions=[
+            pro_email.DimensionRow("Earnings surprise", 7.0, "EPS surprise +5.2%"),
+            pro_email.DimensionRow("Fundamentals", 6.5, "ROE 27% · FCF $19B"),
+            pro_email.DimensionRow("Analyst consensus", 9.0, "Buy · +14% upside"),
+        ],
+        peer_tickers=["AMD", "INTC", "AVGO", "QCOM", "TSM"],
+        peer_check_lines=[
+            "AMD has stronger attention acceleration",
+            "NVDA has stronger profitability",
+        ],
+        watchlist_movers=[
+            pro_email.WatchlistMover(
+                ticker="NVDA", state_emoji="📈", change_pct=3.80,
+                score_100=67, rating="Buy", score_change=3,
+            ),
+            pro_email.WatchlistMover(
+                ticker="TSLA", state_emoji="📉", change_pct=-2.40,
+                score_100=52, rating="Hold", score_change=-2,
+            ),
+        ],
+        top_report_url="https://sentinelai.com/stocks/NVDA",
+        manage_url="https://app.jilo.ai/account",
+        methodology_url="https://app.jilo.ai/methodology",
     )
-    out = pro_email.render_email(payload)
+    defaults.update(overrides)
+    return pro_email.ProEmailDailyPayload(**defaults)
+
+
+def test_pro_email_render_carries_score_and_narrative() -> None:
+    out = pro_email.render_email(_pro_email_minimal_payload())
     assert "SENTINEL PRO" in out
-    assert "Not financial advice" in out
-    _assert_no_score_language(out)
+    assert "67/100" in out
+    assert "Buy (▲ +3 vs prev)" in out
+    assert "Why it's moving" in out
+    assert "EPS beat 5.2%" in out
+    assert "Risk flag" in out
+    assert "Trading at peer P/E premium" in out
+    assert "Context, not financial advice." in out
+
+
+def test_pro_email_render_handles_missing_score_gracefully() -> None:
+    out = pro_email.render_email(_pro_email_minimal_payload(
+        top_score=None, top_rating=None, top_score_change=None,
+        why_moving=None, risk_flag=None,
+    ))
+    # No crash; falls back to placeholder text
+    assert "not yet computed" in out
+    assert "narrative not yet generated" in out
+
+
+def test_pro_email_dim_snapshot_renders_bars() -> None:
+    out = pro_email.render_email(_pro_email_minimal_payload())
+    # 10-dimension block label
+    assert "10-DIMENSION SNAPSHOT" in out
+    # Bar rendering: at least one full block and one empty block visible
+    assert "█" in out
+    assert "░" in out
+    # Each labeled row shows its highlight
+    assert "ROE 27%" in out
+
+
+def test_pro_email_peer_check_renders_tickers_and_lines() -> None:
+    out = pro_email.render_email(_pro_email_minimal_payload())
+    assert "Compared to:" in out
+    assert "AMD" in out and "INTC" in out
+    assert "stronger attention acceleration" in out
+
+
+def test_pro_email_watchlist_table_shows_score_column() -> None:
+    """v2 explicitly surfaces score; the legacy 'no score' design is gone."""
+    out = pro_email.render_email(_pro_email_minimal_payload())
+    assert "Score" in out
+    assert "Rating" in out
+    # Both watchlist movers shown
+    assert "NVDA" in out and "TSLA" in out
+    # Score-change arrows
+    assert "▲ +3" in out
+    assert "▼ -2" in out
+
+
+def test_pro_email_empty_dimensions_fallback() -> None:
+    out = pro_email.render_email(_pro_email_minimal_payload(dimensions=[]))
+    assert "components not yet computed" in out
+
+
+def test_pro_email_empty_peers_fallback() -> None:
+    out = pro_email.render_email(_pro_email_minimal_payload(
+        peer_tickers=[], peer_check_lines=[],
+    ))
+    assert "peer data not available" in out
 
 
 # ============================================================
