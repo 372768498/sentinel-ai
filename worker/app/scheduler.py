@@ -7,14 +7,15 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 
-from .scanner import run_scan_and_push
-
 logger = logging.getLogger(__name__)
 
 ET_TZ = "America/New_York"
 
+# Personal alerts (Pro DM) still run after scanner-equivalent moments.
+# Public channel pushes are owned by `bot.digest` (see _bot_enabled branch),
+# never by `scanner.run_scan_and_push` (which now only serves /api/scan/run).
 SESSIONS = (
-    ("Pre-market", 9, 0),
+    ("Pre-market", 8, 30),
     ("Mid-day", 12, 30),
     ("Post-close", 16, 30),
 )
@@ -71,16 +72,18 @@ def _email_daily_enabled() -> bool:
 
 
 def _email_daily_hour_minute() -> tuple[int, int]:
-    hour_raw = os.environ.get("MARKETING_EMAIL_DAILY_HOUR_ET", "7")
-    minute_raw = os.environ.get("MARKETING_EMAIL_DAILY_MINUTE_ET", "0")
+    # Default 08:15 ET — fires 15 min before the Telegram public radar (08:30 ET)
+    # so desktop users see the email first and Telegram is the reminder.
+    hour_raw = os.environ.get("MARKETING_EMAIL_DAILY_HOUR_ET", "8")
+    minute_raw = os.environ.get("MARKETING_EMAIL_DAILY_MINUTE_ET", "15")
     try:
         hour = max(0, min(23, int(hour_raw)))
     except ValueError:
-        hour = 7
+        hour = 8
     try:
         minute = max(0, min(59, int(minute_raw)))
     except ValueError:
-        minute = 0
+        minute = 15
     return hour, minute
 
 
@@ -120,26 +123,22 @@ def build_scheduler() -> AsyncIOScheduler | None:
     # All jobs use ET timezone — APScheduler handles DST automatically via pytz/zoneinfo
     scheduler = AsyncIOScheduler(timezone=ET_TZ)
 
-    if _scanner_enabled():
-        for label, hour, minute in SESSIONS:
-            scheduler.add_job(
-                run_scan_and_push,
-                trigger=CronTrigger(
-                    day_of_week="mon-fri",
-                    hour=hour,
-                    minute=minute,
-                    timezone=ET_TZ,
-                ),
-                kwargs={"session_label": label},
-                id=f"scan-{label.lower().replace(' ', '-')}",
-                replace_existing=True,
-                misfire_grace_time=300,
-            )
-            print(f"[scanner] {label} at {hour:02d}:{minute:02d} ET (mon-fri)", flush=True)
+    # NOTE (2026-05-14): scanner.run_scan_and_push is no longer wired into a cron.
+    # It used to duplicate the public-channel pushes already owned by bot.digest,
+    # and emitted stale "previous-day close" numbers in the pre-market slot because
+    # yfinance's "2d/1d" history can't see the live pre-market quote. The function
+    # is kept for /api/scan/run manual ops; the cron path is gone on purpose.
+    # See worker/app/bot/digest.py for the authoritative public-channel jobs.
+    _ = _scanner_enabled()  # touched only so legacy env flag stays valid
 
     if _bot_enabled():
         from .bot.alerter import dispatch_personal_alerts, process_queued_alerts
-        from .bot.digest import personal_eod_digests, public_eod_digest, public_premarket_brief
+        from .bot.digest import (
+            personal_eod_digests,
+            public_eod_digest,
+            public_midday_brief,
+            public_premarket_brief,
+        )
 
         # ── Public channel ──────────────────────────────────────────────────
         scheduler.add_job(
@@ -150,6 +149,15 @@ def build_scheduler() -> AsyncIOScheduler | None:
             misfire_grace_time=300,
         )
         print("[bot] public pre-market brief at 08:30 ET (mon-fri)", flush=True)
+
+        scheduler.add_job(
+            public_midday_brief,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=12, minute=30, timezone=ET_TZ),
+            id="brief-midday-public",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        print("[bot] public mid-day brief at 12:30 ET (mon-fri)", flush=True)
 
         scheduler.add_job(
             public_eod_digest,

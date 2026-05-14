@@ -246,7 +246,7 @@ def alert_threshold_crossed(
         f"{ticker} moved {sign}{change_pct:.2f}% {direction} this {session.lower()}.\n"
         f"${prev_price:.2f} → <b>${last_price:.2f}</b>\n"
         f"{source_line}\n\n"
-        "<i>Your call. Not advice.</i>"
+        "<i>Your call. Not financial advice.</i>"
     )
 
 
@@ -257,7 +257,7 @@ def alert_silence_day(tickers: list[str], date_str: str = "") -> str:
         f"🔕 <b>Quiet day — {date_str}</b>\n\n"
         f"Nothing in {ticker_str} crossed your threshold today.\n\n"
         "Markets moved. Nothing that warranted a ping.\n\n"
-        "<i>Context, not advice.</i>"
+        "<i>Context, not financial advice.</i>"
     )
 
 
@@ -273,7 +273,7 @@ def alert_sec_filing(
         f"<b>{company}</b> submitted a new {filing_type} with the SEC.\n\n"
         f"{summary}\n\n"
         f'<a href="{source_url}">→ Full filing (SEC EDGAR)</a>\n\n'
-        "<i>Context, not advice.</i>"
+        "<i>Context, not financial advice.</i>"
     )
 
 
@@ -295,7 +295,7 @@ def alert_earnings(
         f"EPS: <b>${eps_actual:.2f}</b> vs ${eps_estimate:.2f} est.\n"
         f"Revenue: <b>{revenue_actual}</b> vs {revenue_estimate} est.\n\n"
         f'<a href="{source_url}">→ Source</a>\n\n'
-        "<i>Your call. Not advice.</i>"
+        "<i>Your call. Not financial advice.</i>"
     )
 
 
@@ -318,7 +318,7 @@ def alert_fed_macro(
         f"{detail}\n\n"
         f"{affected_section}"
         f'<a href="{source_url}">→ Source</a>\n\n'
-        "<i>Context, not advice.</i>"
+        "<i>Context, not financial advice.</i>"
     )
 
 
@@ -350,7 +350,7 @@ def alert_user_reply_ticker(
         f"Catalyst scan (last 4h): {catalyst_scan}\n\n"
         f"{no_ping_reason}\n"
         f"Want to adjust threshold? <code>/threshold {ticker} 1</code>\n\n"
-        "<i>Context, not advice.</i>"
+        "<i>Context, not financial advice.</i>"
     )
 
 
@@ -369,7 +369,7 @@ def alert_eod_digest(
         body = "Quiet session. Nothing in your watchlist crossed your threshold.\n\n"
         if quiet_tickers:
             body += "Watched: " + " · ".join(quiet_tickers) + "\n\n"
-        return header + body + "<i>Context, not advice.</i>"
+        return header + body + "<i>Context, not financial advice.</i>"
 
     lines = [f"<b>{len(crossings)} crossing{'s' if len(crossings) != 1 else ''}:</b>"]
     for c in sorted(crossings, key=lambda x: abs(x["change_pct"]), reverse=True):
@@ -385,56 +385,110 @@ def alert_eod_digest(
     return header + "\n".join(lines) + "\n\n<i>Context, not advice.</i>"
 
 
-# ── Public channel templates ───────────────────────────────────────────────────
+# ── Public channel templates (v1 Radar) ──────────────────────────────────────
+#
+# v1 only uses fields the scanner can produce today:
+#   ticker, price (last_price), prev_close, change_pct, volume, relative_volume
+#
+# v2 will add: why_moving, sentinel_score, score_change, peer_comparison, source URLs.
+# Until then, "Sources" is a category list, not concrete URLs.
+
+_PUBLIC_FOOTER = (
+    "Sources: Yahoo Finance · SEC EDGAR\n"
+    "Full breakdown → <a href=\"https://sentinelai.com\">sentinelai.com</a>\n\n"
+    "<i>Context, not financial advice.</i>"
+)
+
+_PUBLIC_FOOTER_QUIET = (
+    "Sentinel is watching. You'll hear when it matters.\n\n"
+    "<i>Context, not financial advice.</i>"
+)
+
+
+def _mover_block(m: dict) -> str:
+    sign = "+" if m["change_pct"] > 0 else ""
+    arrow = "📈" if m["change_pct"] > 0 else "📉"
+    price = m.get("price")
+    prev = m.get("prev_close")
+    rel_vol = m.get("relative_volume")
+
+    head = f"{arrow} <b>{m['ticker']}</b>"
+    if price is not None:
+        head += f" · ${price:.2f}"
+    head += f" · {sign}{m['change_pct']:.2f}%"
+
+    detail_parts: list[str] = []
+    if rel_vol is not None:
+        detail_parts.append(f"Vol {rel_vol:.1f}x avg")
+    if prev is not None:
+        detail_parts.append(f"prev ${prev:.2f}")
+    detail_line = "   " + " · ".join(detail_parts) if detail_parts else ""
+
+    return f"{head}\n{detail_line}" if detail_line else head
+
+
+def _radar_block(header: str, date_str: str, time_label: str, items: list[dict]) -> str:
+    body = "\n\n".join(_mover_block(m) for m in items)
+    return (
+        f"📊 <b>{header}</b>\n"
+        f"<i>{date_str} · {time_label} ET</i>\n\n"
+        f"{body}\n\n"
+        f"{_PUBLIC_FOOTER}"
+    )
+
 
 def public_premarket_brief_quiet(date_str: str) -> str:
     return (
-        f"☀️ <b>Pre-market · {date_str}</b>\n\n"
-        "Quiet open. No major catalysts in the pipeline this morning.\n\n"
-        "Sentinel is watching. You'll hear when it matters.\n\n"
-        "<i>Never miss the moment that matters. · Context, not advice.</i>"
+        f"📊 <b>Sentinel AI · Pre-market Radar</b>\n"
+        f"<i>{date_str} · 08:30 ET</i>\n\n"
+        "Quiet open. No major movers in the watchlist this morning.\n\n"
+        f"{_PUBLIC_FOOTER_QUIET}"
     )
 
 
-def public_premarket_brief_active(date_str: str, items: list[str]) -> str:
-    bullet_lines = "\n".join(f"• {item}" for item in items)
+def public_premarket_brief_active(date_str: str, items: list[dict]) -> str:
+    return _radar_block("Sentinel AI · Pre-market Radar", date_str, "08:30", items)
+
+
+def public_midday_brief_quiet(date_str: str) -> str:
     return (
-        f"☀️ <b>Pre-market · {date_str}</b>\n\n"
-        f"{bullet_lines}\n\n"
-        "<i>Never miss the moment that matters. · Context, not advice.</i>"
+        f"📊 <b>Sentinel AI · Mid-day Radar</b>\n"
+        f"<i>{date_str} · 12:30 ET</i>\n\n"
+        "Steady session so far. No movers crossed the radar this hour.\n\n"
+        f"{_PUBLIC_FOOTER_QUIET}"
     )
+
+
+def public_midday_brief_active(date_str: str, items: list[dict]) -> str:
+    return _radar_block("Sentinel AI · Mid-day Radar", date_str, "12:30", items)
 
 
 def public_postclose_digest(
     date_str: str,
     movers: list[dict],
-    notes: list[str],
+    notes: list[str] | None = None,
 ) -> str:
-    header = f"🌙 <b>Post-close · {date_str}</b>\n\n"
+    notes = notes or []
     if not movers and not notes:
         return (
-            header
-            + "Quiet session. Markets moved within normal range — nothing exceptional.\n\n"
-            "<i>Never miss the moment that matters. · Context, not advice.</i>"
+            f"📊 <b>Sentinel AI · Post-close Recap</b>\n"
+            f"<i>{date_str} · 16:30 ET</i>\n\n"
+            "Quiet close. Markets moved within normal range today.\n\n"
+            f"{_PUBLIC_FOOTER_QUIET}"
         )
 
-    lines = []
+    body_parts: list[str] = []
     if movers:
-        lines.append("<b>Notable movers:</b>")
-        for m in movers[:5]:
-            sign = "+" if m["change_pct"] > 0 else ""
-            arrow = "📈" if m["change_pct"] > 0 else "📉"
-            lines.append(f"{arrow} <b>{m['ticker']}</b> {sign}{m['change_pct']:.2f}%")
-
+        body_parts.append("\n\n".join(_mover_block(m) for m in movers[:5]))
     if notes:
-        lines.append("\n<b>Context:</b>")
-        for n in notes[:3]:
-            lines.append(f"• {n}")
+        notes_block = "\n".join(f"• {n}" for n in notes[:3])
+        body_parts.append(f"<b>Context:</b>\n{notes_block}")
 
     return (
-        header
-        + "\n".join(lines)
-        + "\n\n<i>Never miss the moment that matters. · Context, not advice.</i>"
+        f"📊 <b>Sentinel AI · Post-close Recap</b>\n"
+        f"<i>{date_str} · 16:30 ET</i>\n\n"
+        + "\n\n".join(body_parts)
+        + f"\n\n{_PUBLIC_FOOTER}"
     )
 
 
@@ -509,7 +563,7 @@ def caught_moment_alert(
         f"{move_line}"
         f"{detail_block}"
         f"{source_block}"
-        "<i>Context, not advice.</i>"
+        "<i>Context, not financial advice.</i>"
     )
 
 
@@ -535,5 +589,5 @@ def alert_threshold_crossed_batch(
             f"{arrow} <b>{c['ticker']}</b> {sign}{c['change_pct']:.2f}% "
             f"· ${c.get('prev_price', 0):.2f} → ${c.get('price', 0):.2f}"
         )
-    lines += ["", "<i>Your call. Not advice.</i>"]
+    lines += ["", "<i>Your call. Not financial advice.</i>"]
     return "\n".join(lines)

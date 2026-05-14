@@ -103,6 +103,8 @@ def step2_red_line_scan() -> None:
         alert_eod_digest,
         public_premarket_brief_quiet,
         public_premarket_brief_active,
+        public_midday_brief_quiet,
+        public_midday_brief_active,
         public_postclose_digest,
         HELP_MESSAGE,
     )
@@ -136,9 +138,19 @@ def step2_red_line_scan() -> None:
             "May 08",
         ),
         public_premarket_brief_quiet("Thu May 08"),
-        public_premarket_brief_active("Thu May 08", ["NVDA up 2% pre-market"]),
+        public_premarket_brief_active("Thu May 08", [
+            {"ticker": "NVDA", "change_pct": 2.0, "price": 122.40,
+             "prev_close": 120.00, "relative_volume": 1.8},
+        ]),
+        public_midday_brief_quiet("Thu May 08"),
+        public_midday_brief_active("Thu May 08", [
+            {"ticker": "NVDA", "change_pct": 3.1, "price": 123.72,
+             "prev_close": 120.00, "relative_volume": 2.1},
+        ]),
         public_postclose_digest("Thu May 08",
-                                [{"ticker": "NVDA", "change_pct": 2.5}],
+                                [{"ticker": "NVDA", "change_pct": 2.5,
+                                  "price": 123.0, "prev_close": 120.0,
+                                  "relative_volume": 1.5}],
                                 ["Fed held rates"]),
         HELP_MESSAGE,
     ]
