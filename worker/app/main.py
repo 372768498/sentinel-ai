@@ -39,6 +39,18 @@ store = JobStore()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Ensure daily_scores table exists before the first post-close digest
+    # tries to write into it. Failure here is non-fatal — the digest will
+    # gracefully degrade to score-less rendering if the table isn't there.
+    try:
+        from .bot import db as bot_db
+        from .scoring import init_db as scoring_init_db
+        pool = await bot_db.get_pool()
+        await scoring_init_db(pool)
+        print("[scoring] daily_scores table ready", flush=True)
+    except Exception as exc:
+        print(f"[scoring] init skipped: {exc}", flush=True)
+
     scheduler = build_scheduler()
     if scheduler is not None:
         scheduler.start()

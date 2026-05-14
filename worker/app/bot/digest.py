@@ -17,6 +17,14 @@ import logging
 from datetime import date
 
 from ..scanner import TickerMove, fetch_watchlist_moves
+from ..scoring import (
+    ScoreRow,
+    ScoreSnapshot,
+    get_latest_scores,
+    get_score_delta,
+    score_watchlist,
+    store_score,
+)
 from ..telegram import send_channel_message
 from ..watchlist import DEFAULT_WATCHLIST, MOVE_THRESHOLD_PCT
 from . import db
@@ -53,6 +61,79 @@ def _claim(job_id: str) -> bool:
     return True
 
 
+async def _fetch_score_overlay(tickers: list[str]) -> dict[str, dict]:
+    """
+    Best-effort enrichment of mover dicts with Sentinel score / rating /
+    score_change. Returns {ticker: {score_100, rating, score_change}}.
+
+    Returns {} when:
+      - DATABASE_URL is unset (dev mode)
+      - daily_scores table is empty (cold start before first post-close run)
+      - any DB error fires (logged, swallowed — score is a nice-to-have,
+        not a hard dependency of the radar push)
+    """
+    try:
+        pool = await db.get_pool()
+    except Exception as exc:
+        logger.info("score overlay skipped — DB unavailable: %s", exc)
+        return {}
+
+    try:
+        latest = await get_latest_scores(pool, tickers)
+    except Exception as exc:
+        logger.warning("score overlay failed reading latest_scores: %s", exc)
+        return {}
+
+    if not latest:
+        return {}
+
+    overlay: dict[str, dict] = {}
+    for ticker in tickers:
+        row = latest.get(ticker.upper())
+        if row is None:
+            continue
+        # Score-change arrow: compare row.score_100 (most recent) to the
+        # row before it. None if we only have a single day of history.
+        delta: int | None = None
+        try:
+            _, prior = await get_score_delta(pool, ticker)
+            if prior is not None:
+                delta = row.score_100 - prior.score_100
+        except Exception as exc:
+            logger.debug("score delta lookup failed for %s: %s", ticker, exc)
+        overlay[ticker.upper()] = {
+            "score_100": row.score_100,
+            "rating": row.rating,
+            "score_change": delta,
+        }
+    return overlay
+
+
+def _mover_dict(m: TickerMove, score_overlay: dict | None = None) -> dict:
+    base = {
+        "ticker": m.ticker,
+        "change_pct": m.change_pct,
+        "price": m.last_price,
+        "prev_close": m.prev_close,
+        "volume": m.volume,
+        "relative_volume": m.relative_volume,
+    }
+    if score_overlay:
+        base.update(score_overlay)
+    return base
+
+
+async def _build_mover_items(
+    moves: list[TickerMove], limit: int | None = None,
+) -> list[dict]:
+    """Sort by abs(change_pct), enrich with score overlay, optionally clamp."""
+    sorted_moves = sorted(moves, key=lambda m: abs(m.change_pct), reverse=True)
+    if limit is not None:
+        sorted_moves = sorted_moves[:limit]
+    overlay = await _fetch_score_overlay([m.ticker for m in sorted_moves])
+    return [_mover_dict(m, overlay.get(m.ticker.upper())) for m in sorted_moves]
+
+
 async def public_premarket_brief() -> None:
     if not is_trading_day(today_et()):
         logger.info("pre-market brief skipped — not a trading day")
@@ -65,17 +146,7 @@ async def public_premarket_brief() -> None:
     notable = [m for m in moves if abs(m.change_pct) >= MOVE_THRESHOLD_PCT]
 
     if notable:
-        items = [
-            {
-                "ticker": m.ticker,
-                "change_pct": m.change_pct,
-                "price": m.last_price,
-                "prev_close": m.prev_close,
-                "volume": getattr(m, "volume", None),
-                "relative_volume": getattr(m, "relative_volume", None),
-            }
-            for m in sorted(notable, key=lambda x: abs(x.change_pct), reverse=True)[:3]
-        ]
+        items = await _build_mover_items(notable, limit=3)
         text = public_premarket_brief_active(date_str, items)
     else:
         text = public_premarket_brief_quiet(date_str)
@@ -97,23 +168,48 @@ async def public_midday_brief() -> None:
     notable = [m for m in moves if abs(m.change_pct) >= MOVE_THRESHOLD_PCT]
 
     if notable:
-        items = [
-            {
-                "ticker": m.ticker,
-                "change_pct": m.change_pct,
-                "price": m.last_price,
-                "prev_close": m.prev_close,
-                "volume": getattr(m, "volume", None),
-                "relative_volume": getattr(m, "relative_volume", None),
-            }
-            for m in sorted(notable, key=lambda x: abs(x.change_pct), reverse=True)[:3]
-        ]
+        items = await _build_mover_items(notable, limit=3)
         text = public_midday_brief_active(date_str, items)
     else:
         text = public_midday_brief_quiet(date_str)
 
     await send_channel_message(text)
     logger.info("public mid-day brief sent (%d notable)", len(notable))
+
+
+async def _compute_and_store_today_scores() -> None:
+    """
+    Run xiangyu --fast on the watchlist and upsert today's scores into
+    daily_scores. Best-effort: any failure is logged and swallowed so the
+    post-close digest still goes out (the score line just won't render).
+    """
+    try:
+        pool = await db.get_pool()
+    except Exception as exc:
+        logger.warning("scoring: DB pool unavailable, skipping: %s", exc)
+        return
+
+    try:
+        snapshots = await score_watchlist(DEFAULT_WATCHLIST)
+    except Exception as exc:
+        logger.warning("scoring: score_watchlist failed: %s", exc)
+        return
+
+    if not snapshots:
+        logger.warning("scoring: zero snapshots returned for watchlist")
+        return
+
+    et_date = today_et()
+    stored = 0
+    for snap in snapshots:
+        try:
+            await store_score(pool, snap, et_date)
+            stored += 1
+        except Exception as exc:
+            logger.warning("scoring: store_score failed for %s: %s",
+                           snap.ticker, exc)
+    logger.info("scoring: stored %d/%d daily_scores rows for %s",
+                stored, len(snapshots), et_date.isoformat())
 
 
 async def public_eod_digest() -> None:
@@ -123,21 +219,15 @@ async def public_eod_digest() -> None:
     if not _claim("digest-postclose-public"):
         return
 
+    # Compute today's score first so the digest's "▲ +3 vs prev" arrows
+    # reflect the value we're about to persist for tomorrow's briefs.
+    await _compute_and_store_today_scores()
+
     date_str = today_et().strftime("%a %b %d")
     moves = await fetch_watchlist_moves(DEFAULT_WATCHLIST)
     significant = [m for m in moves if abs(m.change_pct) >= MOVE_THRESHOLD_PCT]
 
-    movers = [
-        {
-            "ticker": m.ticker,
-            "change_pct": m.change_pct,
-            "price": m.last_price,
-            "prev_close": m.prev_close,
-            "volume": getattr(m, "volume", None),
-            "relative_volume": getattr(m, "relative_volume", None),
-        }
-        for m in sorted(significant, key=lambda x: abs(x.change_pct), reverse=True)
-    ]
+    movers = await _build_mover_items(significant)
     text = public_postclose_digest(date_str, movers, notes=[])
     await send_channel_message(text)
     logger.info("public EOD digest sent (%d movers)", len(movers))

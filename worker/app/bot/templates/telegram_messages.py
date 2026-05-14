@@ -394,7 +394,7 @@ def alert_eod_digest(
 # Until then, "Sources" is a category list, not concrete URLs.
 
 _PUBLIC_FOOTER = (
-    "Sources: Yahoo Finance · SEC EDGAR\n"
+    "Sources: Yahoo Finance · SEC EDGAR · CNN F&amp;G\n"
     "Full breakdown → <a href=\"https://sentinelai.com\">sentinelai.com</a>\n\n"
     "<i>Context, not financial advice.</i>"
 )
@@ -403,6 +403,31 @@ _PUBLIC_FOOTER_QUIET = (
     "Sentinel is watching. You'll hear when it matters.\n\n"
     "<i>Context, not financial advice.</i>"
 )
+
+
+def _score_line(m: dict) -> str | None:
+    """
+    Render `Sentinel score 67/100 · Buy (▲ +3 vs prev)`.
+    Returns None when score is missing (cold-start day before any
+    daily_scores row has been written).
+    """
+    score = m.get("score_100")
+    if score is None:
+        return None
+    rating = m.get("rating") or ""
+    delta = m.get("score_change")
+
+    line = f"Sentinel score {score}/100"
+    if rating:
+        line += f" · {rating}"
+    if isinstance(delta, int):
+        if delta > 0:
+            line += f" (▲ +{delta} vs prev)"
+        elif delta < 0:
+            line += f" (▼ {delta} vs prev)"
+        else:
+            line += " (—)"
+    return line
 
 
 def _mover_block(m: dict) -> str:
@@ -417,14 +442,21 @@ def _mover_block(m: dict) -> str:
         head += f" · ${price:.2f}"
     head += f" · {sign}{m['change_pct']:.2f}%"
 
+    lines = [head]
+
     detail_parts: list[str] = []
     if rel_vol is not None:
         detail_parts.append(f"Vol {rel_vol:.1f}x avg")
     if prev is not None:
         detail_parts.append(f"prev ${prev:.2f}")
-    detail_line = "   " + " · ".join(detail_parts) if detail_parts else ""
+    if detail_parts:
+        lines.append("   " + " · ".join(detail_parts))
 
-    return f"{head}\n{detail_line}" if detail_line else head
+    score_part = _score_line(m)
+    if score_part:
+        lines.append(f"   {score_part}")
+
+    return "\n".join(lines)
 
 
 def _radar_block(header: str, date_str: str, time_label: str, items: list[dict]) -> str:
