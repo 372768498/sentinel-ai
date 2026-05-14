@@ -23,6 +23,7 @@ from typing import Callable, Awaitable
 import httpx
 
 from ..scanner import TickerMove, fetch_watchlist_moves
+from ..scoring import ScoreRow, get_latest_scores, get_score_delta
 from . import db
 from .market_calendar import is_trading_day, today_et
 from .templates.telegram_messages import (
@@ -40,6 +41,48 @@ BATCH_THRESHOLD = 3   # crossings ≥ this → send one batch message
 
 # Sender takes (user_id, text, priority) — priority is forwarded for logging/escalation
 SenderFn = Callable[..., Awaitable[dict | None]]
+
+
+async def _score_overlay_for_tickers(tickers: list[str]) -> dict[str, dict]:
+    """
+    Pull {score_100, rating, score_change, why_moving, risk_flag} per ticker.
+    Empty dict on DB unavailable / table empty / any error — caller treats
+    the overlay as decorative and renders without it.
+    """
+    if not tickers:
+        return {}
+    try:
+        pool = await db.get_pool()
+    except Exception as exc:
+        logger.debug("alert score overlay: DB unavailable: %s", exc)
+        return {}
+
+    try:
+        latest = await get_latest_scores(pool, tickers)
+    except Exception as exc:
+        logger.warning("alert score overlay: get_latest_scores failed: %s", exc)
+        return {}
+
+    overlay: dict[str, dict] = {}
+    for ticker in tickers:
+        row = latest.get(ticker.upper())
+        if row is None:
+            continue
+        delta: int | None = None
+        try:
+            _, prior = await get_score_delta(pool, ticker)
+            if prior is not None:
+                delta = row.score_100 - prior.score_100
+        except Exception as exc:
+            logger.debug("alert score delta failed for %s: %s", ticker, exc)
+        overlay[ticker.upper()] = {
+            "score_100": row.score_100,
+            "rating": row.rating,
+            "score_change": delta,
+            "why_moving": row.why_moving,
+            "risk_flag": row.risk_flag,
+        }
+    return overlay
 
 
 async def _default_sender(
@@ -88,6 +131,7 @@ async def _send_or_queue(
     profile: dict,
     crossings: list[TickerMove],
     sender: SenderFn,
+    score_overlay: dict[str, dict] | None = None,
 ) -> dict:
     """
     For each crossing: check cooldown → check quiet hours → send or queue.
@@ -168,12 +212,18 @@ async def _send_or_queue(
                     logger.warning("alert_log write failed: %s", exc)
     else:
         for move in eligible:
+            score_kwargs = (score_overlay or {}).get(move.ticker.upper(), {})
             text = alert_threshold_crossed(
                 ticker=move.ticker,
                 change_pct=move.change_pct,
                 prev_price=move.prev_close,
                 last_price=move.last_price,
                 session="session",
+                score_100=score_kwargs.get("score_100"),
+                rating=score_kwargs.get("rating"),
+                score_change=score_kwargs.get("score_change"),
+                why_moving=score_kwargs.get("why_moving"),
+                risk_flag=score_kwargs.get("risk_flag"),
             )
             priority = compute_priority(move.change_pct)
             result = await sender(user_id, text, priority)
@@ -223,6 +273,11 @@ async def dispatch_personal_alerts(
     all_moves = await fetch_watchlist_moves(list(all_tickers))
     moves_by_ticker = {m.ticker: m for m in all_moves}
 
+    # One DB pass: load latest Sentinel score + narrative per ticker. Empty
+    # overlay on cold start / DB outage — alerts still send, just without
+    # the score / why_moving / risk_flag enrichment lines.
+    score_overlay = await _score_overlay_for_tickers(list(all_tickers))
+
     total_sent = total_queued = total_deduped = 0
 
     for profile in profiles:
@@ -238,7 +293,7 @@ async def dispatch_personal_alerts(
         if not crossings:
             continue
 
-        stats = await _send_or_queue(profile, crossings, _sender)
+        stats = await _send_or_queue(profile, crossings, _sender, score_overlay)
         total_sent += stats["sent"]
         total_queued += stats["queued"]
         total_deduped += stats["deduped"]
@@ -276,6 +331,24 @@ async def process_queued_alerts(sender: SenderFn | None = None) -> int:
         uid = alert["telegram_user_id"]
         by_user.setdefault(uid, []).append(alert)
 
+    # Collect every distinct ticker in the pending queue so we can pull
+    # the daily_scores overlay in one shot. By the time these queued
+    # alerts thaw out of quiet hours, the post-close run has almost
+    # certainly populated daily_scores — so the morning delivery carries
+    # full score + narrative even though the original cross fired at night.
+    import json as _json
+    queued_tickers: set[str] = set()
+    for alert in pending:
+        payload = alert.get("payload_json")
+        if isinstance(payload, str):
+            try:
+                payload = _json.loads(payload)
+            except Exception:
+                continue
+        if isinstance(payload, dict) and payload.get("ticker"):
+            queued_tickers.add(str(payload["ticker"]).upper())
+    score_overlay = await _score_overlay_for_tickers(list(queued_tickers))
+
     for user_id, alerts in by_user.items():
         try:
             profile = await db.get_profile(user_id)
@@ -301,15 +374,21 @@ async def process_queued_alerts(sender: SenderFn | None = None) -> int:
         for alert in alerts:
             payload = alert["payload_json"]
             if isinstance(payload, str):
-                import json
-                payload = json.loads(payload)
+                payload = _json.loads(payload)
 
+            ticker = str(payload.get("ticker", "")).upper()
+            score_kwargs = score_overlay.get(ticker, {})
             text = alert_threshold_crossed(
                 ticker=payload.get("ticker", ""),
                 change_pct=payload.get("change_pct", 0),
                 prev_price=payload.get("prev_price", 0),
                 last_price=payload.get("price", 0),
                 session="earlier session",
+                score_100=score_kwargs.get("score_100"),
+                rating=score_kwargs.get("rating"),
+                score_change=score_kwargs.get("score_change"),
+                why_moving=score_kwargs.get("why_moving"),
+                risk_flag=score_kwargs.get("risk_flag"),
             )
             priority_val = payload.get("priority", AlertPriority.NORMAL.value)
             try:

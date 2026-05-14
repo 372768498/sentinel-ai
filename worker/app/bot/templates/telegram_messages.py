@@ -236,18 +236,45 @@ def alert_threshold_crossed(
     last_price: float,
     session: str,
     source_url: str = "",
+    *,
+    score_100: int | None = None,
+    rating: str | None = None,
+    score_change: int | None = None,
+    why_moving: str | None = None,
+    risk_flag: str | None = None,
 ) -> str:
     direction = "up" if change_pct > 0 else "down"
     arrow = "📈" if change_pct > 0 else "📉"
     sign = "+" if change_pct > 0 else ""
     source_line = f'\n<a href="{source_url}">→ Source</a>' if source_url else ""
-    return (
-        f"{arrow} <b>{ticker} crossed your threshold</b>\n\n"
-        f"{ticker} moved {sign}{change_pct:.2f}% {direction} this {session.lower()}.\n"
-        f"${prev_price:.2f} → <b>${last_price:.2f}</b>\n"
-        f"{source_line}\n\n"
-        "<i>Your call. Not financial advice.</i>"
-    )
+
+    blocks = [
+        f"{arrow} <b>{ticker} crossed your threshold</b>",
+        "",
+        f"{ticker} moved {sign}{change_pct:.2f}% {direction} this {session.lower()}.",
+        f"${prev_price:.2f} → <b>${last_price:.2f}</b>",
+    ]
+
+    score_part = _score_line({
+        "score_100": score_100,
+        "rating": rating or "",
+        "score_change": score_change,
+    }) if score_100 is not None else None
+    if score_part:
+        blocks.extend(["", score_part])
+
+    why = (why_moving or "").strip()
+    risk = (risk_flag or "").strip()
+    if why:
+        blocks.append(f"↳ <i>{why}</i>")
+    if risk:
+        blocks.append(f"⚠ {risk}")
+
+    if source_url:
+        blocks.append(source_line.lstrip("\n"))
+
+    blocks.extend(["", "<i>Your call. Not financial advice.</i>"])
+    return "\n".join(blocks)
 
 
 def alert_silence_day(tickers: list[str], date_str: str = "") -> str:
