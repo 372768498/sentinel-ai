@@ -524,6 +524,96 @@ def public_postclose_digest(
     )
 
 
+# ── Pro DM daily brief (09:00 ET) ─────────────────────────────────────────────
+#
+# One DM per Pro user, every weekday at 09:00 ET, focused on the single
+# biggest mover in the user's watchlist. The Free public radar has already
+# fired at 08:30 ET — this is the Pro upgrade: 10-dim score breakdown,
+# strongest/weakest dimensions in plain English, peer landscape.
+
+def pro_daily_brief_card(
+    date_str: str,
+    *,
+    user_first_name: str,
+    mover: dict,
+    score_100: int | None,
+    rating: str | None,
+    score_change: int | None,
+    strongest: list[tuple[str, str]],   # [(label, highlight), ...]
+    weakest: list[tuple[str, str]],
+    peer_tickers: list[str],
+) -> str:
+    """
+    Build the Pro DM detail card. `mover` carries ticker/price/change_pct/
+    relative_volume/prev_close. Strongest/weakest each up to 3 entries.
+    """
+    sign = "+" if mover["change_pct"] > 0 else ""
+    arrow = "📈" if mover["change_pct"] > 0 else "📉"
+
+    header = (
+        "🎯 <b>Sentinel Pro · Daily Brief</b>\n"
+        f"<i>{date_str} · 09:00 ET · for {user_first_name}</i>"
+    )
+
+    price_block_lines = [
+        "<b>Top mover in your watchlist:</b>",
+        f"{arrow} <b>${mover['ticker']}</b> · ${mover['price']:.2f} · "
+        f"{sign}{mover['change_pct']:.2f}%",
+    ]
+    detail_parts: list[str] = []
+    if mover.get("relative_volume") is not None:
+        detail_parts.append(f"Vol {mover['relative_volume']:.1f}x avg")
+    if mover.get("prev_close") is not None:
+        detail_parts.append(f"prev ${mover['prev_close']:.2f}")
+    if detail_parts:
+        price_block_lines.append("   " + " · ".join(detail_parts))
+
+    score_block = ""
+    if score_100 is not None:
+        line = _score_line({
+            "score_100": score_100,
+            "rating": rating or "",
+            "score_change": score_change,
+        })
+        if line:
+            score_block = f"\n\n<b>{line}</b>"
+
+    strongest_block = ""
+    if strongest:
+        lines = [f"✓ <b>{label}</b>: {hi}" for label, hi in strongest]
+        strongest_block = "\n\n<b>Strongest dimensions:</b>\n" + "\n".join(lines)
+
+    weakest_block = ""
+    if weakest:
+        lines = [f"⚠ <b>{label}</b>: {hi}" for label, hi in weakest]
+        weakest_block = "\n\n<b>Weakest dimensions:</b>\n" + "\n".join(lines)
+
+    peer_block = ""
+    if peer_tickers:
+        peer_str = " · ".join(peer_tickers[:5])
+        peer_block = f"\n\n<b>Peers:</b> {peer_str}"
+
+    footer = (
+        "\n\nSources: Yahoo Finance · SEC EDGAR · CNN F&amp;G\n"
+        "Full report → <a href=\"https://sentinelai.com\">sentinelai.com</a>\n\n"
+        "<i>Context, not financial advice.</i>"
+    )
+
+    body = "\n".join(price_block_lines)
+    return f"{header}\n\n{body}{score_block}{strongest_block}{weakest_block}{peer_block}{footer}"
+
+
+def pro_daily_brief_quiet(date_str: str, user_first_name: str) -> str:
+    """Used when no watchlist ticker crossed the user's threshold today."""
+    return (
+        "🎯 <b>Sentinel Pro · Daily Brief</b>\n"
+        f"<i>{date_str} · 09:00 ET · for {user_first_name}</i>\n\n"
+        "Watchlist is quiet this morning. No threshold crossings.\n\n"
+        "I'll surface anything that matters during the session.\n\n"
+        "<i>Context, not financial advice.</i>"
+    )
+
+
 # ── Help & utility ────────────────────────────────────────────────────────────
 
 HELP_MESSAGE = (

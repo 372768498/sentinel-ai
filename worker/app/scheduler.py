@@ -135,6 +135,7 @@ def build_scheduler() -> AsyncIOScheduler | None:
         from .bot.alerter import dispatch_personal_alerts, process_queued_alerts
         from .bot.digest import (
             personal_eod_digests,
+            personal_pro_daily_brief,
             public_eod_digest,
             public_midday_brief,
             public_premarket_brief,
@@ -158,6 +159,19 @@ def build_scheduler() -> AsyncIOScheduler | None:
             misfire_grace_time=300,
         )
         print("[bot] public mid-day brief at 12:30 ET (mon-fri)", flush=True)
+
+        # ── Pro DM detail card (09:00 ET) ───────────────────────────────────
+        # Fires 30 min after the public pre-market radar. Each Pro user gets
+        # ONE personalized DM containing the top mover in their watchlist
+        # with the 10-dim Sentinel breakdown.
+        scheduler.add_job(
+            personal_pro_daily_brief,
+            trigger=CronTrigger(day_of_week="mon-fri", hour=9, minute=0, timezone=ET_TZ),
+            id="brief-pro-daily-personal",
+            replace_existing=True,
+            misfire_grace_time=300,
+        )
+        print("[bot] Pro DM daily brief at 09:00 ET (mon-fri)", flush=True)
 
         scheduler.add_job(
             public_eod_digest,

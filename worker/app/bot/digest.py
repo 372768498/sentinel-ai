@@ -25,6 +25,12 @@ from ..scoring import (
     score_watchlist,
     store_score,
 )
+from ..scoring.highlights import (
+    component_highlight,
+    component_label,
+    extract_peer_tickers,
+    rank_components,
+)
 from ..telegram import send_channel_message
 from ..watchlist import DEFAULT_WATCHLIST, MOVE_THRESHOLD_PCT
 from . import db
@@ -32,6 +38,8 @@ from .market_calendar import is_trading_day, today_et
 from .templates.telegram_messages import (
     alert_eod_digest,
     alert_silence_day,
+    pro_daily_brief_card,
+    pro_daily_brief_quiet,
     public_midday_brief_active,
     public_midday_brief_quiet,
     public_postclose_digest,
@@ -231,6 +239,173 @@ async def public_eod_digest() -> None:
     text = public_postclose_digest(date_str, movers, notes=[])
     await send_channel_message(text)
     logger.info("public EOD digest sent (%d movers)", len(movers))
+
+
+async def _send_dm(user_id: int, text: str) -> bool:
+    """Send a Telegram DM to a single user. Returns True on success."""
+    import os
+
+    import httpx
+    token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+    if not token:
+        logger.warning("send_dm: TELEGRAM_BOT_TOKEN missing")
+        return False
+
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    payload = {
+        "chat_id": user_id,
+        "text": text,
+        "parse_mode": "HTML",
+        "disable_web_page_preview": True,
+    }
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(url, json=payload)
+        data = resp.json()
+    except Exception as exc:
+        logger.error("send_dm: HTTP error for %s: %s", user_id, exc)
+        return False
+    if not data.get("ok"):
+        logger.warning(
+            "send_dm: failed for %s: %s %s",
+            user_id, data.get("error_code"), data.get("description"),
+        )
+        return False
+    return True
+
+
+def _build_pro_brief_for_mover(
+    user_first_name: str,
+    date_str: str,
+    top_mover: TickerMove,
+    score_row: ScoreRow | None,
+    prior_score: ScoreRow | None,
+    components: dict | None,
+) -> str:
+    mover_dict = {
+        "ticker": top_mover.ticker,
+        "change_pct": top_mover.change_pct,
+        "price": top_mover.last_price,
+        "prev_close": top_mover.prev_close,
+        "relative_volume": top_mover.relative_volume,
+    }
+
+    score_change: int | None = None
+    if score_row is not None and prior_score is not None:
+        score_change = score_row.score_100 - prior_score.score_100
+
+    strongest_pairs: list[tuple[str, str]] = []
+    weakest_pairs: list[tuple[str, str]] = []
+    peer_tickers: list[str] = []
+    if components:
+        strongest_keys, weakest_keys = rank_components(components, top_n=3)
+        for key, _ in strongest_keys:
+            hi = component_highlight(key, components.get(key))
+            if hi:
+                strongest_pairs.append((component_label(key), hi))
+        for key, _ in weakest_keys:
+            hi = component_highlight(key, components.get(key))
+            if hi:
+                weakest_pairs.append((component_label(key), hi))
+        peer_tickers = extract_peer_tickers(components)
+
+    return pro_daily_brief_card(
+        date_str,
+        user_first_name=user_first_name,
+        mover=mover_dict,
+        score_100=score_row.score_100 if score_row else None,
+        rating=score_row.rating if score_row else None,
+        score_change=score_change,
+        strongest=strongest_pairs,
+        weakest=weakest_pairs,
+        peer_tickers=peer_tickers,
+    )
+
+
+async def _send_pro_brief_one(user_id: int, profile: dict) -> bool:
+    """Build & send the 09:00 ET Pro DM for a single user."""
+    import json as _json
+
+    tickers = list(profile.get("watchlist") or [])
+    threshold = float(profile.get("alert_threshold") or MOVE_THRESHOLD_PCT)
+    first_name = profile.get("telegram_first_name") or "there"
+    date_str = today_et().strftime("%a %b %d")
+
+    if not tickers:
+        return False  # silently skip users with empty watchlist
+
+    moves = await fetch_watchlist_moves(tickers)
+    crossings = [m for m in moves if abs(m.change_pct) >= threshold]
+
+    if not crossings:
+        text = pro_daily_brief_quiet(date_str, first_name)
+        return await _send_dm(user_id, text)
+
+    top_mover = max(crossings, key=lambda m: abs(m.change_pct))
+
+    # Best-effort score + components lookup
+    score_row: ScoreRow | None = None
+    prior_score: ScoreRow | None = None
+    components: dict | None = None
+    try:
+        pool = await db.get_pool()
+        latest = await get_latest_scores(pool, [top_mover.ticker])
+        score_row = latest.get(top_mover.ticker.upper())
+        _, prior_score = await get_score_delta(pool, top_mover.ticker)
+
+        # Pull the latest components_json blob for this ticker
+        async with pool.acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT components_json
+                  FROM daily_scores
+                 WHERE ticker = $1
+                 ORDER BY date DESC
+                 LIMIT 1
+                """,
+                top_mover.ticker.upper(),
+            )
+        if row and row["components_json"]:
+            raw = row["components_json"]
+            components = raw if isinstance(raw, dict) else _json.loads(raw)
+    except Exception as exc:
+        logger.debug("pro brief: score lookup failed for %s: %s",
+                     top_mover.ticker, exc)
+
+    text = _build_pro_brief_for_mover(
+        user_first_name=first_name,
+        date_str=date_str,
+        top_mover=top_mover,
+        score_row=score_row,
+        prior_score=prior_score,
+        components=components,
+    )
+    return await _send_dm(user_id, text)
+
+
+async def personal_pro_daily_brief() -> None:
+    """09:00 ET — DM every onboarded Pro user a personalized detail card."""
+    if not is_trading_day(today_et()):
+        logger.info("Pro daily brief skipped — not a trading day")
+        return
+    if not _claim("brief-pro-daily-personal"):
+        return
+
+    try:
+        profiles = await db.get_all_active_profiles()
+    except Exception as exc:
+        logger.warning("pro brief: failed to load profiles: %s", exc)
+        return
+
+    if not profiles:
+        logger.info("pro brief: no active profiles")
+        return
+
+    results = await asyncio.gather(*[
+        _send_pro_brief_one(p["telegram_user_id"], p) for p in profiles
+    ], return_exceptions=True)
+    sent = sum(1 for r in results if r is True)
+    logger.info("pro daily brief: sent %d/%d", sent, len(profiles))
 
 
 async def _send_personal_digest(user_id: int, profile: dict) -> None:
