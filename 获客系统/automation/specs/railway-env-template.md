@@ -122,6 +122,7 @@ MARKETING_DAILY_DRAFT_ENABLED=false
 MARKETING_ACQUISITION_OPERATOR_ENABLED=false
 MARKETING_ACQUISITION_OPERATOR_HOUR_ET=9
 MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR=docs/growth-runs
+MARKETING_ACQUISITION_OPERATOR_KPI_LOOKBACK_DAYS=7
 
 # Content & Notification optimization wire-up (Sprint 1, Telegram only)
 USE_NEW_TEMPLATES=false
@@ -141,6 +142,7 @@ USE_NEW_TEMPLATES=false
 | `MARKETING_ACQUISITION_OPERATOR_ENABLED` | **`false`** | O | Daily CEO-operator layer. Generates review drafts, Shorts/TikTok asset packs, blocked-item reports, and next actions. Keep false on Railway until write-path smoke passes locally. |
 | `MARKETING_ACQUISITION_OPERATOR_HOUR_ET` | `9` | O | Runs at `:15` ET when enabled. |
 | `MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR` | `docs/growth-runs` | O | Artifact directory for operator summaries and video packs. |
+| `MARKETING_ACQUISITION_OPERATOR_KPI_LOOKBACK_DAYS` | `7` | O | KPI lookback window for Scale / Keep / Rewrite / Pause decisions. Min 1, max 30. |
 | `USE_NEW_TEMPLATES` | **`false`** | O | Sprint 1 wire-up flag. When `true`, free Telegram drafts come from the deterministic `free_telegram_anomaly` template (no LLM call). X and YouTube Shorts always use the LLM. Run `scripts/preview_new_templates.py` before flipping; expect 7-day gray-out under `MARKETING_PUBLISH_DRY_RUN=true` before promoting to live posts. |
 
 ## §6 Market Intelligence Layer P0 (O — none required for Week 8)

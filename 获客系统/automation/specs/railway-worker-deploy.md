@@ -101,6 +101,7 @@ Variables are grouped by what they unlock. Copy into Railway, paste real values
 | `MARKETING_ACQUISITION_OPERATOR_ENABLED` | `false` | Daily operator that writes Growth Content Pack summaries and Shorts/TikTok asset packs. Keep false on Railway until local smoke passes. |
 | `MARKETING_ACQUISITION_OPERATOR_HOUR_ET` | `9` | Runs at `:15` ET when enabled. |
 | `MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR` | `docs/growth-runs` | Artifact directory for operator summaries and video packs. |
+| `MARKETING_ACQUISITION_OPERATOR_KPI_LOOKBACK_DAYS` | `7` | KPI lookback window for Scale / Keep / Rewrite / Pause decisions. Min 1, max 30. |
 | `MARKETING_DAILY_DIGEST_ENABLED` | `true` | Post-close KPI digest. |
 | `MARKETING_DAILY_DIGEST_HOUR_ET` | `16` | 4 PM ET (post-close). |
 | `MARKETING_DAILY_DIGEST_MINUTE_ET` | `30` | 30. |
