@@ -1,0 +1,53 @@
+{
+  "resolution": {
+    "width": 1080,
+    "height": 1920,
+    "ok": true
+  },
+  "duration_seconds": 30,
+  "duration_ok": true,
+  "ticker_in_first_2_seconds": true,
+  "state_in_first_2_seconds": true,
+  "scene_word_counts": [
+    {
+      "label": "Hook",
+      "words": 9,
+      "ok": true
+    },
+    {
+      "label": "State reveal",
+      "words": 5,
+      "ok": true
+    },
+    {
+      "label": "Signal 1",
+      "words": 2,
+      "ok": true
+    },
+    {
+      "label": "Signal 2",
+      "words": 2,
+      "ok": true
+    },
+    {
+      "label": "Signal 3",
+      "words": 2,
+      "ok": true
+    },
+    {
+      "label": "Sentinel State",
+      "words": 7,
+      "ok": true
+    },
+    {
+      "label": "CTA",
+      "words": 9,
+      "ok": true
+    }
+  ],
+  "captions_safe_area": true,
+  "cta_specific": true,
+  "has_disclaimer": true,
+  "forbidden_terms": [],
+  "ok": true
+}

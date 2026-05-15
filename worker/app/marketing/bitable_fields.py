@@ -1,34 +1,49 @@
-"""Central registry for Feishu Bitable Content Queue field names.
+"""Feishu Bitable field registry for Sentinel AI Growth OS.
 
-Operator-jojo asked for Chinese column headers in Feishu UI. To make
-renames safe, every worker site that reads/writes Bitable fields routes
-through the constants here and the `normalize_fields()` helper.
-
-Migration strategy:
-  1. Refactor all read/write call sites to use these constants.
-  2. Deploy worker — read sites call `normalize_fields(record_fields)`
-     which maps any English legacy key to its Chinese counterpart, so
-     the worker accepts BOTH naming conventions transparently.
-  3. Run `scripts/feishu/rename_content_queue_to_chinese.py` to rename
-     the Bitable columns in place. The field_id stays the same so
-     existing data is preserved.
-  4. After rename, Bitable answers with Chinese names. The worker's
-     write side (constants below) is also Chinese, so writes work.
-     Reads still tolerate English in case any stray legacy record
-     surfaces.
-
-NOT touched by this layer:
-  - Single-select OPTION VALUES (e.g. 'Approved', 'Telegram', 'Pass').
-    Worker logic uses these as enum keys (`if review_status == "Approved"`)
-    so changing them would force a deep refactor. Operators see Chinese
-    column headers + English cell values — acceptable.
+Feishu UI should be Chinese-first. Worker code stays bilingual during and
+after migration: every reader calls ``normalize_fields()`` so legacy English
+records and renamed Chinese records both work.
 """
+
 from __future__ import annotations
 
-# ---- Field-name constants (Chinese display names) ------------------------
+# ---- Table display names -------------------------------------------------
+
+TABLE_CAMPAIGNS = "活动"
+TABLE_CONTENT_QUEUE = "内容队列"
+TABLE_PERFORMANCE = "表现数据"
+
+TABLE_NAME_MAP: dict[str, str] = {
+    "Campaigns": TABLE_CAMPAIGNS,
+    "Content Queue": TABLE_CONTENT_QUEUE,
+    "Performance": TABLE_PERFORMANCE,
+}
+
+
+# ---- Campaigns / 活动 ----------------------------------------------------
+
+CAMPAIGN_ID = "活动ID"
+CAMPAIGN_DATE = "日期"
+CAMPAIGN_SESSION = "场次"
+CAMPAIGN_MAIN_TICKER = "主股票代码"
+CAMPAIGN_STATUS = "状态"
+CAMPAIGN_OWNER = "负责人"
+CAMPAIGN_NOTES = "备注"
+
+CAMPAIGNS_LEGACY_TO_NEW: dict[str, str] = {
+    "campaign_id": CAMPAIGN_ID,
+    "date": CAMPAIGN_DATE,
+    "session": CAMPAIGN_SESSION,
+    "main_ticker": CAMPAIGN_MAIN_TICKER,
+    "status": CAMPAIGN_STATUS,
+    "owner": CAMPAIGN_OWNER,
+    "notes": CAMPAIGN_NOTES,
+}
+
+
+# ---- Content Queue / 内容队列 -------------------------------------------
 
 CONTENT_ID = "内容ID"
-CAMPAIGN_ID = "活动ID"
 PLATFORM = "平台"
 TICKER = "股票代码"
 HOOK = "钩子"
@@ -45,10 +60,7 @@ QUALITY_SCORE = "质量评分"
 KILL_REASON = "拒绝原因"
 ONE_WORD = "一句感受"
 
-
-# ---- Legacy English → new Chinese map (used during migration only) ------
-
-LEGACY_TO_NEW: dict[str, str] = {
+CONTENT_QUEUE_LEGACY_TO_NEW: dict[str, str] = {
     "content_id": CONTENT_ID,
     "campaign_id": CAMPAIGN_ID,
     "platform": PLATFORM,
@@ -69,19 +81,49 @@ LEGACY_TO_NEW: dict[str, str] = {
 }
 
 
-def normalize_fields(fields: dict) -> dict:
-    """Return a copy of `fields` where each key is mirrored under both
-    its English (legacy) and Chinese (new) form. Lets reading code
-    look up by either name regardless of whether the Bitable rename
-    has happened yet.
+# ---- Performance / 表现数据 ---------------------------------------------
 
-    Idempotent. Bidirectional: an English-only record gains Chinese
-    mirrors; a Chinese-only record gains English mirrors.
-    """
+PERF_CONTENT_ID = CONTENT_ID
+PERF_VIEWS = "曝光数"
+PERF_CLICKS = "点击数"
+PERF_EMAILS_CAPTURED = "邮件留资数"
+PERF_SIGNUPS = "注册数"
+PERF_PAID_USERS = "付费用户数"
+PERF_CLICK_TO_EMAIL_RATE = "点击到留资率"
+PERF_FREE_TO_PAID_RATE = "免费到付费率"
+PERF_CAC_ESTIMATE = "预估获客成本"
+PERF_NOTES = "备注"
+
+PERFORMANCE_LEGACY_TO_NEW: dict[str, str] = {
+    "content_id": PERF_CONTENT_ID,
+    "views": PERF_VIEWS,
+    "clicks": PERF_CLICKS,
+    "emails_captured": PERF_EMAILS_CAPTURED,
+    "signups": PERF_SIGNUPS,
+    "paid_users": PERF_PAID_USERS,
+    "click_to_email_rate": PERF_CLICK_TO_EMAIL_RATE,
+    "free_to_paid_rate": PERF_FREE_TO_PAID_RATE,
+    "cac_estimate": PERF_CAC_ESTIMATE,
+    "notes": PERF_NOTES,
+}
+
+
+# Backward-compatible name used by existing Content Queue code/tests.
+LEGACY_TO_NEW = CONTENT_QUEUE_LEGACY_TO_NEW
+
+ALL_LEGACY_TO_NEW: dict[str, str] = {
+    **CAMPAIGNS_LEGACY_TO_NEW,
+    **CONTENT_QUEUE_LEGACY_TO_NEW,
+    **PERFORMANCE_LEGACY_TO_NEW,
+}
+
+
+def normalize_fields(fields: dict) -> dict:
+    """Mirror fields under both English legacy keys and Chinese display names."""
     if not fields:
         return {}
     out = dict(fields)
-    for english, chinese in LEGACY_TO_NEW.items():
+    for english, chinese in ALL_LEGACY_TO_NEW.items():
         if english in out and chinese not in out:
             out[chinese] = out[english]
         elif chinese in out and english not in out:
@@ -89,7 +131,5 @@ def normalize_fields(fields: dict) -> dict:
     return out
 
 
-# ---- Convenience: alphabetically ordered tuple for scripts --------------
-
-ALL_LEGACY_NAMES: tuple[str, ...] = tuple(sorted(LEGACY_TO_NEW.keys()))
-ALL_CHINESE_NAMES: tuple[str, ...] = tuple(sorted(LEGACY_TO_NEW.values()))
+ALL_LEGACY_NAMES: tuple[str, ...] = tuple(sorted(ALL_LEGACY_TO_NEW.keys()))
+ALL_CHINESE_NAMES: tuple[str, ...] = tuple(sorted(set(ALL_LEGACY_TO_NEW.values())))

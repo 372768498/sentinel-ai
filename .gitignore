@@ -51,6 +51,7 @@ Thumbs.db
 # ===== 日志 =====
 *.log
 logs/
+docs/growth-runs/api-key-preflight.md
 
 # ===== 敏感品牌/策略素材（不上公开仓库） =====
 backups/

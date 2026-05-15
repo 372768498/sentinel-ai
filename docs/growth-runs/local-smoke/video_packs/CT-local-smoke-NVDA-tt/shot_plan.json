@@ -1,0 +1,84 @@
+{
+  "canvas": {
+    "width": 1080,
+    "height": 1920,
+    "fps": 30,
+    "safe_area_px": 96
+  },
+  "template": "ticker_state_risk_stack",
+  "ticker": "NVDA",
+  "state": "HEATED",
+  "duration_seconds": 30,
+  "scenes": [
+    {
+      "id": "scene_01_hook",
+      "start": 0,
+      "end": 2,
+      "label": "Hook",
+      "text": "$NVDA HEATED: $NVDA has three signals firing right now.",
+      "max_words": 12,
+      "animation": "fade_up"
+    },
+    {
+      "id": "scene_02_state_reveal",
+      "start": 2,
+      "end": 7,
+      "label": "State reveal",
+      "text": "$NVDA is in HEATED state.",
+      "max_words": 12,
+      "animation": "fade_up"
+    },
+    {
+      "id": "scene_03_signal_1",
+      "start": 7,
+      "end": 12,
+      "label": "Signal 1",
+      "text": "Expectation crowding",
+      "max_words": 12,
+      "animation": "fade_up"
+    },
+    {
+      "id": "scene_04_signal_2",
+      "start": 12,
+      "end": 17,
+      "label": "Signal 2",
+      "text": "Margin sensitivity",
+      "max_words": 12,
+      "animation": "fade_up"
+    },
+    {
+      "id": "scene_05_signal_3",
+      "start": 17,
+      "end": 22,
+      "label": "Signal 3",
+      "text": "Valuation compression",
+      "max_words": 12,
+      "animation": "fade_up"
+    },
+    {
+      "id": "scene_06_sentinel_state",
+      "start": 22,
+      "end": 26,
+      "label": "Sentinel State",
+      "text": "Attention, margins, and valuation pressure overlap today.",
+      "max_words": 12,
+      "animation": "fade_up"
+    },
+    {
+      "id": "scene_07_cta",
+      "start": 26,
+      "end": 30,
+      "label": "CTA",
+      "text": "Run the free context scan. Context, not financial advice.",
+      "max_words": 12,
+      "animation": "fade_up"
+    }
+  ],
+  "signals": [
+    "Expectation crowding",
+    "Margin sensitivity",
+    "Valuation compression"
+  ],
+  "cta_url": "https://sentinelai.com/stocks/NVDA?utm_source=tiktok&utm_medium=shorts&utm_campaign=CMP-local-smoke&utm_content=CT-local-smoke-NVDA-tt",
+  "disclaimer": "Context, not financial advice."
+}

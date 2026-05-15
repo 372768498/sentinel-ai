@@ -76,6 +76,7 @@ def main() -> int:
         print("[error] FEISHU_BITABLE_APP_TOKEN + FEISHU_CONTENT_QUEUE_TABLE_ID required", file=sys.stderr)
         return 2
 
+    from app.marketing import bitable_fields as bf
     from app.marketing.feishu_client import FeishuClient
 
     client = FeishuClient()
@@ -92,17 +93,20 @@ def main() -> int:
 
     plan = [
         {
-            "field_name": "jojo_quality_score",
+            "field_name": bf.QUALITY_SCORE,
+            "legacy_name": "jojo_quality_score",
             "type": FIELD_TYPE_NUMBER,
             "property": {"formatter": "0"},
         },
         {
-            "field_name": "jojo_kill_reason",
+            "field_name": bf.KILL_REASON,
+            "legacy_name": "jojo_kill_reason",
             "type": FIELD_TYPE_SINGLE_SELECT,
             "property": {"options": [{"name": name} for name in KILL_REASON_OPTIONS]},
         },
         {
-            "field_name": "jojo_one_word",
+            "field_name": bf.ONE_WORD,
+            "legacy_name": "jojo_one_word",
             "type": FIELD_TYPE_TEXT,
             "property": None,
         },
@@ -113,7 +117,8 @@ def main() -> int:
     skipped = 0
     for field in plan:
         name = field["field_name"]
-        if name in existing_names:
+        legacy_name = field["legacy_name"]
+        if name in existing_names or legacy_name in existing_names:
             print(f"  [skip]  {name} (already exists)")
             skipped += 1
             continue

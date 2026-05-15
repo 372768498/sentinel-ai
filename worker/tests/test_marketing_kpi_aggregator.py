@@ -18,6 +18,7 @@ from app.marketing.kpi_aggregator import (
     trading_day_window,
     upsert_performance_row,
 )
+from app.marketing import bitable_fields as bf
 
 
 def _run(coro):
@@ -125,9 +126,9 @@ def test_upsert_creates_when_no_existing(env: None) -> None:
         existing_by_content_id={},
     )
     assert len(fake.created) == 1
-    assert fake.created[0]["fields"]["content_id"] == "CT-1"
-    assert fake.created[0]["fields"]["clicks"] == 12
-    assert fake.created[0]["fields"]["notes"] == "as of 2026-05-11 ET"
+    assert fake.created[0]["fields"][bf.PERF_CONTENT_ID] == "CT-1"
+    assert fake.created[0]["fields"][bf.PERF_CLICKS] == 12
+    assert fake.created[0]["fields"][bf.PERF_NOTES] == "as of 2026-05-11 ET"
     assert fake.updated == []
 
 
@@ -140,7 +141,7 @@ def test_upsert_updates_when_existing(env: None) -> None:
     )
     assert len(fake.updated) == 1
     assert fake.updated[0]["record_id"] == "recEXISTING"
-    assert fake.updated[0]["fields"]["clicks"] == 99
+    assert fake.updated[0]["fields"][bf.PERF_CLICKS] == 99
     assert fake.created == []
 
 
@@ -196,7 +197,7 @@ def test_aggregate_and_push_digest_end_to_end(env: None) -> None:
         perf_pages=[
             {
                 "items": [
-                    {"record_id": "recOLD", "fields": {"content_id": "CT-NVDA-x"}},
+                    {"record_id": "recOLD", "fields": {bf.PERF_CONTENT_ID: "CT-NVDA-x"}},
                 ],
                 "has_more": False,
             }
@@ -204,11 +205,11 @@ def test_aggregate_and_push_digest_end_to_end(env: None) -> None:
         queue_pages=[
             {
                 "items": [
-                    {"record_id": "rec1", "fields": {"review_status": "Pending", "redline_result": "Pass"}},
-                    {"record_id": "rec2", "fields": {"review_status": "Pending", "redline_result": "Pass"}},
-                    {"record_id": "rec3", "fields": {"review_status": "Failed", "redline_result": "Blocked"}},
-                    {"record_id": "rec4", "fields": {"review_status": "Approved", "redline_result": "Pass"}},
-                    {"record_id": "rec5", "fields": {"review_status": "Published", "redline_result": "Pass"}},
+                    {"record_id": "rec1", "fields": {bf.REVIEW_STATUS: "Pending", bf.REDLINE_RESULT: "Pass"}},
+                    {"record_id": "rec2", "fields": {bf.REVIEW_STATUS: "Pending", bf.REDLINE_RESULT: "Pass"}},
+                    {"record_id": "rec3", "fields": {bf.REVIEW_STATUS: "Failed", bf.REDLINE_RESULT: "Blocked"}},
+                    {"record_id": "rec4", "fields": {bf.REVIEW_STATUS: "Approved", bf.REDLINE_RESULT: "Pass"}},
+                    {"record_id": "rec5", "fields": {bf.REVIEW_STATUS: "Published", bf.REDLINE_RESULT: "Pass"}},
                 ],
                 "has_more": False,
             }
@@ -240,7 +241,7 @@ def test_aggregate_and_push_digest_end_to_end(env: None) -> None:
     assert len(fake.updated) == 1
     assert fake.updated[0]["record_id"] == "recOLD"
     assert len(fake.created) == 1
-    assert fake.created[0]["fields"]["content_id"] == "CT-TSLA-tg"
+    assert fake.created[0]["fields"][bf.PERF_CONTENT_ID] == "CT-TSLA-tg"
     # Digest card sent
     assert result.notified is True
     assert len(fake.cards) == 1

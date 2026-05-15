@@ -95,15 +95,17 @@ def trading_day_window(now: Optional[datetime] = None) -> tuple[datetime, dateti
 
 
 def _performance_fields(rollup: ContentRollup, date_label: str) -> dict:
+    from . import bitable_fields as bf
+
     return {
-        "content_id": rollup.content_id,
-        "clicks": rollup.clicks,
-        "emails_captured": rollup.emails_captured,
-        "signups": rollup.signups,
-        "paid_users": rollup.paid_users,
-        "click_to_email_rate": round(rollup.click_to_email_rate, 4),
-        "free_to_paid_rate": round(rollup.free_to_paid_rate, 4),
-        "notes": f"as of {date_label} ET",
+        bf.PERF_CONTENT_ID: rollup.content_id,
+        bf.PERF_CLICKS: rollup.clicks,
+        bf.PERF_EMAILS_CAPTURED: rollup.emails_captured,
+        bf.PERF_SIGNUPS: rollup.signups,
+        bf.PERF_PAID_USERS: rollup.paid_users,
+        bf.PERF_CLICK_TO_EMAIL_RATE: round(rollup.click_to_email_rate, 4),
+        bf.PERF_FREE_TO_PAID_RATE: round(rollup.free_to_paid_rate, 4),
+        bf.PERF_NOTES: f"as of {date_label} ET",
     }
 
 
@@ -140,8 +142,10 @@ def _list_performance_index(
             app_token, table_id, page_size=100, page_token=page_token
         )
         for record in page.get("items", []):
-            fields = record.get("fields", {})
-            content_id = fields.get("content_id")
+            from . import bitable_fields as bf
+
+            fields = bf.normalize_fields(record.get("fields", {}))
+            content_id = fields.get(bf.PERF_CONTENT_ID)
             if isinstance(content_id, list):
                 # multi-text field shape
                 content_id = "".join(
@@ -170,9 +174,11 @@ def _scan_content_queue_snapshot(
             app_token, content_queue_table_id, page_size=100, page_token=page_token
         )
         for record in page.get("items", []):
-            fields = record.get("fields", {})
-            status = _read_text(fields.get("review_status"))
-            redline = _read_text(fields.get("redline_result"))
+            from . import bitable_fields as bf
+
+            fields = bf.normalize_fields(record.get("fields", {}))
+            status = _read_text(fields.get(bf.REVIEW_STATUS))
+            redline = _read_text(fields.get(bf.REDLINE_RESULT))
             if status == "Pending":
                 pending += 1
             if status == "Failed":

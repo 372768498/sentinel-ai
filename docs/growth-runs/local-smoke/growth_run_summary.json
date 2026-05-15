@@ -1,0 +1,81 @@
+{
+  "run_id": "local-smoke",
+  "session": "local_smoke",
+  "output_dir": "D:\\code2026\\sentinel-ai\\docs\\growth-runs\\local-smoke",
+  "opportunities_scanned": 1,
+  "opportunities_selected": 1,
+  "drafts_created": 4,
+  "submitted_to_review": 4,
+  "video_packs_created": 2,
+  "blocked_count": 0,
+  "kpi_items_reviewed": 2,
+  "kpi_decisions": [
+    {
+      "group_key": "Reddit:all",
+      "platform": "Reddit",
+      "content_count": 1,
+      "clicks": 20,
+      "emails_captured": 0,
+      "signups": 0,
+      "paid_users": 0,
+      "click_to_email_rate": 0.0,
+      "decision": "改写 Rewrite",
+      "reason": "有点击但没有留资，优先检查承诺、CTA 和落地页匹配。"
+    },
+    {
+      "group_key": "X:all",
+      "platform": "X",
+      "content_count": 1,
+      "clicks": 100,
+      "emails_captured": 10,
+      "signups": 6,
+      "paid_users": 1,
+      "click_to_email_rate": 0.1,
+      "decision": "加码 Scale",
+      "reason": "click-to-email 达到 8% 以上，下一轮生成 3 个变体。"
+    }
+  ],
+  "errors": [],
+  "drafts": [
+    {
+      "content_id": "CT-local-smoke-NVDA-x",
+      "platform": "X",
+      "ticker": "NVDA",
+      "risk_level": "Low",
+      "redline_ok": true,
+      "submitted_to_review": true,
+      "review_error": null,
+      "video_pack_dir": null
+    },
+    {
+      "content_id": "CT-local-smoke-NVDA-rd",
+      "platform": "Reddit",
+      "ticker": "NVDA",
+      "risk_level": "Low",
+      "redline_ok": true,
+      "submitted_to_review": true,
+      "review_error": null,
+      "video_pack_dir": null
+    },
+    {
+      "content_id": "CT-local-smoke-NVDA-yt",
+      "platform": "YouTube Shorts",
+      "ticker": "NVDA",
+      "risk_level": "Low",
+      "redline_ok": true,
+      "submitted_to_review": true,
+      "review_error": null,
+      "video_pack_dir": "D:\\code2026\\sentinel-ai\\docs\\growth-runs\\local-smoke\\video_packs\\CT-local-smoke-NVDA-yt"
+    },
+    {
+      "content_id": "CT-local-smoke-NVDA-tt",
+      "platform": "TikTok",
+      "ticker": "NVDA",
+      "risk_level": "Low",
+      "redline_ok": true,
+      "submitted_to_review": true,
+      "review_error": null,
+      "video_pack_dir": "D:\\code2026\\sentinel-ai\\docs\\growth-runs\\local-smoke\\video_packs\\CT-local-smoke-NVDA-tt"
+    }
+  ]
+}

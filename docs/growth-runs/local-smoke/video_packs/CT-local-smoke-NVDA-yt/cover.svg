@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920" viewBox="0 0 1080 1920">
+  <rect width="1080" height="1920" fill="#07120d"/>
+  <rect x="70" y="92" width="940" height="150" rx="8" fill="#0f251a"/>
+  <text x="106" y="154" fill="#d7ffe2" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="760">Sentinel Market State</text>
+  <text x="106" y="204" fill="#95b7a3" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="520">Context, not financial advice.</text>
+  <rect x="70" y="390" width="940" height="710" rx="8" fill="#122119"/>
+  <text x="112" y="535" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="98" font-weight="860">$NVDA</text>
+  <rect x="112" y="590" width="390" height="90" rx="4" fill="#d7ffe2"/>
+  <text x="150" y="650" fill="#07120d" font-family="Inter, Arial, sans-serif" font-size="42" font-weight="840">HEATED</text>
+  <text x="112" y="805" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="62" font-weight="560">$NVDA has three signals</text>
+<text x="112" y="877" fill="#ffffff" font-family="Inter, Arial, sans-serif" font-size="62" font-weight="560">firing right now.</text>
+  <rect x="70" y="1220" width="940" height="250" rx="8" fill="#d7ffe2"/>
+  <text x="112" y="1310" fill="#07120d" font-family="Inter, Arial, sans-serif" font-size="54" font-weight="840">3 signals to verify</text>
+  <text x="112" y="1386" fill="#17492f" font-family="Inter, Arial, sans-serif" font-size="32" font-weight="620">Context scan, not financial advice</text>
+  <text x="112" y="1745" fill="#d7ffe2" font-family="Inter, Arial, sans-serif" font-size="38" font-weight="780">Run the free context scan</text>
+</svg>
