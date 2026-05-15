@@ -37,6 +37,11 @@ from ..telegram import send_channel_message
 from ..watchlist import DEFAULT_WATCHLIST, MOVE_THRESHOLD_PCT
 from . import db
 from .market_calendar import is_trading_day, today_et
+from .quiet_context import (
+    build_eod_quiet_bullets,
+    build_midday_quiet_bullets,
+    build_premarket_quiet_bullets,
+)
 from .templates.telegram_messages import (
     alert_eod_digest,
     alert_silence_day,
@@ -161,7 +166,8 @@ async def public_premarket_brief() -> None:
         items = await _build_mover_items(notable, limit=3)
         text = public_premarket_brief_active(date_str, items)
     else:
-        text = public_premarket_brief_quiet(date_str)
+        bullets = await build_premarket_quiet_bullets(today=today_et())
+        text = public_premarket_brief_quiet(date_str, bullets)
 
     await send_channel_message(text)
     logger.info("public pre-market brief sent (%d notable)", len(notable))
@@ -183,7 +189,8 @@ async def public_midday_brief() -> None:
         items = await _build_mover_items(notable, limit=3)
         text = public_midday_brief_active(date_str, items)
     else:
-        text = public_midday_brief_quiet(date_str)
+        bullets = await build_midday_quiet_bullets(watchlist_moves=moves)
+        text = public_midday_brief_quiet(date_str, bullets)
 
     await send_channel_message(text)
     logger.info("public mid-day brief sent (%d notable)", len(notable))
@@ -284,7 +291,10 @@ async def public_eod_digest() -> None:
     significant = [m for m in moves if abs(m.change_pct) >= MOVE_THRESHOLD_PCT]
 
     movers = await _build_mover_items(significant)
-    text = public_postclose_digest(date_str, movers, notes=[])
+    quiet_bullets = []
+    if not movers:
+        quiet_bullets = await build_eod_quiet_bullets(today=today_et())
+    text = public_postclose_digest(date_str, movers, notes=[], quiet_bullets=quiet_bullets)
     await send_channel_message(text)
     logger.info("public EOD digest sent (%d movers)", len(movers))
 

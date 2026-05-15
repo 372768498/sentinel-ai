@@ -175,7 +175,7 @@ def step2_red_line_scan() -> None:
         _ok(f"All {len(rendered)} templates pass red-line check — no buy/sell/prediction language")
 
     # Check all templates have disclaimer
-    disclaimers = ["not advice", "context, not advice", "your call"]
+    disclaimers = ["not advice", "not financial advice", "context, not advice", "your call"]
     # Only alert templates need disclaimers (indices 6–16); skip onboarding/help
     ALERT_INDICES = range(6, 17)
     missing = []

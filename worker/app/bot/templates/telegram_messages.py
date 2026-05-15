@@ -503,11 +503,19 @@ def _radar_block(header: str, date_str: str, time_label: str, items: list[dict])
     )
 
 
-def public_premarket_brief_quiet(date_str: str) -> str:
+def _quiet_floor_block(intro: str, bullets: list[str] | None) -> str:
+    cleaned = [b.strip() for b in (bullets or []) if b.strip()]
+    if not cleaned:
+        return intro
+    return intro + "\n" + "\n".join(f"• {bullet}" for bullet in cleaned)
+
+
+def public_premarket_brief_quiet(date_str: str, bullets: list[str] | None = None) -> str:
+    body = _quiet_floor_block("Watchlist quiet - but here's the floor:", bullets)
     return (
         f"📊 <b>Sentinel AI · Pre-market Radar</b>\n"
         f"<i>{date_str} · 08:30 ET</i>\n\n"
-        "Quiet open. No major movers in the watchlist this morning.\n\n"
+        f"{body}\n\n"
         f"{_PUBLIC_FOOTER_QUIET}"
     )
 
@@ -516,11 +524,12 @@ def public_premarket_brief_active(date_str: str, items: list[dict]) -> str:
     return _radar_block("Sentinel AI · Pre-market Radar", date_str, "08:30", items)
 
 
-def public_midday_brief_quiet(date_str: str) -> str:
+def public_midday_brief_quiet(date_str: str, bullets: list[str] | None = None) -> str:
+    body = _quiet_floor_block("Watchlist quiet - here's the session floor:", bullets)
     return (
         f"📊 <b>Sentinel AI · Mid-day Radar</b>\n"
         f"<i>{date_str} · 12:30 ET</i>\n\n"
-        "Steady session so far. No movers crossed the radar this hour.\n\n"
+        f"{body}\n\n"
         f"{_PUBLIC_FOOTER_QUIET}"
     )
 
@@ -533,13 +542,15 @@ def public_postclose_digest(
     date_str: str,
     movers: list[dict],
     notes: list[str] | None = None,
+    quiet_bullets: list[str] | None = None,
 ) -> str:
     notes = notes or []
     if not movers and not notes:
+        body = _quiet_floor_block("Quiet close - here's the floor:", quiet_bullets)
         return (
             f"📊 <b>Sentinel AI · Post-close Recap</b>\n"
             f"<i>{date_str} · 16:30 ET</i>\n\n"
-            "Quiet close. Markets moved within normal range today.\n\n"
+            f"{body}\n\n"
             f"{_PUBLIC_FOOTER_QUIET}"
         )
 
