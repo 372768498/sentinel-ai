@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { scoreToRating, ratingColor, ratingBg } from "@/lib/rating";
-import { parseUtmFromSearch, persistUtm, readUtmCookie, mergeUtm, type UtmParams } from "@/lib/utm";
+import { parseUtmFromSearch, persistUtm, readUtmCookie, mergeUtm } from "@/lib/utm";
 
 interface DimensionScore {
   name: string;
@@ -52,7 +52,6 @@ export default function StockPage() {
   const [seedTickers, setSeedTickers] = useState<[string, string, string]>(["", "", ""]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [utm, setUtm] = useState<UtmParams>({});
 
   const data = getMockData(ticker);
   const rating = scoreToRating(data.totalScore);
@@ -62,7 +61,6 @@ export default function StockPage() {
     const fromCookie = readUtmCookie();
     const merged = mergeUtm(fromSearch, fromCookie);
     persistUtm(merged);
-    setUtm(merged);
 
     fetch("/api/track/visit", {
       method: "POST",
@@ -103,7 +101,7 @@ export default function StockPage() {
           ticker,
           sourcePath: `/stocks/${ticker}`,
           seedTickers: cleaned,
-          utm,
+          utm: mergeUtm(parseUtmFromSearch(searchParams.toString()), readUtmCookie()),
         }),
       });
 

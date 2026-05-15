@@ -14,7 +14,7 @@ interface SharedAnalysis {
   createdAt: string;
 }
 
-function getMockAnalysis(shareId: string): SharedAnalysis {
+function getMockAnalysis(): SharedAnalysis {
   return {
     ticker: "NVDA",
     companyName: "NVIDIA Corporation",
@@ -35,7 +35,7 @@ export default function AnalysisSharePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const data = getMockAnalysis(shareId);
+  const data = getMockAnalysis();
   const rating = scoreToRating(data.totalScore);
 
   useEffect(() => {
