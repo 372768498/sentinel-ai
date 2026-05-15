@@ -1,60 +1,69 @@
-"""Free Telegram channel template — at most ONE post per day.
-
-Two branches:
-  - ANOMALY: a single ticker qualified (state HEATED or INFLECTION +
-    uniqueness >= 0.6). The most anomalous one wins.
-  - NOTHING: no qualified anomaly. We publish the "nothing unusual"
-    post anyway — silence is not free, but manufactured signals are
-    worse. This is a product position, not a fallback.
-"""
+"""Free Telegram channel templates."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 from ..state import STATE_DISPLAY, SentinelState
 
 TEMPLATE_ANOMALY = """\
 🛰 Sentinel · Anomaly Watch
-{session_label} · {timestamp_et} ET
+{session_label} - {timestamp_et} ET
 
-{state_emoji} ${ticker} · ${price}
+TODAY'S PRIORITY
+
+{state_emoji} ${ticker} - ${price}
 {session_change_label}: {price_change_pct:+.1f}%
 Volume: {volume_relative:.1f}x avg
 
-Why it's anomalous:
+Why it matters:
 {anomaly_one_liner}
 
-{uniqueness_line}
+Evidence balance:
+- Uniqueness: {uniqueness_line}
+- Confirming: {confirming_list}
+- Pushing back: {disagreeing_list}
 
-Signals confirming: {confirming_list}
-Signals disagreeing: {disagreeing_list}
-
-Sentinel's read:
+Sentinel read:
 {narrative_one_paragraph}
 
-⚠ {risk_one_liner}
+Risk flag:
+{risk_one_liner}
+
+Watch next:
+- Follow-through with volume.
+- A filing, earnings item, or news catalyst.
+- Whether peers confirm or reject the move.
 
 Sources: {source_categories}
 
-Full breakdown → {cta_url}
-Watch your own tickers → {pro_url}
+Stock context preview -> {cta_url}
+Watch your own tickers -> {pro_url}
 
 Not financial advice.
 """
 
 TEMPLATE_NOTHING = """\
 🛰 Sentinel · Anomaly Watch
-{session_label} · {timestamp_et} ET
+{session_label} - {timestamp_et} ET
 
 Today: nothing unusual on radar.
 
 We scanned ~{scan_universe_size} U.S.-listed equities
 across price, volume, filings, news, and social.
-All within normal range.
+Nothing reached Sentinel's public anomaly threshold.
 
-We don't manufacture signals.
-See you tomorrow.
+Why no alert yet:
+- No ticker had enough cross-signal confirmation.
+- Price-only moves stayed classified as noise.
+- Chatter without matching volume or catalyst did not qualify.
+
+Watch next:
+- A volume break with a catalyst.
+- SEC filing, earnings, analyst, or macro headline.
+- A watchlist ticker moving differently from its peers.
+
+Sentinel is quiet because the evidence is quiet.
+See you tomorrow when the evidence changes.
 
 Not financial advice.
 """

@@ -1,60 +1,54 @@
-"""Pro Telegram alert — state change + signal compass + divergence warning.
-
-Three render functions:
-  - render_compass: ASCII compass with confirming (top) / disagreeing (bottom)
-  - render_divergence_warning: appears only when divergence_score >= 0.5
-  - render_alert: full message
-"""
+"""Pro Telegram alert: state change plus evidence context."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable
 
 from ..state import STATE_DISPLAY, SentinelState
 
 
 TEMPLATE = """\
-🎯 Sentinel Pro Alert
-{timestamp_et} ET · for {user_first_name}
+Sentinel Pro Alert
+{timestamp_et} ET - for {user_first_name}
 
 ${ticker} state changed:
-{prev_state_emoji} {prev_state_label} → {new_state_emoji} {new_state_label}
+{prev_state_emoji} {prev_state_label} -> {new_state_emoji} {new_state_label}
 ({minutes_since_change} min ago)
 
-Current: ${price} · {price_change_pct:+.1f}% {session_label}
+Current: ${price} - {price_change_pct:+.1f}% {session_label}
 Volume: {volume_relative:.1f}x avg
 
-──────────
-What changed in the last 24h:
+WHAT CHANGED IN THE LAST 24H
+
 {change_bullets}
 
-──────────
-Signal compass:
+EVIDENCE BALANCE
 
-          CONFIRMING
-              ↑
+Confirming:
 {compass_top}
-              │
-   ──────────●──────────
-              │
-{compass_bottom}
-              ↓
-          DISAGREEING
 
-──────────
-Sentinel's read:
+Pushing back:
+{compass_bottom}
+
+SENTINEL READ
+
 {synthesis_paragraph}
 
 {divergence_warning}
 
-──────────
+WHAT TO DO WITH THIS
+
+- Check the evidence chain before reacting to price.
+- Compare the move against peers and your original thesis.
+- Adjust threshold only if this alert was too noisy or too late.
+
 Quick actions:
   /why {ticker}      see full evidence chain
   /snooze {ticker} 2h
   /threshold {ticker}
   /share             generate share card
 
-Full report → {pro_report_url}
+Full report -> {pro_report_url}
 
 Not financial advice.
 """
@@ -63,7 +57,7 @@ Not financial advice.
 @dataclass(frozen=True)
 class CompassSignal:
     name: str
-    strength: float  # 0.0 - 1.0
+    strength: float
 
 
 def render_compass(
@@ -72,33 +66,26 @@ def render_compass(
     *,
     max_per_side: int = 3,
 ) -> tuple[str, str]:
-    """Render top + bottom ASCII halves of the signal compass.
-
-    Up to `max_per_side` per half. Strength > 0.7 renders ●, else ○.
-    Mobile-friendly fixed width.
-    """
     top = sorted(confirming, key=lambda s: -s.strength)[:max_per_side]
     bot = sorted(disagreeing, key=lambda s: -s.strength)[:max_per_side]
     top_lines = [
-        f"   {s.name:>12} → {'●' if s.strength > 0.7 else '○'}"
+        f"  - {s.name}: {'● strong' if s.strength > 0.7 else '○ moderate'}"
         for s in top
     ]
     bot_lines = [
-        f"   {s.name:>12} → {'●' if s.strength > 0.7 else '○'}"
+        f"  - {s.name}: {'● strong' if s.strength > 0.7 else '○ moderate'}"
         for s in bot
     ]
     return ("\n".join(top_lines), "\n".join(bot_lines))
 
 
 def render_divergence_warning(divergence_score: float) -> str:
-    """Empty string when divergence_score < 0.5 (no warning needed)."""
     if divergence_score < 0.5:
         return ""
     return (
-        "⚠ Divergence detected.\n"
-        "Multiple signals point one way, others push back.\n\n"
-        "This is not a high-conviction setup.\n"
-        "Position sizing matters more than direction here."
+        "Divergence detected.\n"
+        "Multiple signals point one way while others push back.\n\n"
+        "This is not a high-conviction setup. Position sizing matters more than direction here."
     )
 
 

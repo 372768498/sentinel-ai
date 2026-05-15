@@ -1,13 +1,8 @@
-"""Free Email Daily — anomaly digest or 'nothing unusual'.
-
-Two branches mirror the Telegram template. Adds a seed section (watchlist
-the user gave us at registration) and a single reflection question
-rotated from a small library so daily emails feel less repetitive.
-"""
+"""Free Email Daily Radar: anomaly digest or quiet-market context."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Optional
+from typing import Iterable
 
 from ..state import STATE_DISPLAY, SentinelState
 
@@ -16,77 +11,108 @@ TEMPLATE_ANOMALY = """\
 Subject: {subject_line}
 Preview: {preview_line}
 
-─────────────────────────
-SENTINEL · DAILY RADAR
-{date_long} · {timestamp_et} ET
-─────────────────────────
+-------------------------
+SENTINEL - DAILY RADAR
+{date_long} - {timestamp_et} ET
+-------------------------
 
-▎TODAY'S ANOMALY
+TODAY'S WATCHLIST PRIORITY
 
-{state_emoji} ${ticker} · ${price} · {price_change_pct:+.1f}% {session_label}
+{state_emoji} ${ticker} - ${price} - {price_change_pct:+.1f}% {session_label}
 
-The setup:
+Bottom line:
+Something changed enough for Sentinel to move this ticker to the top of today's watchlist.
+This is not a trade call. It is a reason to slow down, check the evidence, and decide whether
+the move changes your thesis.
+
+WHY SENTINEL FLAGGED IT
+
 {setup_bullets}
 
-Why this matters:
+What it means:
 {matters_paragraph}
 
-What's confirming:    {confirming_count} signals
-What's pushing back:  {disagreeing_count} signals
+Evidence balance:
+- Confirming signals: {confirming_count}
+- Signals pushing back: {disagreeing_count}
+- Source set: {source_links_list}
 
-Sources: {source_links_list}
+WHAT TO IGNORE FOR NOW
 
-[ See full breakdown → {cta_url} ]
+Do not react to the headline alone. The useful question is whether price, volume,
+filings/news, and attention are moving together or disagreeing.
+
+YOU'LL HEAR FROM SENTINEL IF
+
+- The move widens materially during the session.
+- A filing, earnings item, or news catalyst changes the evidence.
+- Watchlist context flips from noisy to actionable.
+
+[ Open stock context preview -> {cta_url} ]
 
 
 {seed_section}
 
 
-▎ONE QUESTION TO ASK YOURSELF
+ONE QUESTION TO ASK YOURSELF
 
 {reflection_question}
 
 
-─────────────────────────
+-------------------------
 Want this for YOUR tickers?
-We watch 5-15 tickers for you, 24/7.
+Pro watches your actual list, not just the public radar.
 
-[ Try Pro Watch — 7-day trial, no card → {pro_url} ]
-─────────────────────────
+[ Try Pro Watch - 7-day trial, no card -> {pro_url} ]
+-------------------------
 
 Context, not financial advice.
-Reply to this email — a real person reads them.
+Reply to this email - a real person reads them.
 
 Methodology + sources: {methodology_url}
 Unsubscribe: {unsubscribe_url}
 """
 
 TEMPLATE_NOTHING = """\
-Subject: Today: nothing unusual on radar
-Preview: We scanned the market. All quiet. See you tomorrow.
+Subject: Today: nothing unusual, but not empty
+Preview: No confirmed anomaly yet. Here is what Sentinel watched and what would change the state.
 
-─────────────────────────
-SENTINEL · DAILY RADAR
-{date_long} · {timestamp_et} ET
-─────────────────────────
+-------------------------
+SENTINEL - DAILY RADAR
+{date_long} - {timestamp_et} ET
+-------------------------
 
-Today: nothing unusual.
+TODAY'S WATCHLIST PRIORITY
+
+Quiet. No confirmed public anomaly yet.
+In plain English: nothing unusual reached the public radar.
 
 We scanned ~{scan_universe_size} U.S.-listed equities
 across price, volume, SEC filings, news, and social chatter.
-Everything within normal range.
+Everything stayed inside Sentinel's public alert threshold.
 
-We don't manufacture signals to fill space.
+WHY NO ALERT YET
+
+- No single ticker had enough cross-signal confirmation.
+- Price action without a catalyst stayed classified as noise.
+- Chatter without matching volume or filing/news evidence did not qualify.
+
+WHAT TO WATCH NEXT
+
+- A sharp volume break with a matching catalyst.
+- SEC filing, earnings revision, analyst action, or policy headline.
+- A watchlist ticker moving differently from its peers.
 
 {seed_section}
 
-See you tomorrow.
+Sentinel is quiet because the evidence is quiet. You will hear when that changes.
 
-─────────────────────────
+-------------------------
 Want alerts only when YOUR tickers move?
-[ Try Pro Watch → {pro_url} ]
-─────────────────────────
+[ Try Pro Watch -> {pro_url} ]
+-------------------------
 
+Context, not financial advice.
 Reply to this email anytime.
 """
 
@@ -113,33 +139,27 @@ class SeedTicker:
 
 
 def render_seed_section(seeds: Iterable[SeedTicker]) -> str:
-    """Render the 'YOUR WATCHLIST TODAY' section.
-
-    Returns empty string when no seed tickers — caller may insert a default.
-    Even CALM seeds are shown: 'system watched them today, nothing changed'
-    is product value.
-    """
+    """Render the user-specific watchlist floor."""
     items = list(seeds)
     if not items:
         return ""
     lines = []
     for s in items:
         display = STATE_DISPLAY[s.state]
-        lines.append(f"  {s.ticker}: {display['emoji']} {display['label']} — {s.one_liner}")
+        lines.append(f"  {s.ticker}: {display['emoji']} {display['label']} - {s.one_liner}")
     return (
-        "─────────────────────────\n"
-        "YOUR WATCHLIST TODAY\n\n"
+        "-------------------------\n"
+        "YOUR WATCHLIST PRIORITY\n\n"
         + "\n".join(lines)
-        + "\n\nWant alerts on these in real-time,\n"
-        + "plus 12 more tickers?\n"
-        + "[ Try Pro Watch — 7-day trial → ]\n"
-        + "─────────────────────────"
+        + "\n\nThis is your user-specific floor: even calm tickers were checked.\n"
+        + "Want real-time alerts on these, plus 12 more tickers?\n"
+        + "[ Try Pro Watch - 7-day trial -> ]\n"
+        + "-------------------------"
     )
 
 
 def pick_reflection_question(*, day_offset: int) -> str:
-    """Deterministic rotation. `day_offset` is days since epoch (or any
-    monotonically increasing day index) so callers can map weekday → q."""
+    """Deterministic rotation so daily emails feel less repetitive."""
     return REFLECTION_QUESTIONS[day_offset % len(REFLECTION_QUESTIONS)]
 
 

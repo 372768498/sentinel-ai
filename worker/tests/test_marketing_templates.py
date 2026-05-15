@@ -279,7 +279,7 @@ def test_pro_email_render_carries_score_and_narrative() -> None:
     out = pro_email.render_email(_pro_email_minimal_payload())
     assert "SENTINEL PRO" in out
     assert "67/100" in out
-    assert "Buy (▲ +3 vs prev)" in out
+    assert "Buy (+3 vs prev)" in out
     assert "Why it's moving" in out
     assert "EPS beat 5.2%" in out
     assert "Risk flag" in out
@@ -302,8 +302,8 @@ def test_pro_email_dim_snapshot_renders_bars() -> None:
     # 10-dimension block label
     assert "10-DIMENSION SNAPSHOT" in out
     # Bar rendering: at least one full block and one empty block visible
-    assert "█" in out
-    assert "░" in out
+    assert "#" in out
+    assert "." in out
     # Each labeled row shows its highlight
     assert "ROE 27%" in out
 
@@ -323,8 +323,8 @@ def test_pro_email_watchlist_table_shows_score_column() -> None:
     # Both watchlist movers shown
     assert "NVDA" in out and "TSLA" in out
     # Score-change arrows
-    assert "▲ +3" in out
-    assert "▼ -2" in out
+    assert "+3" in out
+    assert "-2" in out
 
 
 def test_pro_email_empty_dimensions_fallback() -> None:
