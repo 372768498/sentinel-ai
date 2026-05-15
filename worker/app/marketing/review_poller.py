@@ -1,15 +1,15 @@
-"""Review Poller · Layer 3 → Layer 4 handoff.
+"""Review Poller - Layer 3 to Layer 4 handoff.
 
 Polls the Feishu Content Queue Bitable for records where
 `review_status = Approved` AND `published_url` is empty, then dispatches each
-to its platform publisher (or dry-run if no publisher is registered).
+to its platform publisher.
 
 Routing rules:
-  - `redline_result = Blocked`        → mark Failed, never publish
-  - `platform` has registered publisher → call `publisher.publish(...)`
+  - `redline_result = Blocked`: mark Failed, never publish.
+  - Registered platform publisher: call `publisher.publish(...)`;
                                           live=Published, error=Failed
-  - `platform` has NO publisher       → dry-run (about:dryrun?…), mark Published
-  - `MARKETING_PUBLISH_DRY_RUN=true`  → master switch keeps everything dry-run
+  - Missing platform publisher: mark Failed with `missing_publisher:*`.
+  - `MARKETING_PUBLISH_DRY_RUN=true`: registered publishers dry-run safely.
 
 Idempotency: a record with `review_status = Published` or non-empty
 `published_url` is skipped on the next poll.
@@ -29,7 +29,6 @@ from .publishers import (
     PublishResult,
     TelegramPublisher,
     XPublisher,
-    build_dry_run_url,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,10 +50,11 @@ PublisherRegistry = dict[str, BasePublisher]
 
 
 def default_publishers() -> PublisherRegistry:
-    """Construct the platform→publisher map used by the production scheduler.
+    """Construct the platform->publisher map used by the production scheduler.
 
     X and Telegram have live-capable publishers today. Reddit / TikTok /
-    YouTube still fall through to dry-run until their official adapters land.
+    YouTube are intentionally not registered until their official adapters
+    land; approving those rows marks them Failed instead of fake-published.
     """
     return {"Telegram": TelegramPublisher(), "X": XPublisher()}
 
@@ -132,7 +132,7 @@ def fetch_approved_unpublished(client: FeishuClient, app_token: str, table_id: s
     Approved but has an empty jojo_quality_score field is held back
     until the operator fills the score. We never publish without an
     explicit numeric judgement on the row. Held rows aren't auto-
-    rejected — they just sit in the queue so the operator notices.
+    rejected - they just sit in the queue so the operator notices.
     """
     page_token: Optional[str] = None
     out: list[dict] = []
@@ -167,12 +167,12 @@ def _published_card(
     content_id: str, platform: str, ticker: str, published_url: str, dry_run: bool
 ) -> dict:
     template = "blue" if not dry_run else "grey"
-    title_prefix = "Sentinel AI · Published" if not dry_run else "Sentinel AI · Published (dry-run)"
+    title_prefix = "Sentinel AI - Published" if not dry_run else "Sentinel AI - Published (dry-run)"
     button_label = "Open Published URL" if not dry_run else "View dry-run URL"
     return {
         "config": {"wide_screen_mode": True},
         "header": {
-            "title": {"tag": "plain_text", "content": f"{title_prefix} — ${ticker}"},
+            "title": {"tag": "plain_text", "content": f"{title_prefix} - ${ticker}"},
             "template": template,
         },
         "elements": [
@@ -208,7 +208,7 @@ def _failed_card(content_id: str, platform: str, ticker: str, reason: str) -> di
     return {
         "config": {"wide_screen_mode": True},
         "header": {
-            "title": {"tag": "plain_text", "content": f"Sentinel AI · Publish Failed — ${ticker}"},
+            "title": {"tag": "plain_text", "content": f"Sentinel AI - Publish Failed - ${ticker}"},
             "template": "red",
         },
         "elements": [
@@ -233,16 +233,6 @@ def _failed_card(content_id: str, platform: str, ticker: str, reason: str) -> di
 # ---------------------------------------------------------------------------
 # Per-record processing
 # ---------------------------------------------------------------------------
-
-
-def _dry_run_result(platform: str, content_id: str) -> PublishResult:
-    return PublishResult(
-        platform=platform,
-        content_id=content_id,
-        published=False,
-        published_url=build_dry_run_url(platform, content_id),
-        dry_run=True,
-    )
 
 
 def _mark_failed(
@@ -303,9 +293,9 @@ async def process_one(
     cta_url = _read_url(fields.get(bf.CTA_URL))
     redline_result = _read_text(fields.get(bf.REDLINE_RESULT))
 
-    # ── 1. Redline-blocked rows never publish, even if a human Approved them. ──
+    # -- 1. Redline-blocked rows never publish, even if a human Approved them. --
     if redline_result == "Blocked":
-        reason = "redline_result=Blocked — cannot publish."
+        reason = "redline_result=Blocked - cannot publish."
         _mark_failed(client, app_token, table_id, record_id, reason)
         if notify_chat:
             client.send_card(_failed_card(content_id, platform, ticker, reason))
@@ -318,10 +308,21 @@ async def process_one(
             "published_url": None,
         }
 
-    # ── 2. Dispatch to publisher (or dry-run fallback). ──
+    # -- 2. Dispatch to publisher. Missing adapters stay visible. --
     publisher = publishers.get(platform)
     if publisher is None:
-        result = _dry_run_result(platform, content_id)
+        reason = f"missing_publisher:{platform}"
+        _mark_failed(client, app_token, table_id, record_id, reason)
+        if notify_chat:
+            client.send_card(_failed_card(content_id, platform, ticker, reason))
+        return {
+            "record_id": record_id,
+            "content_id": content_id,
+            "platform": platform,
+            "outcome": "failed",
+            "reason": reason,
+            "published_url": None,
+        }
     else:
         try:
             result = await publisher.publish(
@@ -338,7 +339,7 @@ async def process_one(
                 error=f"publisher_exception:{exc}",
             )
 
-    # ── 3. Update Bitable based on result. ──
+    # -- 3. Update Bitable based on result. --
     if result.published or result.dry_run:
         _mark_published(client, app_token, table_id, record_id, result.published_url or "")
         if notify_chat:
@@ -395,7 +396,7 @@ async def run_once(
         "0", "false", "no", "off"
     }
     logger.info(
-        "[review_poller] tick start — publishers=%s dry_run=%s notify_chat=%s",
+        "[review_poller] tick start - publishers=%s dry_run=%s notify_chat=%s",
         ",".join(publisher_names),
         dry_run,
         notify_chat,
@@ -428,7 +429,7 @@ async def run_once(
             result.errors.append({"record_id": record.get("record_id"), "error": str(exc)})
 
     logger.info(
-        "[review_poller] tick done — scanned=%d processed=%d failed=%d errors=%d",
+        "[review_poller] tick done - scanned=%d processed=%d failed=%d errors=%d",
         result.scanned,
         len(result.processed),
         len(result.failed),

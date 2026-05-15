@@ -224,7 +224,7 @@ def test_telegram_publish_exception_marks_failed(env: None) -> None:
     assert "publisher_exception" in fake.updated_records[0]["fields"][bf.REVIEWER_COMMENT]
 
 
-def test_non_telegram_platform_dry_runs(env: None) -> None:
+def test_missing_platform_publisher_marks_failed(env: None) -> None:
     fake = FakeFeishuClient(pages=[
         {
             "items": [
@@ -244,15 +244,15 @@ def test_non_telegram_platform_dry_runs(env: None) -> None:
     result = _run(run_once(client=fake, publishers={"Telegram": pub}))
     assert pub.calls == []  # neither X nor Shorts reached Telegram publisher
     assert result.scanned == 2
-    assert len(result.processed) == 2
-    for outcome in result.processed:
-        assert outcome["outcome"] == "dry_run"
-        assert outcome["published_url"].startswith("about:dryrun")
-    # Both records updated to Published (dry-run is acceptable)
+    assert result.processed == []
+    assert len(result.failed) == 2
+    for outcome in result.failed:
+        assert outcome["outcome"] == "failed"
+        assert outcome["reason"].startswith("missing_publisher:")
     assert len(fake.updated_records) == 2
     for u in fake.updated_records:
-        assert u["fields"][bf.REVIEW_STATUS] == "Published"
-        assert u["fields"][bf.PUBLISHED_URL]["link"].startswith("about:dryrun")
+        assert u["fields"][bf.REVIEW_STATUS] == "Failed"
+        assert u["fields"][bf.REVIEWER_COMMENT].startswith("[auto] missing_publisher:")
 
 
 def test_run_once_with_no_publishers_dict_uses_default_registry(env: None, monkeypatch: pytest.MonkeyPatch) -> None:

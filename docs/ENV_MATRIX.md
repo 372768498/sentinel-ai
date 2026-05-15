@@ -126,8 +126,9 @@ stay empty until needed.
 ## Growth OS · Publish Queue (Week 4)
 
 Real-platform distribution. X and Telegram are live-capable in this phase.
-Reddit / TikTok / YouTube / Email stay dry-run or manual handoff until their
-official adapters land.
+Reddit / TikTok / YouTube / Email are not registered as publishers yet; if
+approved, the poller marks them `Failed` with `missing_publisher:*` so they are
+not mistaken for distributed content.
 
 | Variable | Required | Example | Notes |
 | --- | --- | --- | --- |
