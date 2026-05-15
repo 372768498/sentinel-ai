@@ -47,7 +47,9 @@ CONTENT_ID = "内容ID"
 PLATFORM = "平台"
 TICKER = "股票代码"
 HOOK = "钩子"
+HOOK_ZH = "钩子中文"
 BODY = "正文"
+BODY_ZH = "正文中文"
 CTA_URL = "跳转链接"
 RISK_LEVEL = "风险等级"
 REDLINE_RESULT = "合规检查"
@@ -66,7 +68,9 @@ CONTENT_QUEUE_LEGACY_TO_NEW: dict[str, str] = {
     "platform": PLATFORM,
     "ticker": TICKER,
     "hook": HOOK,
+    "hook_zh": HOOK_ZH,
     "body": BODY,
+    "body_zh": BODY_ZH,
     "cta_url": CTA_URL,
     "risk_level": RISK_LEVEL,
     "redline_result": REDLINE_RESULT,

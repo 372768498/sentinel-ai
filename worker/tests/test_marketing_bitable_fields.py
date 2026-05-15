@@ -9,6 +9,8 @@ def test_normalize_fields_supports_all_growth_os_tables() -> None:
         "content_id": "CT-1",
         "clicks": 12,
         "emails_captured": 3,
+        "hook_zh": "中文钩子",
+        "body_zh": "中文正文",
         "review_status": "Pending",
     }
 
@@ -18,6 +20,8 @@ def test_normalize_fields_supports_all_growth_os_tables() -> None:
     assert normalized[bf.CONTENT_ID] == "CT-1"
     assert normalized[bf.PERF_CLICKS] == 12
     assert normalized[bf.PERF_EMAILS_CAPTURED] == 3
+    assert normalized[bf.HOOK_ZH] == "中文钩子"
+    assert normalized[bf.BODY_ZH] == "中文正文"
     assert normalized[bf.REVIEW_STATUS] == "Pending"
     assert normalized["clicks"] == 12
 

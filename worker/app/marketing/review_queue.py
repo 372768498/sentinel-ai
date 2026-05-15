@@ -51,6 +51,8 @@ class ContentDraft:
     hook: str
     body: str
     cta_url: str
+    hook_zh: Optional[str] = None
+    body_zh: Optional[str] = None
     risk_level: str = "Low"
     publish_time: Optional[datetime] = None
     source_opportunity_id: Optional[str] = None
@@ -100,6 +102,10 @@ def _fields_payload(draft: ContentDraft, redline: RedlineResult, review_status: 
         bf.REDLINE_HITS: redline.reason(),
         bf.REVIEW_STATUS: review_status,
     }
+    if draft.hook_zh:
+        fields[bf.HOOK_ZH] = draft.hook_zh
+    if draft.body_zh:
+        fields[bf.BODY_ZH] = draft.body_zh
     if draft.publish_time is not None:
         ts = draft.publish_time
         if ts.tzinfo is None:

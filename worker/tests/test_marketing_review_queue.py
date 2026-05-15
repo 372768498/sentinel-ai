@@ -156,6 +156,21 @@ def test_clean_draft_passes_and_posts(env: None) -> None:
     assert "Preview Stock Page" in button_labels
 
 
+def test_optional_chinese_hook_and_body_are_written(env: None) -> None:
+    fake = FakeFeishuClient()
+    submit_to_review(
+        _clean_draft(
+            hook_zh="NVDA 出现三个需要验证的风险信号。",
+            body_zh="这不是买卖建议，而是上下文扫描。",
+        ),
+        client=fake,
+    )
+
+    fields = fake.created_records[0]["fields"]
+    assert fields[bf.HOOK_ZH] == "NVDA 出现三个需要验证的风险信号。"
+    assert fields[bf.BODY_ZH] == "这不是买卖建议，而是上下文扫描。"
+
+
 def test_redline_block_writes_record_with_blocked_status(env: None) -> None:
     fake = FakeFeishuClient()
     bad = _clean_draft(body=(

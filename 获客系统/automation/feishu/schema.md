@@ -43,7 +43,9 @@
 | 平台 | `platform` | 单选 | X / Reddit / Telegram / TikTok / YouTube Shorts / YouTube Long / Email |
 | 股票代码 | `ticker` | 文本 | NVDA / TSLA 等 |
 | 钩子 | `hook` | 文本 | 第一眼内容钩子 |
+| 钩子中文 | `hook_zh` | 文本 | 钩子的中文版本，方便中文审核和复用 |
 | 正文 | `body` | 文本 | 完整草稿 |
+| 正文中文 | `body_zh` | 文本 | 正文的中文版本，方便中文审核和复用 |
 | 跳转链接 | `cta_url` | URL | 带 UTM 的落地页 |
 | 风险等级 | `risk_level` | 单选 | Low / Medium / High |
 | 合规检查 | `redline_result` | 单选 | Pass / Needs Edit / Blocked |
