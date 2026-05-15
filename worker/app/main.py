@@ -37,8 +37,25 @@ settings = get_settings()
 store = JobStore()
 
 
+def _validate_production_public_url() -> None:
+    if os.environ.get("ENV", "").strip().lower() != "production":
+        return
+    public_url = os.environ.get("GROWTH_OS_PUBLIC_URL", "").strip()
+    if public_url and "localhost" not in public_url.lower():
+        return
+    message = (
+        "GROWTH_OS_PUBLIC_URL must be set to the production public origin "
+        "(for example https://sentinelai.com) when ENV=production; refusing "
+        "to start because email links would otherwise fall back to localhost."
+    )
+    print(f"[env] ERROR: {message}", flush=True)
+    raise RuntimeError(message)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    _validate_production_public_url()
+
     # Ensure daily_scores table exists before the first post-close digest
     # tries to write into it. Failure here is non-fatal — the digest will
     # gracefully degrade to score-less rendering if the table isn't there.

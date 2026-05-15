@@ -107,7 +107,7 @@ def build_cta_url(
     *,
     public_url: Optional[str] = None,
 ) -> str:
-    base = (public_url or os.environ.get("GROWTH_OS_PUBLIC_URL") or "http://localhost:3000").rstrip("/")
+    base = (public_url or os.environ.get("GROWTH_OS_PUBLIC_URL") or "https://sentinelai.com").rstrip("/")
     return (
         f"{base}/stocks/{opportunity.ticker.upper()}"
         f"?utm_source={_UTM_SOURCE[platform]}"

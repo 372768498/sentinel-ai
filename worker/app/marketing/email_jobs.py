@@ -398,7 +398,7 @@ def _public_base() -> str:
     if not base:
         base = os.environ.get("NEXT_PUBLIC_APP_URL", "").strip()
     if not base:
-        base = "https://app.jilo.ai"
+        base = "https://sentinelai.com"
     return base.rstrip("/")
 
 

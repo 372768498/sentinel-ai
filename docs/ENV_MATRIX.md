@@ -72,7 +72,7 @@
 
 | Variable | Required | Example | Notes |
 | --- | --- | --- | --- |
-| `GROWTH_OS_PUBLIC_URL` | No | `http://localhost:3000` | Base URL for magic-link email. Falls back to `NEXT_PUBLIC_APP_URL`. |
+| `GROWTH_OS_PUBLIC_URL` | Production REQUIRED | `https://sentinelai.com` | Public product origin used by marketing/email links. Worker refuses to start with `ENV=production` if missing or set to localhost. |
 | `NEXT_PUBLIC_TELEGRAM_FREE_URL` | No | `https://t.me/SentinelAI_signals` | Secondary CTA target on stock and analysis pages. |
 
 ## Growth OS · Marketing X (Worker)

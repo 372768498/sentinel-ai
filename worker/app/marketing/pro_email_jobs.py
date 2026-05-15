@@ -45,7 +45,7 @@ from .templates.pro_email import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PUBLIC_BASE = "https://app.jilo.ai"
+DEFAULT_PUBLIC_BASE = "https://sentinelai.com"
 PRO_EMAIL_SESSION_LABEL = "Pre-market"
 
 
