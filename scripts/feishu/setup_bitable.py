@@ -91,6 +91,7 @@ CONTENT_QUEUE_FIELDS: list[dict] = [
         "property": {
             "options": [
                 {"name": "X"},
+                {"name": "Reddit"},
                 {"name": "Telegram"},
                 {"name": "TikTok"},
                 {"name": "YouTube Shorts"},
@@ -121,11 +122,12 @@ CONTENT_QUEUE_FIELDS: list[dict] = [
         "type": 3,
         "property": {
             "options": [
-                {"name": "Pending"},
-                {"name": "Approved"},
-                {"name": "Rejected"},
-                {"name": "Published"},
-                {"name": "Failed"},
+                {"name": "待审核"},
+                {"name": "已拦截"},
+                {"name": "已通过"},
+                {"name": "已拒绝"},
+                {"name": "已发布"},
+                {"name": "发布失败"},
             ]
         },
     },
@@ -136,6 +138,20 @@ CONTENT_QUEUE_FIELDS: list[dict] = [
         "property": {"date_formatter": "yyyy/MM/dd HH:mm", "auto_fill": False},
     },
     {"field_name": "published_url", "type": 15},
+    {
+        "field_name": "jojo_kill_reason",
+        "type": 3,
+        "property": {
+            "options": [
+                {"name": "wrong_state"},
+                {"name": "bad_copy"},
+                {"name": "wrong_ticker"},
+                {"name": "missing_data"},
+                {"name": "tone_off"},
+                {"name": "other"},
+            ]
+        },
+    },
 ]
 
 PERFORMANCE_FIELDS: list[dict] = [

@@ -50,11 +50,11 @@
 | 风险等级 | `risk_level` | 单选 | Low / Medium / High |
 | 合规检查 | `redline_result` | 单选 | Pass / Needs Edit / Blocked |
 | 违规项 | `redline_hits` | 文本 | 命中的红线词或缺失项 |
-| 审核状态 | `review_status` | 单选 | Pending / Approved / Rejected / Published / Failed |
+| 审核状态 | `review_status` | 单选 | 待审核 / 已拦截 / 已通过 / 已拒绝 / 已发布 / 发布失败 |
 | 审核备注 | `reviewer_comment` | 文本 | 人工审核意见或发布失败原因 |
 | 发布时间 | `publish_time` | 日期时间 | 计划或实际发布时间 |
 | 已发布链接 | `published_url` | URL | 实际发布 URL 或 dry-run URL |
-| 质量评分 | `jojo_quality_score` | 数字 | 1-5 分，Approved 前必须填写 |
+| 质量评分 | `jojo_quality_score` | 数字 | 1-5 分，“已通过”前必须填写 |
 | 拒绝原因 | `jojo_kill_reason` | 单选 | wrong_state / bad_copy / wrong_ticker / missing_data / tone_off / other |
 | 一句感受 | `jojo_one_word` | 文本 | 审核人的直觉反馈 |
 
@@ -64,7 +64,7 @@
   - `内容ID content_id` 是内容级主键，用于去重、发布、KPI 归因、UTM `utm_content`。
   - `活动ID campaign_id` 是批次级分组键，用于把同一天/同一轮扫描生成的多条内容聚在一起，对应 UTM `utm_campaign`。
   - 如果飞书审核时嫌信息太多，可以在默认视图里隐藏或后移 `活动ID`，但不要删除。
-- `质量评分` 是必要字段：它阻止“随手 Approved”的内容进入发布。
+- `质量评分` 是必要字段：它阻止“随手点已通过”的内容进入发布。
 - `拒绝原因` 是必要字段：后续可以分析失败模式。
 - `一句感受` 可选但有价值：能捕捉调性漂移。
 - 当前还不需要单独建 `Video Packs` 表，短视频素材包先落在本地 `docs/growth-runs/{run_id}/video_packs/`。
@@ -121,14 +121,15 @@
 ## 状态机
 
 ```text
-Draft -> Pending -> Approved -> Published
-                  -> Rejected
+Draft -> 待审核 -> 已通过 -> 已发布
+      -> 已拦截
+                  -> 已拒绝
 
-Approved -> Failed -> Pending（人工修复后重试）
-Blocked  -> 不发布，只用于失败样本复盘
+已通过 -> 发布失败 -> 待审核（人工修复后重试）
+已拦截 -> 不发布，只用于失败样本复盘
 ```
 
-只有 `审核状态 = Approved` 且 `质量评分` 已填写的内容，才允许进入发布队列。
+只有 `审核状态 = 已通过` 且 `质量评分` 已填写的内容，才允许进入发布队列。
 
 ## 中文化操作
 

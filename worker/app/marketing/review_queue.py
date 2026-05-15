@@ -79,7 +79,7 @@ class SubmissionResult:
     record_id: str
     record_url: str
     redline: RedlineResult
-    review_status: str  # "Pending" if redline passes, "Blocked" if not
+    review_status: str  # "待审核" if redline passes, "已拦截" if not
 
 
 def _fields_payload(draft: ContentDraft, redline: RedlineResult, review_status: str) -> dict:
@@ -163,7 +163,9 @@ def _build_review_card(
       - Preview Stock Page → opens the CTA URL (with UTM)
     """
     body_preview = draft.body if len(draft.body) <= 400 else draft.body[:397] + "..."
-    template = "green" if review_status == "Pending" else "red"
+    from . import bitable_fields as bf
+
+    template = "green" if review_status == bf.STATUS_PENDING else "red"
     redline_label = "Pass ✅" if redline.ok else f"Blocked ❌ — {redline.reason()}"
 
     return {
@@ -222,7 +224,7 @@ def _build_review_card(
                 "elements": [
                     {
                         "tag": "plain_text",
-                        "content": "In Bitable, change `review_status` to Approved or Rejected to advance.",
+                        "content": "在多维表格里把 `审核状态` 改成“已通过”或“已拒绝”来推进。",
                     }
                 ],
             },
@@ -244,8 +246,8 @@ def submit_to_review(
 
     1. Validate draft shape.
     2. Run redline scan.
-    3. Write a record to the Content Queue table (review_status=Pending if
-       redline passes, Blocked otherwise).
+    3. Write a record to the Content Queue table (审核状态=待审核 if
+       redline passes, 已拦截 otherwise).
     4. Post a notification message to the review chat (unless `notify_chat=False`).
     """
     draft.validate()
@@ -258,7 +260,9 @@ def submit_to_review(
         )
 
     redline = redline_scan(draft.body)
-    review_status = "Pending" if redline.ok else "Blocked"
+    from . import bitable_fields as bf
+
+    review_status = bf.STATUS_PENDING if redline.ok else bf.STATUS_BLOCKED
 
     fb = client or FeishuClient()
     fields = _fields_payload(draft, redline, review_status)

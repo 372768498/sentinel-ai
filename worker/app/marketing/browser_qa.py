@@ -257,28 +257,31 @@ def _read_url(value: object) -> str:
 def extract_cta_rows(
     records: list[dict],
     *,
-    statuses: tuple[str, ...] = ("Pending", "Approved", "Published"),
+    statuses: tuple[str, ...] = ("待审核", "已通过", "已发布"),
     limit: int = 10,
 ) -> list[FeishuCTARow]:
     """Pull (content_id, ticker, platform, cta_url) tuples from Bitable rows.
 
     Filters by review_status and drops rows where cta_url is missing.
     """
+    from . import bitable_fields as bf
+
+    allowed_statuses = tuple(bf.normalize_review_status(status) for status in statuses)
     rows: list[FeishuCTARow] = []
     for record in records:
-        fields = record.get("fields", {}) or {}
-        status = _read_text(fields.get("review_status"))
-        if statuses and status not in statuses:
+        fields = bf.normalize_fields(record.get("fields", {}) or {})
+        status = bf.normalize_review_status(_read_text(fields.get(bf.REVIEW_STATUS)))
+        if statuses and status not in allowed_statuses:
             continue
-        cta = _read_url(fields.get("cta_url"))
+        cta = _read_url(fields.get(bf.CTA_URL))
         if not cta or not cta.startswith(("http://", "https://")):
             continue
         rows.append(
             FeishuCTARow(
                 record_id=record.get("record_id", ""),
-                content_id=_read_text(fields.get("content_id")),
-                ticker=_read_text(fields.get("ticker")),
-                platform=_read_text(fields.get("platform")),
+                content_id=_read_text(fields.get(bf.CONTENT_ID)),
+                ticker=_read_text(fields.get(bf.TICKER)),
+                platform=_read_text(fields.get(bf.PLATFORM)),
                 review_status=status,
                 cta_url=cta,
             )

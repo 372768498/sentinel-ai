@@ -132,7 +132,7 @@ def test_clean_draft_passes_and_posts(env: None) -> None:
     result = submit_to_review(_clean_draft(), client=fake)
 
     assert isinstance(result, SubmissionResult)
-    assert result.review_status == "Pending"
+    assert result.review_status == bf.STATUS_PENDING
     assert result.redline.ok
     assert result.record_id.startswith("recFAKE")
     assert len(fake.created_records) == 1
@@ -142,7 +142,7 @@ def test_clean_draft_passes_and_posts(env: None) -> None:
     fields = fake.created_records[0]["fields"]
     assert fields[bf.CONTENT_ID] == "CT-20260511-NVDA-x"
     assert fields[bf.PLATFORM] == "X"
-    assert fields[bf.REVIEW_STATUS] == "Pending"
+    assert fields[bf.REVIEW_STATUS] == bf.STATUS_PENDING
     assert fields[bf.REDLINE_RESULT] == "Pass"
     assert fields[bf.BODY] == _clean_draft().body
     assert fields[bf.CTA_URL] == {"link": "https://sentinel.ai/stocks/NVDA", "text": "https://sentinel.ai/stocks/NVDA"}
@@ -178,12 +178,12 @@ def test_redline_block_writes_record_with_blocked_status(env: None) -> None:
     ))
     result = submit_to_review(bad, client=fake)
 
-    assert result.review_status == "Blocked"
+    assert result.review_status == bf.STATUS_BLOCKED
     assert not result.redline.ok
     assert "forbidden:buy" in result.redline.violations
     assert "forbidden:price target" in result.redline.violations
     fields = fake.created_records[0]["fields"]
-    assert fields[bf.REVIEW_STATUS] == "Blocked"
+    assert fields[bf.REVIEW_STATUS] == bf.STATUS_BLOCKED
     assert fields[bf.REDLINE_RESULT] == "Blocked"
     assert "forbidden:buy" in fields[bf.REDLINE_HITS]
 
@@ -259,7 +259,7 @@ def test_dedup_updates_when_content_id_exists(env: None) -> None:
             bf.CONTENT_ID: "CT-20260513-NVDA-tg",
             bf.PLATFORM: "Telegram",
             bf.BODY: "stale body",
-            bf.REVIEW_STATUS: "Pending",
+            bf.REVIEW_STATUS: bf.STATUS_PENDING,
         }
     )
 
@@ -330,12 +330,12 @@ def test_redline_blocked_still_dedups_into_queue(env: None) -> None:
     first = submit_to_review(_clean_draft(content_id="CT-DUP-1", body=bad_body), client=fake)
     second = submit_to_review(_clean_draft(content_id="CT-DUP-1", body=bad_body), client=fake)
 
-    assert first.review_status == "Blocked"
-    assert second.review_status == "Blocked"
+    assert first.review_status == bf.STATUS_BLOCKED
+    assert second.review_status == bf.STATUS_BLOCKED
     assert len(fake.created_records) == 1
     assert len(fake.updated_records) == 1
     assert second.record_id == first.record_id
-    assert fake.records[first.record_id][bf.REVIEW_STATUS] == "Blocked"
+    assert fake.records[first.record_id][bf.REVIEW_STATUS] == bf.STATUS_BLOCKED
 
 
 def test_normalize_fields_mirrors_english_to_chinese() -> None:

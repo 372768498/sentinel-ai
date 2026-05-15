@@ -1,9 +1,9 @@
-"""Poll the Feishu Content Queue for Approved-not-yet-published records.
+"""Poll the Feishu Content Queue for 已通过-not-yet-published records.
 
 Each run:
   - Lists Content Queue.
-  - Filters review_status=Approved AND published_url is empty.
-  - Marks each as Published with a dry-run URL.
+  - Filters 审核状态=已通过 AND published_url is empty.
+  - Marks each as 已发布 with a dry-run URL.
   - Posts a "Published" card to the review chat.
 
 In Week 2 the dry-run URL is `about:dryrun?...`. Week 4+ will swap in real
@@ -44,7 +44,7 @@ def _load_env_local(path: Path) -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Poll Feishu Approved records and mark Published")
+    parser = argparse.ArgumentParser(description="Poll Feishu 已通过 records and mark 已发布")
     parser.add_argument("--no-notify", action="store_true", help="Skip chat notification card")
     parser.add_argument("--once", action="store_true", help="Run once and exit (default)")
     args = parser.parse_args()
@@ -65,7 +65,7 @@ def main() -> int:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
 
-    print(f"[scan] Approved-not-published: {result.scanned}")
+    print(f"[scan] 已通过且未发布: {result.scanned}")
     for outcome in result.processed:
         tag = "published" if outcome.get("outcome") == "published" else "dry-run"
         print(

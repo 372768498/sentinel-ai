@@ -177,11 +177,11 @@ def _scan_content_queue_snapshot(
             from . import bitable_fields as bf
 
             fields = bf.normalize_fields(record.get("fields", {}))
-            status = _read_text(fields.get(bf.REVIEW_STATUS))
+            status = bf.normalize_review_status(_read_text(fields.get(bf.REVIEW_STATUS)))
             redline = _read_text(fields.get(bf.REDLINE_RESULT))
-            if status == "Pending":
+            if status == bf.STATUS_PENDING:
                 pending += 1
-            if status == "Failed":
+            if status == bf.STATUS_FAILED:
                 failed += 1
             if redline == "Blocked":
                 blocked += 1

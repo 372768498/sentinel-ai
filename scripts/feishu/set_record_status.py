@@ -6,13 +6,14 @@ Usage:
 
     # By content_id (find latest matching row, recommended for tests)
     worker/.venv/Scripts/python.exe scripts/feishu/set_record_status.py \\
-        --content-id CT-20260511-NVDA-x --status Approved
+        --content-id CT-20260511-NVDA-x --status 已通过
 
     # By record_id (exact row, faster)
     worker/.venv/Scripts/python.exe scripts/feishu/set_record_status.py \\
-        --record-id recXXXXX --status Approved
+        --record-id recXXXXX --status 已通过
 
-Status values: Pending / Approved / Rejected / Published / Failed
+Status values: 待审核 / 已拦截 / 已通过 / 已拒绝 / 已发布 / 发布失败
+Legacy English aliases are still accepted for CLI convenience.
 """
 
 from __future__ import annotations
@@ -25,7 +26,20 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKER_DIR = REPO_ROOT / "worker"
 
-ALLOWED_STATUS = ("Pending", "Approved", "Rejected", "Published", "Failed")
+ALLOWED_STATUS = (
+    "待审核",
+    "已拦截",
+    "已通过",
+    "已拒绝",
+    "已发布",
+    "发布失败",
+    "Pending",
+    "Blocked",
+    "Approved",
+    "Rejected",
+    "Published",
+    "Failed",
+)
 
 
 def _load_env_local(path: Path) -> None:
@@ -53,6 +67,7 @@ def main() -> int:
     _load_env_local(REPO_ROOT / ".env.local")
     sys.path.insert(0, str(WORKER_DIR))
     try:
+        from app.marketing import bitable_fields as bf
         from app.marketing.feishu_client import FeishuAPIError, FeishuClient, FeishuConfigError
     except ImportError as exc:
         print(f"[error] Cannot import feishu_client: {exc}", file=sys.stderr)
@@ -80,7 +95,7 @@ def main() -> int:
             return 1
         matches = [
             r for r in page.get("items", [])
-            if r.get("fields", {}).get("content_id") == args.content_id
+            if bf.normalize_fields(r.get("fields", {})).get(bf.CONTENT_ID) == args.content_id
         ]
         if not matches:
             print(f"[error] No record found for content_id={args.content_id}", file=sys.stderr)
@@ -88,15 +103,16 @@ def main() -> int:
         record_id = matches[-1]["record_id"]
         print(f"       latest match: {record_id} (of {len(matches)} candidates)")
 
-    print(f"[2/2] Updating {record_id} → review_status={args.status}...")
+    status = bf.normalize_review_status(args.status)
+    print(f"[2/2] Updating {record_id} → review_status={status}...")
     try:
         client.bitable_update_record(
-            app_token, table_id, record_id, {"review_status": args.status}
+            app_token, table_id, record_id, {bf.REVIEW_STATUS: status}
         )
     except FeishuAPIError as exc:
         print(f"[error] {exc}", file=sys.stderr)
         return 1
-    print(f"[ok] {record_id} review_status = {args.status}")
+    print(f"[ok] {record_id} review_status = {status}")
     return 0
 
 

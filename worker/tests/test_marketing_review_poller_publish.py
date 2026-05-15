@@ -147,7 +147,7 @@ def test_redline_blocked_marks_failed_without_publishing(env: None) -> None:
     assert len(result.failed) == 1
     assert pub.calls == []  # publisher MUST NOT be called for redline-blocked
     updated = fake.updated_records[0]
-    assert updated["fields"][bf.REVIEW_STATUS] == "Failed"
+    assert updated["fields"][bf.REVIEW_STATUS] == bf.STATUS_FAILED
     assert "redline_result=Blocked" in updated["fields"][bf.REVIEWER_COMMENT]
     assert fake.sent_cards[0]["header"]["template"] == "red"
 
@@ -179,7 +179,7 @@ def test_telegram_live_publish_marks_published(env: None) -> None:
     assert pub.calls[0]["content_id"] == "CT-1"
 
     updated = fake.updated_records[0]
-    assert updated["fields"][bf.REVIEW_STATUS] == "Published"
+    assert updated["fields"][bf.REVIEW_STATUS] == bf.STATUS_PUBLISHED
     assert updated["fields"][bf.PUBLISHED_URL]["link"] == "https://t.me/SentinelAI_signals/42"
     assert fake.sent_cards[0]["header"]["template"] == "blue"
 
@@ -203,7 +203,7 @@ def test_telegram_publish_failure_marks_failed(env: None) -> None:
     assert result.processed == []
     assert len(result.failed) == 1
     updated = fake.updated_records[0]
-    assert updated["fields"][bf.REVIEW_STATUS] == "Failed"
+    assert updated["fields"][bf.REVIEW_STATUS] == bf.STATUS_FAILED
     assert "telegram 401" in updated["fields"][bf.REVIEWER_COMMENT]
     assert fake.sent_cards[0]["header"]["template"] == "red"
 
@@ -251,7 +251,7 @@ def test_missing_platform_publisher_marks_failed(env: None) -> None:
         assert outcome["reason"].startswith("missing_publisher:")
     assert len(fake.updated_records) == 2
     for u in fake.updated_records:
-        assert u["fields"][bf.REVIEW_STATUS] == "Failed"
+        assert u["fields"][bf.REVIEW_STATUS] == bf.STATUS_FAILED
         assert u["fields"][bf.REVIEWER_COMMENT].startswith("[auto] missing_publisher:")
 
 

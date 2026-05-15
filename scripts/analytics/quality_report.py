@@ -7,13 +7,13 @@ Usage:
     worker/.venv/Scripts/python.exe scripts/analytics/quality_report.py --days 7
 
 Sections in the report (in order):
-  1. Volume:        total / Approved / Rejected / Pending counts
-  2. Quality:       avg quality_score on Approved
-  3. Kill reasons:  distribution from Rejected rows
+  1. Volume:        total / 已通过 / 已拒绝 / 待审核 counts
+  2. Quality:       avg quality_score on 已通过
+  3. Kill reasons:  distribution from 已拒绝 rows
   4. By platform:   counts + avg score per Telegram / X / YouTube Shorts
   5. By template:   counts + avg score split between new-template
                     (free_tg_anomaly body starts with 🛰) and old-LLM
-  6. Lowest scored: the 5 lowest-scoring Approved drafts + their one_word
+  6. Lowest scored: the 5 lowest-scoring 已通过 drafts + their one_word
 """
 from __future__ import annotations
 
@@ -143,6 +143,7 @@ def main() -> int:
         print("[error] FEISHU_BITABLE_APP_TOKEN + FEISHU_CONTENT_QUEUE_TABLE_ID required", file=sys.stderr)
         return 2
 
+    from app.marketing import bitable_fields as bf
     from app.marketing.feishu_client import FeishuClient
 
     client = FeishuClient()
@@ -153,24 +154,32 @@ def main() -> int:
 
     rows = []
     for r in in_window:
-        f = r.get("fields", {}) or {}
+        f = bf.normalize_fields(r.get("fields", {}) or {})
         rows.append(
             {
-                "content_id": _text(f.get("content_id")),
-                "platform": _text(f.get("platform")),
-                "review_status": _text(f.get("review_status")),
-                "quality_score": _score(f.get("jojo_quality_score")),
-                "kill_reason": _text(f.get("jojo_kill_reason")),
-                "one_word": _text(f.get("jojo_one_word")),
-                "body": _text(f.get("body")),
+                "content_id": _text(f.get(bf.CONTENT_ID)),
+                "platform": _text(f.get(bf.PLATFORM)),
+                "review_status": bf.normalize_review_status(_text(f.get(bf.REVIEW_STATUS))),
+                "quality_score": _score(f.get(bf.QUALITY_SCORE)),
+                "kill_reason": _text(f.get(bf.KILL_REASON)),
+                "one_word": _text(f.get(bf.ONE_WORD)),
+                "body": _text(f.get(bf.BODY)),
             }
         )
 
     total = len(rows)
-    approved = [r for r in rows if r["review_status"] == "Approved"]
-    rejected = [r for r in rows if r["review_status"] == "Rejected"]
-    pending = [r for r in rows if r["review_status"] not in ("Approved", "Rejected", "Published", "Failed")]
-    published = [r for r in rows if r["review_status"] == "Published"]
+    approved = [r for r in rows if r["review_status"] == bf.STATUS_APPROVED]
+    rejected = [r for r in rows if r["review_status"] == bf.STATUS_REJECTED]
+    pending = [
+        r for r in rows
+        if r["review_status"] not in (
+            bf.STATUS_APPROVED,
+            bf.STATUS_REJECTED,
+            bf.STATUS_PUBLISHED,
+            bf.STATUS_FAILED,
+        )
+    ]
+    published = [r for r in rows if r["review_status"] == bf.STATUS_PUBLISHED]
 
     print()
     print(f"╔══════════════════════════════════════════════════════════════╗")

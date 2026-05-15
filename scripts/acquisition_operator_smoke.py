@@ -49,7 +49,7 @@ async def smoke_scanner(tickers, *, min_score: int = 70):
 
 
 async def smoke_submit(draft, *, client=None, notify_chat=True):
-    return {"record_id": f"smoke-{draft.content_id}", "review_status": "Pending"}
+    return {"record_id": f"smoke-{draft.content_id}", "review_status": "待审核"}
 
 
 async def smoke_kpi_fetcher(start, end):

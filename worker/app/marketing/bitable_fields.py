@@ -62,6 +62,37 @@ QUALITY_SCORE = "质量评分"
 KILL_REASON = "拒绝原因"
 ONE_WORD = "一句感受"
 
+STATUS_PENDING = "待审核"
+STATUS_BLOCKED = "已拦截"
+STATUS_APPROVED = "已通过"
+STATUS_REJECTED = "已拒绝"
+STATUS_PUBLISHED = "已发布"
+STATUS_FAILED = "发布失败"
+
+REVIEW_STATUS_OPTIONS: tuple[str, ...] = (
+    STATUS_PENDING,
+    STATUS_BLOCKED,
+    STATUS_APPROVED,
+    STATUS_REJECTED,
+    STATUS_PUBLISHED,
+    STATUS_FAILED,
+)
+
+LEGACY_REVIEW_STATUS_TO_NEW: dict[str, str] = {
+    "Pending": STATUS_PENDING,
+    "Blocked": STATUS_BLOCKED,
+    "Approved": STATUS_APPROVED,
+    "Rejected": STATUS_REJECTED,
+    "Published": STATUS_PUBLISHED,
+    "Failed": STATUS_FAILED,
+}
+
+
+def normalize_review_status(value: object) -> str:
+    """Return the Chinese review status, while accepting legacy English values."""
+    text = str(value).strip() if value is not None else ""
+    return LEGACY_REVIEW_STATUS_TO_NEW.get(text, text)
+
 CONTENT_QUEUE_LEGACY_TO_NEW: dict[str, str] = {
     "content_id": CONTENT_ID,
     "campaign_id": CAMPAIGN_ID,
@@ -132,6 +163,9 @@ def normalize_fields(fields: dict) -> dict:
             out[chinese] = out[english]
         elif chinese in out and english not in out:
             out[english] = out[chinese]
+    if REVIEW_STATUS in out:
+        out[REVIEW_STATUS] = normalize_review_status(out[REVIEW_STATUS])
+        out["review_status"] = out[REVIEW_STATUS]
     return out
 
 

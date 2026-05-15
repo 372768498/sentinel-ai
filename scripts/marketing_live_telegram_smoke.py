@@ -159,8 +159,8 @@ def main() -> int:
             file=sys.stderr,
         )
         return 1
-    fb.bitable_update_record(app_token, queue_id, target["record_id"], {"review_status": "Approved"})
-    print(f"        {target['record_id']} review_status=Approved")
+    fb.bitable_update_record(app_token, queue_id, target["record_id"], {"审核状态": "已通过"})
+    print(f"        {target['record_id']} review_status=已通过")
 
     print("[smoke] step 3/3 — running review_poller (Telegram publish path)…")
     poll_result = run_once_sync()

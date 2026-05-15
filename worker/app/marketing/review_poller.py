@@ -1,17 +1,17 @@
 """Review Poller - Layer 3 to Layer 4 handoff.
 
 Polls the Feishu Content Queue Bitable for records where
-`review_status = Approved` AND `published_url` is empty, then dispatches each
+`review_status = 已通过` AND `published_url` is empty, then dispatches each
 to its platform publisher.
 
 Routing rules:
   - `redline_result = Blocked`: mark Failed, never publish.
   - Registered platform publisher: call `publisher.publish(...)`;
-                                          live=Published, error=Failed
-  - Missing platform publisher: mark Failed with `missing_publisher:*`.
+                                          live=已发布, error=发布失败
+  - Missing platform publisher: mark 发布失败 with `missing_publisher:*`.
   - `MARKETING_PUBLISH_DRY_RUN=true`: registered publishers dry-run safely.
 
-Idempotency: a record with `review_status = Published` or non-empty
+Idempotency: a record with `review_status = 已发布` or non-empty
 `published_url` is skipped on the next poll.
 """
 
@@ -143,7 +143,7 @@ def fetch_approved_unpublished(client: FeishuClient, app_token: str, table_id: s
         for record in page.get("items", []):
             from . import bitable_fields as bf
             fields = bf.normalize_fields(record.get("fields", {}))
-            if _read_text(fields.get(bf.REVIEW_STATUS)) != "Approved":
+            if bf.normalize_review_status(_read_text(fields.get(bf.REVIEW_STATUS))) != bf.STATUS_APPROVED:
                 continue
             if not _is_empty_url(fields.get(bf.PUBLISHED_URL)):
                 continue
@@ -248,7 +248,7 @@ def _mark_failed(
         table_id,
         record_id,
         {
-            bf.REVIEW_STATUS: "Failed",
+            bf.REVIEW_STATUS: bf.STATUS_FAILED,
             bf.REVIEWER_COMMENT: f"[auto] {reason[:480]}",
         },
     )
@@ -267,7 +267,7 @@ def _mark_published(
         table_id,
         record_id,
         {
-            bf.REVIEW_STATUS: "Published",
+            bf.REVIEW_STATUS: bf.STATUS_PUBLISHED,
             bf.PUBLISHED_URL: {"link": published_url, "text": published_url},
             bf.PUBLISH_TIME: int(datetime.now(timezone.utc).timestamp() * 1000),
         },
