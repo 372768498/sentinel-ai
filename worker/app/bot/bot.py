@@ -171,4 +171,11 @@ async def stop_bot(app: Application) -> None:
 
 
 def is_bot_enabled() -> bool:
-    return os.environ.get("BOT_ENABLED", "").lower() in ("1", "true", "yes")
+    bot_enabled = os.environ.get("BOT_ENABLED", "").lower() in ("1", "true", "yes")
+    polling_disabled = os.environ.get("BOT_POLLING_ENABLED", "true").lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+    return bot_enabled and not polling_disabled

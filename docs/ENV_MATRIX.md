@@ -52,6 +52,7 @@
 | `TELEGRAM_CHANNEL_ID_PUBLIC` or `TELEGRAM_CHANNEL_HANDLE` | Yes if public channel enabled | `@SentinelAI_signals` | Public channel target. |
 | `TELEGRAM_GROUP_ID_VIP` | Yes if Whop VIP enabled | `-100...` | VIP group id. |
 | `BOT_ENABLED` | No | `true` | Enables Telegram bot polling and bot scheduler jobs. |
+| `BOT_POLLING_ENABLED` | No | `false` | Set `false` when another instance owns Telegram `getUpdates`; scheduled channel/email jobs still run via `BOT_ENABLED=true`. |
 | `SCANNER_ENABLED` | No | `true` | Enables public movement scanner jobs. |
 | `WHOP_API_KEY` | Yes if forum publisher enabled | `whop_xxx` | Whop forum post publisher. |
 | `WHOP_FORUM_EXPERIENCE_ID` | Yes if forum publisher enabled | `exp_xxx` | Whop forum experience id. |
