@@ -91,6 +91,10 @@ def main() -> int:
         added += 1
 
     print(f"[汇总] added={added} skipped={skipped}")
+    print()
+    print("[视图顺序建议]")
+    print("  请在飞书内容队列视图里把列拖成：钩子 -> 钩子中文 -> 正文 -> 正文中文。")
+    print("  说明：飞书 OpenAPI 当前可加字段/改字段名，但不能稳定调整列顺序。")
     return 0
 
 
