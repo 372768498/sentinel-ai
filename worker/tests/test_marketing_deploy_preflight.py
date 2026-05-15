@@ -20,6 +20,13 @@ def preflight_module(monkeypatch: pytest.MonkeyPatch):
         "ANTHROPIC_API_KEY",
         "ANTHROPIC_BASE_URL",
         "MARKETING_COMPOSER_MODEL",
+        "FMP_API_KEY",
+        "SEC_API_KEY",
+        "SEC_USER_AGENT",
+        "DATAFORSEO_LOGIN",
+        "DATAFORSEO_PASSWORD",
+        "TAVILY_API_KEY",
+        "YOUTUBE_DATA_API_KEY",
         "FEISHU_APP_ID",
         "FEISHU_APP_SECRET",
         "FEISHU_REVIEW_CHAT_ID",
@@ -27,6 +34,15 @@ def preflight_module(monkeypatch: pytest.MonkeyPatch):
         "FEISHU_CONTENT_QUEUE_TABLE_ID",
         "FEISHU_PERFORMANCE_TABLE_ID",
         "MARKETING_PUBLISH_DRY_RUN",
+        "X_DRY_RUN",
+        "X_BEARER_TOKEN",
+        "X_API_KEY",
+        "X_API_SECRET",
+        "X_ACCESS_TOKEN",
+        "X_ACCESS_TOKEN_SECRET",
+        "MARKETING_DAILY_DRAFT_ENABLED",
+        "MARKETING_ALWAYS_ON_DRAFT_ENABLED",
+        "MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES",
         "MARKETING_QUEUE_POLL_ENABLED",
         "MARKETING_QUEUE_POLL_INTERVAL_SECONDS",
         "MARKETING_DAILY_DIGEST_ENABLED",
@@ -136,6 +152,15 @@ def test_scheduler_flags_default_warns(preflight_module) -> None:
     assert "both off" in chk.detail
 
 
+def test_scheduler_flags_with_always_on_passes(preflight_module, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MARKETING_ALWAYS_ON_DRAFT_ENABLED", "true")
+    report = preflight_module.Report()
+    preflight_module._check_scheduler_flags(report)
+    chk = _by_name(report, "scheduler_flags")
+    assert chk.status == "PASS"
+    assert "always_on=on" in chk.detail
+
+
 def test_scheduler_flags_with_queue_poll_passes(preflight_module, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MARKETING_QUEUE_POLL_ENABLED", "true")
     report = preflight_module.Report()
@@ -158,6 +183,34 @@ def test_growth_os_public_url_production_passes(preflight_module, monkeypatch: p
     report = preflight_module.Report()
     preflight_module._check_growth_os_public_url(report)
     chk = _by_name(report, "growth_os_public_url")
+    assert chk.status == "PASS"
+
+
+def test_x_publish_live_missing_oauth_fails(preflight_module, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MARKETING_PUBLISH_DRY_RUN", "false")
+    monkeypatch.setenv("X_DRY_RUN", "false")
+    report = preflight_module.Report()
+    preflight_module._check_x(report)
+    chk = _by_name(report, "x_publish")
+    assert chk.status == "FAIL"
+    assert "X_API_KEY" in chk.detail
+
+
+def test_x_publish_dry_run_with_missing_oauth_passes(preflight_module) -> None:
+    report = preflight_module.Report()
+    preflight_module._check_x(report)
+    chk = _by_name(report, "x_publish")
+    assert chk.status == "PASS"
+    assert "live blocked" in chk.detail
+
+
+def test_intelligence_sources_pass_with_three_p0_sources(preflight_module, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("FMP_API_KEY", "fmp")
+    monkeypatch.setenv("SEC_USER_AGENT", "Sentinel AI ops@example.com")
+    monkeypatch.setenv("YOUTUBE_DATA_API_KEY", "yt")
+    report = preflight_module.Report()
+    preflight_module._check_intelligence_sources(report)
+    chk = _by_name(report, "intelligence_sources")
     assert chk.status == "PASS"
 
 

@@ -189,19 +189,87 @@ def _check_telegram(report: Report) -> None:
         report.add("telegram_target", OK, ", ".join(bits) + " — LIVE")
 
 
+def _check_x(report: Report) -> None:
+    global_dry_run = _bool_env("MARKETING_PUBLISH_DRY_RUN", True)
+    x_dry_run = _bool_env("X_DRY_RUN", True)
+    bearer = _present("X_BEARER_TOKEN")
+    oauth_vars = (
+        "X_API_KEY",
+        "X_API_SECRET",
+        "X_ACCESS_TOKEN",
+        "X_ACCESS_TOKEN_SECRET",
+    )
+    missing_oauth = [v for v in oauth_vars if not _present(v)]
+
+    if bearer:
+        report.add("x_read_signal", OK, "X_BEARER_TOKEN present")
+    else:
+        report.add(
+            "x_read_signal",
+            WARN,
+            "X_BEARER_TOKEN missing - official X search adapter cannot read signals",
+        )
+
+    if global_dry_run or x_dry_run:
+        bits = [
+            f"MARKETING_PUBLISH_DRY_RUN={'true' if global_dry_run else 'false'}",
+            f"X_DRY_RUN={'true' if x_dry_run else 'false'}",
+        ]
+        if missing_oauth:
+            bits.append(f"live blocked by missing: {', '.join(missing_oauth)}")
+        else:
+            bits.append("OAuth keys present")
+        report.add("x_publish", OK, ", ".join(bits))
+        return
+
+    if missing_oauth:
+        report.add("x_publish", FAIL, f"LIVE X requires: {', '.join(missing_oauth)}")
+    else:
+        report.add("x_publish", OK, "LIVE X enabled; OAuth keys present")
+
+
+def _check_intelligence_sources(report: Report) -> None:
+    p0_sources = {
+        "fmp": _present("FMP_API_KEY"),
+        "sec": _present("SEC_API_KEY") or _present("SEC_USER_AGENT"),
+        "x_serp": _present("DATAFORSEO_LOGIN") and _present("DATAFORSEO_PASSWORD"),
+        "tavily": _present("TAVILY_API_KEY"),
+        "youtube": _present("YOUTUBE_DATA_API_KEY"),
+    }
+    present = [name for name, ok in p0_sources.items() if ok]
+    missing = [name for name, ok in p0_sources.items() if not ok]
+    if len(present) >= 3:
+        report.add(
+            "intelligence_sources",
+            OK,
+            f"present: {', '.join(present)}; missing optional: {', '.join(missing) or 'none'}",
+        )
+        return
+    report.add(
+        "intelligence_sources",
+        WARN,
+        f"only {len(present)} P0 source(s) present: {', '.join(present) or 'none'}; add: {', '.join(missing)}",
+    )
+
+
 def _check_scheduler_flags(report: Report) -> None:
     queue_enabled = _bool_env("MARKETING_QUEUE_POLL_ENABLED", False)
     digest_enabled = _bool_env("MARKETING_DAILY_DIGEST_ENABLED", False)
+    daily_drafts = _bool_env("MARKETING_DAILY_DRAFT_ENABLED", False)
+    always_on = _bool_env("MARKETING_ALWAYS_ON_DRAFT_ENABLED", False)
     interval = os.environ.get("MARKETING_QUEUE_POLL_INTERVAL_SECONDS", "300")
     digest_hour = os.environ.get("MARKETING_DAILY_DIGEST_HOUR_ET", "16")
     digest_minute = os.environ.get("MARKETING_DAILY_DIGEST_MINUTE_ET", "30")
+    always_on_interval = os.environ.get("MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES", "180")
 
     parts = [
+        f"daily_drafts={'on' if daily_drafts else 'off'}",
+        f"always_on={'on' if always_on else 'off'}({always_on_interval}m)",
         f"queue_poll={'on' if queue_enabled else 'off'}({interval}s)",
         f"daily_digest={'on' if digest_enabled else 'off'}({digest_hour}:{digest_minute} ET)",
     ]
     severity = OK
-    if not queue_enabled and not digest_enabled:
+    if not any((queue_enabled, digest_enabled, daily_drafts, always_on)):
         severity = WARN
         parts.append("(both off — scheduler will have no marketing jobs)")
     report.add("scheduler_flags", severity, ", ".join(parts))
@@ -297,6 +365,8 @@ def main() -> int:
     _check_feishu(report)
     _check_publish_kill_switch(report)
     _check_telegram(report)
+    _check_x(report)
+    _check_intelligence_sources(report)
     _check_scheduler_flags(report)
     _check_growth_os_public_url(report)
 
