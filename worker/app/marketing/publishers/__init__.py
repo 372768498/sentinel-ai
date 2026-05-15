@@ -9,6 +9,7 @@ from .base import (
     build_dry_run_url,
 )
 from .telegram import TelegramPublisher
+from .x import XPublisher
 
 __all__ = [
     "DRY_RUN_URL_SCHEME",
@@ -16,5 +17,6 @@ __all__ = [
     "PublishError",
     "PublishResult",
     "TelegramPublisher",
+    "XPublisher",
     "build_dry_run_url",
 ]

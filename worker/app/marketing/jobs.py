@@ -11,8 +11,9 @@ from .catalysts import Catalyst, fallback_source, latest_catalyst
 from .composer import Composer
 from .content_factory import (
     ContentFactoryError,
+    GROWTH_PACK_PLATFORMS,
     MultiPlatformComposer,
-    create_drafts_for_opportunity,
+    create_growth_pack_for_opportunity,
 )
 from .feishu_client import FeishuAPIError, FeishuClient
 from .opportunities import ACTION_CREATE_CONTENT, Opportunity
@@ -159,6 +160,8 @@ async def generate_daily_review_drafts(
     composer: Optional[MultiPlatformComposer] = None,
     feishu_client: Optional[FeishuClient] = None,
     submit_fn=submit_draft_to_review,
+    content_date: Optional[str] = None,
+    campaign_id: Optional[str] = None,
 ) -> dict:
     """Scan opportunities → generate 3 drafts each → submit to Feishu Review Hub.
 
@@ -224,7 +227,7 @@ async def generate_daily_review_drafts(
             "opportunities": len(opportunities),
             "drafts_created": 0,
             "submitted_to_review": 0,
-            "skipped": len(top) * 3,
+            "skipped": len(top) * len(GROWTH_PACK_PLATFORMS),
             "errors": [str(exc)],
         }
 
@@ -234,7 +237,12 @@ async def generate_daily_review_drafts(
     errors: list[str] = []
 
     for opp in top:
-        bundle = create_drafts_for_opportunity(opp, composer=cmp)
+        bundle = create_growth_pack_for_opportunity(
+            opp,
+            composer=cmp,
+            date=content_date,
+            campaign_id=campaign_id,
+        )
         drafts_created += len(bundle.drafts)
         for draft in bundle.drafts:
             try:
@@ -257,3 +265,24 @@ async def generate_daily_review_drafts(
         "skipped": skipped,
         "errors": errors,
     }
+
+
+async def generate_always_on_review_drafts(
+    session_label: str = "always_on",
+    **kwargs,
+) -> dict:
+    """Generate review drafts for recurring 24h acquisition scans.
+
+    The daily job uses one `CT-YYYYMMDD-TICKER-platform` id per day. A recurring
+    job needs hour-level ids so a second scan can create fresh rows instead of
+    overwriting the morning Bitable records.
+    """
+    from datetime import datetime, timezone
+
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d%H%M")
+    return await generate_daily_review_drafts(
+        session_label=session_label,
+        content_date=stamp,
+        campaign_id=f"CMP-{stamp}-always-on",
+        **kwargs,
+    )

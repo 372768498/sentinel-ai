@@ -37,6 +37,18 @@ def _daily_draft_enabled() -> bool:
     return os.environ.get("MARKETING_DAILY_DRAFT_ENABLED", "").lower() in ("1", "true", "yes")
 
 
+def _always_on_draft_enabled() -> bool:
+    return os.environ.get("MARKETING_ALWAYS_ON_DRAFT_ENABLED", "").lower() in ("1", "true", "yes")
+
+
+def _always_on_draft_interval_minutes() -> int:
+    raw = os.environ.get("MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES", "180")
+    try:
+        return max(60, int(raw))
+    except ValueError:
+        return 180
+
+
 def _daily_draft_hour() -> int:
     raw = os.environ.get("MARKETING_DAILY_DRAFT_HOUR_ET", "9")
     try:
@@ -128,6 +140,7 @@ def build_scheduler() -> AsyncIOScheduler | None:
         and not _bot_enabled()
         and not _marketing_enabled()
         and not _daily_draft_enabled()
+        and not _always_on_draft_enabled()
         and not _queue_poll_enabled()
         and not _daily_digest_enabled()
         and not _email_daily_enabled()
@@ -136,8 +149,9 @@ def build_scheduler() -> AsyncIOScheduler | None:
         print(
             "[scheduler] disabled — set SCANNER_ENABLED / BOT_ENABLED / "
             "MARKETING_ENABLED / MARKETING_DAILY_DRAFT_ENABLED / "
-            "MARKETING_QUEUE_POLL_ENABLED / MARKETING_DAILY_DIGEST_ENABLED / "
-            "MARKETING_EMAIL_DAILY_ENABLED / MARKETING_PRO_EMAIL_DAILY_ENABLED",
+            "MARKETING_ALWAYS_ON_DRAFT_ENABLED / MARKETING_QUEUE_POLL_ENABLED / "
+            "MARKETING_DAILY_DIGEST_ENABLED / MARKETING_EMAIL_DAILY_ENABLED / "
+            "MARKETING_PRO_EMAIL_DAILY_ENABLED",
             flush=True,
         )
         return None
@@ -309,6 +323,23 @@ def build_scheduler() -> AsyncIOScheduler | None:
         )
         print(
             f"[marketing] daily review-draft generation at {hour:02d}:00 ET (mon-fri)",
+            flush=True,
+        )
+
+    if _always_on_draft_enabled():
+        from .marketing.jobs import generate_always_on_review_drafts
+
+        interval = _always_on_draft_interval_minutes()
+        scheduler.add_job(
+            generate_always_on_review_drafts,
+            trigger=IntervalTrigger(minutes=interval, timezone=ET_TZ),
+            kwargs={"session_label": f"always_on_{interval}m"},
+            id="marketing-always-on-drafts",
+            replace_existing=True,
+            misfire_grace_time=900,
+        )
+        print(
+            f"[marketing] always-on review-draft generation every {interval} min",
             flush=True,
         )
 

@@ -26,7 +26,15 @@ from typing import Optional
 from .feishu_client import FeishuAPIError, FeishuClient
 from .redline import RedlineResult, scan as redline_scan
 
-ALLOWED_PLATFORMS = ("X", "Telegram", "TikTok", "YouTube Shorts", "YouTube Long", "Email")
+ALLOWED_PLATFORMS = (
+    "X",
+    "Reddit",
+    "Telegram",
+    "TikTok",
+    "YouTube Shorts",
+    "YouTube Long",
+    "Email",
+)
 ALLOWED_RISK_LEVELS = ("Low", "Medium", "High")
 
 

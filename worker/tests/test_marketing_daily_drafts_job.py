@@ -7,7 +7,7 @@ import asyncio
 import pytest
 
 from app.marketing.content_factory import MultiPlatformComposer
-from app.marketing.jobs import generate_daily_review_drafts
+from app.marketing.jobs import generate_always_on_review_drafts, generate_daily_review_drafts
 from app.marketing.opportunities import (
     ACTION_CREATE_CONTENT,
     ACTION_WATCH,
@@ -56,7 +56,7 @@ async def _fake_scanner_empty(tickers, *, min_score: int = 70):
 async def _fake_scanner_mixed(tickers, *, min_score: int = 70):
     return [
         _opp("NVDA", 100, action=ACTION_CREATE_CONTENT),
-        _opp("AAPL", 50, action=ACTION_WATCH),  # below threshold → filtered out
+        _opp("AAPL", 50, action=ACTION_WATCH),  # below threshold, filtered out
     ]
 
 
@@ -109,15 +109,57 @@ def test_daily_job_happy_path_three_opportunities(monkeypatch: pytest.MonkeyPatc
             submit_fn=fake_submit,
         )
     )
-    # 3 opps × 3 platforms = 9 drafts
+    # 3 opportunities x 4 Growth Content Pack platforms = 12 drafts
     assert stats["opportunities"] == 3
-    assert stats["drafts_created"] == 9
-    assert stats["submitted_to_review"] == 9
+    assert stats["drafts_created"] == 12
+    assert stats["submitted_to_review"] == 12
     assert stats["skipped"] == 0
     assert stats["errors"] == []
-    assert len(submitted) == 9
+    assert len(submitted) == 12
     # Each draft carries source_opportunity_id back to its opportunity
     assert all(d.source_opportunity_id.startswith("OP-X-20260511-") for d in submitted)
+
+
+def test_daily_job_accepts_hour_level_content_ids(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROWTH_OS_PUBLIC_URL", "https://sentinel.example.com")
+    submitted: list = []
+
+    async def fake_submit(draft, *, client=None, notify_chat=True):
+        submitted.append(draft)
+
+    stats = asyncio.run(
+        generate_daily_review_drafts(
+            scanner=_fake_scanner_mixed,
+            composer=FakeComposer(),
+            submit_fn=fake_submit,
+            content_date="202605151300",
+            campaign_id="CMP-202605151300-always-on",
+        )
+    )
+
+    assert stats["drafts_created"] == 4
+    assert all(d.content_id.startswith("CT-202605151300-NVDA-") for d in submitted)
+    assert all(d.campaign_id == "CMP-202605151300-always-on" for d in submitted)
+
+
+def test_always_on_job_uses_non_daily_campaign(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GROWTH_OS_PUBLIC_URL", "https://sentinel.example.com")
+    submitted: list = []
+
+    async def fake_submit(draft, *, client=None, notify_chat=True):
+        submitted.append(draft)
+
+    stats = asyncio.run(
+        generate_always_on_review_drafts(
+            scanner=_fake_scanner_mixed,
+            composer=FakeComposer(),
+            submit_fn=fake_submit,
+        )
+    )
+
+    assert stats["session"] == "always_on"
+    assert stats["drafts_created"] == 4
+    assert all("-always-on" in d.campaign_id for d in submitted)
 
 
 def test_daily_job_caps_at_top_n(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,10 +176,10 @@ def test_daily_job_caps_at_top_n(monkeypatch: pytest.MonkeyPatch) -> None:
             submit_fn=fake_submit,
         )
     )
-    # Top 1 × 3 platforms
+    # Top 1 x 4 Growth Content Pack platforms
     assert stats["opportunities"] == 3
-    assert stats["drafts_created"] == 3
-    assert stats["submitted_to_review"] == 3
+    assert stats["drafts_created"] == 4
+    assert stats["submitted_to_review"] == 4
 
 
 def test_daily_job_skips_non_create_actions(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -153,9 +195,9 @@ def test_daily_job_skips_non_create_actions(monkeypatch: pytest.MonkeyPatch) -> 
             submit_fn=fake_submit,
         )
     )
-    # Only NVDA (create_content) → 3 drafts; AAPL (watch) excluded
+    # Only NVDA (create_content) reaches the Growth Content Pack.
     assert stats["opportunities"] == 2
-    assert stats["drafts_created"] == 3
+    assert stats["drafts_created"] == 4
     tickers = {d.ticker for d in submitted}
     assert tickers == {"NVDA"}
 
@@ -175,8 +217,8 @@ def test_daily_job_submit_failure_counted_as_skipped(monkeypatch: pytest.MonkeyP
             submit_fn=flaky_submit,
         )
     )
-    assert stats["drafts_created"] == 9
-    assert stats["submitted_to_review"] == 8
+    assert stats["drafts_created"] == 12
+    assert stats["submitted_to_review"] == 11
     assert stats["skipped"] == 1
     assert len(stats["errors"]) == 1
 
@@ -189,7 +231,7 @@ def test_daily_job_refuses_without_api_key(monkeypatch: pytest.MonkeyPatch) -> N
         submitted.append(draft)
 
     # Pass composer=None so default MultiPlatformComposer() construction happens,
-    # which should raise → job returns error stats with NO submissions.
+    # which should raise, so the job returns error stats with no submissions.
     stats = asyncio.run(
         generate_daily_review_drafts(
             scanner=_fake_scanner_three,
@@ -199,7 +241,7 @@ def test_daily_job_refuses_without_api_key(monkeypatch: pytest.MonkeyPatch) -> N
     )
     assert stats["drafts_created"] == 0
     assert stats["submitted_to_review"] == 0
-    assert stats["skipped"] == 9  # 3 opps × 3 platforms
+    assert stats["skipped"] == 12
     assert len(stats["errors"]) == 1
     assert "ANTHROPIC_API_KEY missing" in stats["errors"][0]
     assert submitted == []
@@ -235,6 +277,7 @@ def test_scheduler_skipped_when_all_disabled(monkeypatch: pytest.MonkeyPatch) ->
         "BOT_ENABLED",
         "MARKETING_ENABLED",
         "MARKETING_DAILY_DRAFT_ENABLED",
+        "MARKETING_ALWAYS_ON_DRAFT_ENABLED",
     ):
         monkeypatch.delenv(var, raising=False)
     from app.scheduler import build_scheduler
@@ -261,7 +304,7 @@ def test_scheduler_registers_daily_draft_job_when_enabled(monkeypatch: pytest.Mo
     assert fields["hour"] == "9"
     assert fields["minute"] == "0"
     assert fields["day_of_week"] in ("mon-fri", "0-4")
-    # not started → no shutdown needed
+    # not started, so no shutdown needed
 
 
 def test_scheduler_respects_custom_hour(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -277,4 +320,19 @@ def test_scheduler_respects_custom_hour(monkeypatch: pytest.MonkeyPatch) -> None
     job = scheduler.get_job("marketing-daily-drafts")
     fields = {f.name: str(f) for f in job.trigger.fields}
     assert fields["hour"] == "8"
-    # not started → no shutdown needed
+    # not started, so no shutdown needed
+
+
+def test_scheduler_registers_always_on_draft_job(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in ("SCANNER_ENABLED", "BOT_ENABLED", "MARKETING_ENABLED", "MARKETING_DAILY_DRAFT_ENABLED"):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("MARKETING_ALWAYS_ON_DRAFT_ENABLED", "true")
+    monkeypatch.setenv("MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES", "120")
+
+    from app.scheduler import build_scheduler
+
+    scheduler = build_scheduler()
+    assert scheduler is not None
+    job = scheduler.get_job("marketing-always-on-drafts")
+    assert job is not None
+    assert int(job.trigger.interval.total_seconds()) == 120 * 60

@@ -98,6 +98,8 @@ market local time) and runs Mon–Fri only — independent of host timezone.
 | --- | --- | --- | --- |
 | `MARKETING_DAILY_DRAFT_ENABLED` | No | `false` | Enables the 09:00 ET cron that scans + generates drafts. |
 | `MARKETING_DAILY_DRAFT_HOUR_ET` | No | `9` | Hour-of-day in ET (0-23). Default 9 = pre-market. |
+| `MARKETING_ALWAYS_ON_DRAFT_ENABLED` | No | `false` | Enables recurring Growth Content Pack generation for 24h social acquisition. Uses hour-level content ids to avoid overwriting daily drafts. |
+| `MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES` | No | `180` | Recurring draft cadence. Floor 60 minutes. |
 | `MARKETING_TOP_OPPORTUNITIES_PER_DAY` | No | `5` | Cap on opportunities promoted to draft generation. |
 | `MARKETING_MIN_OPPORTUNITY_SCORE` | No | `70` | Filter — only opportunities scoring ≥ this become drafts. |
 | `ANTHROPIC_API_KEY` | Yes (drafts) | `sk-ant-...` | Required for live draft generation. **Mock content NEVER reaches Feishu** — if key is missing, the job aborts. |
@@ -123,15 +125,17 @@ stay empty until needed.
 
 ## Growth OS · Publish Queue (Week 4)
 
-Real-platform distribution. Telegram is the only LIVE publisher in this phase;
-all other platforms (X / TikTok / YouTube / Email) stay dry-run until their
-adapters land.
+Real-platform distribution. X and Telegram are live-capable in this phase.
+Reddit / TikTok / YouTube / Email stay dry-run or manual handoff until their
+official adapters land.
 
 | Variable | Required | Example | Notes |
 | --- | --- | --- | --- |
-| `MARKETING_PUBLISH_DRY_RUN` | No | `true` | **Master kill-switch.** Defaults to `true` (safe). Set `false` to allow live Telegram posts. |
+| `MARKETING_PUBLISH_DRY_RUN` | No | `true` | **Master kill-switch.** Defaults to `true` (safe). Set `false` to allow live-capable publishers to post. |
 | `MARKETING_QUEUE_POLL_ENABLED` | No | `false` | When `true`, scheduler registers a poller every `MARKETING_QUEUE_POLL_INTERVAL_SECONDS`. |
 | `MARKETING_QUEUE_POLL_INTERVAL_SECONDS` | No | `300` | Poll cadence. Floor 30s. Default 5 min. |
+| `X_DRY_RUN` | No | `true` | X-specific kill-switch. X only posts live when `MARKETING_PUBLISH_DRY_RUN=false` AND `X_DRY_RUN=false`. |
+| `X_API_KEY` / `X_API_SECRET` / `X_ACCESS_TOKEN` / `X_ACCESS_TOKEN_SECRET` | Yes (live X) | — | OAuth 1.0a User Context keys for approved X text posts. |
 | `TELEGRAM_BOT_TOKEN` | Yes (live Telegram) | `123:abc` | Reuses existing bot token. |
 | `TELEGRAM_CHANNEL_ID_PUBLIC` | Yes (live Telegram) | `-100...` | Numeric chat id — preferred over handle. |
 | `TELEGRAM_CHANNEL_HANDLE` | No | `@SentinelAI_signals` | Used to build the `https://t.me/.../message_id` URL written back to Bitable. Falls back if `TELEGRAM_CHANNEL_ID_PUBLIC` is unset. |

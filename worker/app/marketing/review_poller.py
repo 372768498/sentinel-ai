@@ -28,6 +28,7 @@ from .publishers import (
     BasePublisher,
     PublishResult,
     TelegramPublisher,
+    XPublisher,
     build_dry_run_url,
 )
 
@@ -52,10 +53,10 @@ PublisherRegistry = dict[str, BasePublisher]
 def default_publishers() -> PublisherRegistry:
     """Construct the platform→publisher map used by the production scheduler.
 
-    Only Telegram is wired today. Other platforms (X / TikTok / YouTube / Email)
-    fall through to dry-run until their adapters land.
+    X and Telegram have live-capable publishers today. Reddit / TikTok /
+    YouTube still fall through to dry-run until their official adapters land.
     """
-    return {"Telegram": TelegramPublisher()}
+    return {"Telegram": TelegramPublisher(), "X": XPublisher()}
 
 
 # ---------------------------------------------------------------------------

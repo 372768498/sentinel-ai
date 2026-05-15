@@ -17,10 +17,11 @@ scan_x_opportunities(DEFAULT_WATCHLIST, min_score=70)
    │
    ▼
 for each Opportunity:
-    create_drafts_for_opportunity(opp)
-       ├── compose X thread        → MultiPlatformComposer (Anthropic)
-       ├── compose Telegram post   → MultiPlatformComposer (Anthropic)
-       └── compose Shorts script   → MultiPlatformComposer (Anthropic)
+    create_growth_pack_for_opportunity(opp)
+       - compose X image/text post          -> MultiPlatformComposer (Anthropic)
+       - compose Reddit image/text post     -> MultiPlatformComposer (Anthropic, manual posting)
+       - compose YouTube Shorts script      -> MultiPlatformComposer (Anthropic)
+       - compose TikTok short-video script  -> MultiPlatformComposer (Anthropic)
     each draft → redline.scan() → ContentDraft
    │
    ▼
@@ -57,9 +58,9 @@ Only `create_content` opportunities reach the Content Factory.
 
 ## content_id format
 
-`CT-{YYYYMMDD}-{TICKER}-{platform_suffix}` where suffix ∈ {`x`, `tg`, `yt`}.
+`CT-{YYYYMMDD}-{TICKER}-{platform_suffix}` where suffix is one of `x`, `rd`, `yt`, `tt`.
 
-Example: `CT-20260511-NVDA-x` / `CT-20260511-NVDA-tg` / `CT-20260511-NVDA-yt`.
+Example: `CT-20260511-NVDA-x` / `CT-20260511-NVDA-rd` / `CT-20260511-NVDA-yt` / `CT-20260511-NVDA-tt`.
 
 ## campaign_id format
 
@@ -69,8 +70,8 @@ Example: `CT-20260511-NVDA-x` / `CT-20260511-NVDA-tg` / `CT-20260511-NVDA-yt`.
 
 ```
 {GROWTH_OS_PUBLIC_URL}/stocks/{TICKER}
-  ?utm_source={x|telegram|youtube}
-  &utm_medium={thread|broadcast|shorts}
+  ?utm_source={x|reddit|youtube|tiktok}
+  &utm_medium={thread|discussion|shorts}
   &utm_campaign={campaign_id}
   &utm_content={content_id}
 ```

@@ -1,9 +1,15 @@
 """Content Factory · turn an Opportunity into three redline-scanned drafts.
 
-Each Opportunity fans out into:
+Legacy draft generation fans out into:
   - X thread
   - Telegram post
   - YouTube Shorts script
+
+Growth Content Pack fans out into:
+  - X image/text post
+  - Reddit image/text discussion post
+  - YouTube Shorts script
+  - TikTok script
 
 LLM rules (per Week 3 spec):
   - Mock content NEVER reaches Feishu. If ANTHROPIC_API_KEY is missing and no
@@ -16,8 +22,8 @@ LLM rules (per Week 3 spec):
 
 CTA URL convention (matches Week 1 /stocks/[ticker] page):
   {GROWTH_OS_PUBLIC_URL}/stocks/{TICKER}
-    ?utm_source={x|telegram|youtube}
-    &utm_medium={thread|broadcast|shorts}
+    ?utm_source={x|reddit|telegram|youtube|tiktok}
+    &utm_medium={thread|discussion|broadcast|shorts}
     &utm_campaign={campaign_id}
     &utm_content={content_id}
 """
@@ -47,24 +53,35 @@ def _resolve_model() -> str:
     return os.environ.get("MARKETING_COMPOSER_MODEL", "").strip() or DEFAULT_MODEL_ID
 
 PLATFORM_X = "X"
+PLATFORM_REDDIT = "Reddit"
 PLATFORM_TELEGRAM = "Telegram"
 PLATFORM_SHORTS = "YouTube Shorts"
-PLATFORMS = (PLATFORM_X, PLATFORM_TELEGRAM, PLATFORM_SHORTS)
+PLATFORM_TIKTOK = "TikTok"
+
+LEGACY_PLATFORMS = (PLATFORM_X, PLATFORM_TELEGRAM, PLATFORM_SHORTS)
+GROWTH_PACK_PLATFORMS = (PLATFORM_X, PLATFORM_REDDIT, PLATFORM_SHORTS, PLATFORM_TIKTOK)
+PLATFORMS = LEGACY_PLATFORMS
 
 _UTM_SOURCE: dict[str, str] = {
     PLATFORM_X: "x",
+    PLATFORM_REDDIT: "reddit",
     PLATFORM_TELEGRAM: "telegram",
     PLATFORM_SHORTS: "youtube",
+    PLATFORM_TIKTOK: "tiktok",
 }
 _UTM_MEDIUM: dict[str, str] = {
     PLATFORM_X: "thread",
+    PLATFORM_REDDIT: "discussion",
     PLATFORM_TELEGRAM: "broadcast",
     PLATFORM_SHORTS: "shorts",
+    PLATFORM_TIKTOK: "shorts",
 }
 _PLATFORM_SUFFIX: dict[str, str] = {
     PLATFORM_X: "x",
+    PLATFORM_REDDIT: "rd",
     PLATFORM_TELEGRAM: "tg",
     PLATFORM_SHORTS: "yt",
+    PLATFORM_TIKTOK: "tt",
 }
 
 
@@ -123,7 +140,8 @@ def build_cta_url(
 SYSTEM_PROMPTS: dict[str, str] = {
     PLATFORM_X: (
         "You are Sentinel AI's X (Twitter) writer for US equity context. "
-        "Write a 4-tweet thread. Tone: factual, calm, no hype. "
+        "Write either a compact image/text post or a 4-tweet thread. "
+        "Include a 'Visual brief:' line for the image card. Tone: factual, calm, no hype. "
         "FORBIDDEN words (auto-rejection): buy, sell, hold, price target, predict, "
         "guaranteed, moonshot, 100x, pump, dump, go long, go short. "
         "ALSO FORBIDDEN — DO NOT use these words at all: score, rating, "
@@ -139,12 +157,30 @@ SYSTEM_PROMPTS: dict[str, str] = {
         "Same forbidden-word list as X (including no 'score'/'rating'/'X/100'). "
         "Frame the post around the ticker's current Sentinel state. No emojis."
     ),
+    PLATFORM_REDDIT: (
+        "You are Sentinel AI's Reddit discussion writer for US equity context. "
+        "Write a non-promotional discussion post with a plain title, body, and "
+        "'Visual brief:' line for the attached image. The post must read like a "
+        "market observation, not an ad. Ask one concrete discussion question. "
+        "Same forbidden-word list as X (including no 'score'/'rating'/'X/100'). "
+        "Frame the post around the ticker's current Sentinel state. No emojis."
+    ),
     PLATFORM_SHORTS: (
         "You are Sentinel AI's video scripts writer. "
         "Write a 45-60 second vertical short-video script with time stamps: "
         "0-3s Hook, 3-10s State reveal, 10-40s 3 reasons, 40-55s CTA. "
+        "Include a 'Visual brief:' line for the cover/frame direction. "
         "Same forbidden-word list (including no 'score'/'rating'/'X/100'). "
         "Lead with the ticker's Sentinel state. "
+        "End with 'Context, not financial advice.'"
+    ),
+    PLATFORM_TIKTOK: (
+        "You are Sentinel AI's TikTok short-video script writer for US equity context. "
+        "Write a 30-45 second vertical script with time stamps: 0-2s Hook, "
+        "2-8s State reveal, 8-32s 2-3 reasons, 32-45s CTA. "
+        "Include a 'Visual brief:' line for captions and cover direction. "
+        "Same forbidden-word list as X (including no 'score'/'rating'/'X/100'). "
+        "Keep the language direct, not meme-heavy. "
         "End with 'Context, not financial advice.'"
     ),
 }
@@ -164,7 +200,9 @@ USER_PROMPT_TEMPLATE = (
     "- Frame the post around the Sentinel state above. Do NOT invent or echo "
     "  numeric scores or ratings.\n"
     "- Include at least one risk-flag sentence.\n"
-    "- Include the CTA URL inline (Markdown link OK).\n"
+    "- Include the CTA URL inline (Markdown link OK), but describe it as a "
+    "stock-context preview or a way to unlock the full report. Do NOT claim "
+    "the URL opens a full breakdown directly.\n"
     "- End with: Context, not financial advice.\n"
 )
 
@@ -367,6 +405,39 @@ def _extract_hook(body: str, *, max_chars: int = 140) -> str:
     return body[:max_chars].rstrip()
 
 
+def _clean_generated_text(body: str) -> str:
+    """Normalize common proxy/model encoding artifacts before review."""
+    replacements = {
+        "\u9208\u9239?": "'",
+        "\u9208\u922b?": "->",
+        "\u8103": "x",
+    }
+    cleaned = body
+    for bad, good in replacements.items():
+        cleaned = cleaned.replace(bad, good)
+    cleaned = re.sub(r"\s*[\u0400-\u04ff]{1,4}\s*", " - ", cleaned)
+    cleaned = re.sub(
+        r"\bFull anomaly breakdown\b",
+        "Stock context preview",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"\bFull breakdown\b",
+        "Stock context preview",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(
+        r"\bfull anomaly report\b",
+        "full report",
+        cleaned,
+        flags=re.IGNORECASE,
+    )
+    cleaned = re.sub(r"\s*[\u659c\u6cfb\u5fcc\u6297]{1,4}\s*", " - ", cleaned)
+    return cleaned.replace("\r\n", "\n").strip()
+
+
 # ---- Feature flag: USE_NEW_TEMPLATES → swap Telegram body source ----
 #
 # When USE_NEW_TEMPLATES env is truthy AND the platform is Telegram, the
@@ -518,6 +589,7 @@ def create_drafts_for_opportunity(
     date: Optional[str] = None,
     public_url: Optional[str] = None,
     earnings_date: Optional[_date] = None,
+    platforms: tuple[str, ...] = PLATFORMS,
 ) -> DraftBundle:
     """Generate one ContentDraft per platform for an Opportunity.
 
@@ -538,7 +610,7 @@ def create_drafts_for_opportunity(
 
     use_new_telegram = _use_new_templates_for_telegram()
 
-    for platform in PLATFORMS:
+    for platform in platforms:
         cid = content_id_for(opportunity, platform, date=date)
         cta = build_cta_url(opportunity, platform, camp, cid, public_url=public_url)
         if platform == PLATFORM_TELEGRAM and use_new_telegram:
@@ -565,6 +637,7 @@ def create_drafts_for_opportunity(
                 )
                 continue
 
+        body = _clean_generated_text(body)
         redline = redline_scan(body, require_source=True, require_disclaimer=True)
         redline = _apply_earnings_window(body, redline, earnings_date)
         redlines[cid] = redline
@@ -584,3 +657,24 @@ def create_drafts_for_opportunity(
         )
 
     return DraftBundle(drafts=drafts, redlines=redlines)
+
+
+def create_growth_pack_for_opportunity(
+    opportunity: Opportunity,
+    *,
+    composer: Optional[ComposerLike] = None,
+    campaign_id: Optional[str] = None,
+    date: Optional[str] = None,
+    public_url: Optional[str] = None,
+    earnings_date: Optional[_date] = None,
+) -> DraftBundle:
+    """Generate Sentinel's acquisition pack for X, Reddit, Shorts, and TikTok."""
+    return create_drafts_for_opportunity(
+        opportunity,
+        composer=composer,
+        campaign_id=campaign_id,
+        date=date,
+        public_url=public_url,
+        earnings_date=earnings_date,
+        platforms=GROWTH_PACK_PLATFORMS,
+    )

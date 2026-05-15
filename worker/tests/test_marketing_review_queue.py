@@ -144,6 +144,7 @@ def test_clean_draft_passes_and_posts(env: None) -> None:
     assert fields[bf.PLATFORM] == "X"
     assert fields[bf.REVIEW_STATUS] == "Pending"
     assert fields[bf.REDLINE_RESULT] == "Pass"
+    assert fields[bf.BODY] == _clean_draft().body
     assert fields[bf.CTA_URL] == {"link": "https://sentinel.ai/stocks/NVDA", "text": "https://sentinel.ai/stocks/NVDA"}
 
     card = fake.sent_cards[0]
