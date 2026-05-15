@@ -23,6 +23,7 @@ def test_normalize_fields_supports_all_growth_os_tables() -> None:
     assert normalized[bf.HOOK_ZH] == "中文钩子"
     assert normalized[bf.BODY_ZH] == "中文正文"
     assert normalized[bf.REVIEW_STATUS] == bf.STATUS_PENDING
+    assert normalized["review_status"] == bf.STATUS_PENDING
     assert normalized["clicks"] == 12
 
 
