@@ -41,6 +41,10 @@ def _always_on_draft_enabled() -> bool:
     return os.environ.get("MARKETING_ALWAYS_ON_DRAFT_ENABLED", "").lower() in ("1", "true", "yes")
 
 
+def _acquisition_operator_enabled() -> bool:
+    return os.environ.get("MARKETING_ACQUISITION_OPERATOR_ENABLED", "").lower() in ("1", "true", "yes")
+
+
 def _always_on_draft_interval_minutes() -> int:
     raw = os.environ.get("MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES", "180")
     try:
@@ -51,6 +55,15 @@ def _always_on_draft_interval_minutes() -> int:
 
 def _daily_draft_hour() -> int:
     raw = os.environ.get("MARKETING_DAILY_DRAFT_HOUR_ET", "9")
+    try:
+        hour = int(raw)
+    except ValueError:
+        return 9
+    return max(0, min(23, hour))
+
+
+def _acquisition_operator_hour() -> int:
+    raw = os.environ.get("MARKETING_ACQUISITION_OPERATOR_HOUR_ET", "9")
     try:
         hour = int(raw)
     except ValueError:
@@ -141,6 +154,7 @@ def build_scheduler() -> AsyncIOScheduler | None:
         and not _marketing_enabled()
         and not _daily_draft_enabled()
         and not _always_on_draft_enabled()
+        and not _acquisition_operator_enabled()
         and not _queue_poll_enabled()
         and not _daily_digest_enabled()
         and not _email_daily_enabled()
@@ -150,6 +164,7 @@ def build_scheduler() -> AsyncIOScheduler | None:
             "[scheduler] disabled — set SCANNER_ENABLED / BOT_ENABLED / "
             "MARKETING_ENABLED / MARKETING_DAILY_DRAFT_ENABLED / "
             "MARKETING_ALWAYS_ON_DRAFT_ENABLED / MARKETING_QUEUE_POLL_ENABLED / "
+            "MARKETING_ACQUISITION_OPERATOR_ENABLED / "
             "MARKETING_DAILY_DIGEST_ENABLED / MARKETING_EMAIL_DAILY_ENABLED / "
             "MARKETING_PRO_EMAIL_DAILY_ENABLED",
             flush=True,
@@ -340,6 +355,28 @@ def build_scheduler() -> AsyncIOScheduler | None:
         )
         print(
             f"[marketing] always-on review-draft generation every {interval} min",
+            flush=True,
+        )
+
+    if _acquisition_operator_enabled():
+        from .marketing.acquisition_operator import run_daily_acquisition_operator
+
+        hour = _acquisition_operator_hour()
+        scheduler.add_job(
+            run_daily_acquisition_operator,
+            trigger=CronTrigger(
+                day_of_week="mon-fri",
+                hour=hour,
+                minute=15,
+                timezone=ET_TZ,
+            ),
+            kwargs={"session_label": f"acquisition_operator_{hour:02d}15_et"},
+            id="marketing-acquisition-operator",
+            replace_existing=True,
+            misfire_grace_time=900,
+        )
+        print(
+            f"[marketing] acquisition operator at {hour:02d}:15 ET (mon-fri)",
             flush=True,
         )
 

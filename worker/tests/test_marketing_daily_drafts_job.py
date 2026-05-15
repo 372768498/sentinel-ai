@@ -278,6 +278,7 @@ def test_scheduler_skipped_when_all_disabled(monkeypatch: pytest.MonkeyPatch) ->
         "MARKETING_ENABLED",
         "MARKETING_DAILY_DRAFT_ENABLED",
         "MARKETING_ALWAYS_ON_DRAFT_ENABLED",
+        "MARKETING_ACQUISITION_OPERATOR_ENABLED",
     ):
         monkeypatch.delenv(var, raising=False)
     from app.scheduler import build_scheduler
@@ -324,7 +325,13 @@ def test_scheduler_respects_custom_hour(monkeypatch: pytest.MonkeyPatch) -> None
 
 
 def test_scheduler_registers_always_on_draft_job(monkeypatch: pytest.MonkeyPatch) -> None:
-    for var in ("SCANNER_ENABLED", "BOT_ENABLED", "MARKETING_ENABLED", "MARKETING_DAILY_DRAFT_ENABLED"):
+    for var in (
+        "SCANNER_ENABLED",
+        "BOT_ENABLED",
+        "MARKETING_ENABLED",
+        "MARKETING_DAILY_DRAFT_ENABLED",
+        "MARKETING_ACQUISITION_OPERATOR_ENABLED",
+    ):
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("MARKETING_ALWAYS_ON_DRAFT_ENABLED", "true")
     monkeypatch.setenv("MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES", "120")
@@ -336,3 +343,27 @@ def test_scheduler_registers_always_on_draft_job(monkeypatch: pytest.MonkeyPatch
     job = scheduler.get_job("marketing-always-on-drafts")
     assert job is not None
     assert int(job.trigger.interval.total_seconds()) == 120 * 60
+
+
+def test_scheduler_registers_acquisition_operator(monkeypatch: pytest.MonkeyPatch) -> None:
+    for var in (
+        "SCANNER_ENABLED",
+        "BOT_ENABLED",
+        "MARKETING_ENABLED",
+        "MARKETING_DAILY_DRAFT_ENABLED",
+        "MARKETING_ALWAYS_ON_DRAFT_ENABLED",
+    ):
+        monkeypatch.delenv(var, raising=False)
+    monkeypatch.setenv("MARKETING_ACQUISITION_OPERATOR_ENABLED", "true")
+    monkeypatch.setenv("MARKETING_ACQUISITION_OPERATOR_HOUR_ET", "10")
+
+    from app.scheduler import build_scheduler
+
+    scheduler = build_scheduler()
+    assert scheduler is not None
+    job = scheduler.get_job("marketing-acquisition-operator")
+    assert job is not None
+    fields = {f.name: str(f) for f in job.trigger.fields}
+    assert fields["hour"] == "10"
+    assert fields["minute"] == "15"
+    assert fields["day_of_week"] in ("mon-fri", "0-4")

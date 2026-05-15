@@ -98,6 +98,9 @@ Variables are grouped by what they unlock. Copy into Railway, paste real values
 | `MARKETING_QUEUE_POLL_ENABLED` | `true` | Enables 5-min review-queue poller. |
 | `MARKETING_QUEUE_POLL_INTERVAL_SECONDS` | `300` | 30s floor. |
 | `MARKETING_DAILY_DRAFT_ENABLED` | `false` | Keep false until X-replacement scanner lands (currently uses suspended X bearer). |
+| `MARKETING_ACQUISITION_OPERATOR_ENABLED` | `false` | Daily operator that writes Growth Content Pack summaries and Shorts/TikTok asset packs. Keep false on Railway until local smoke passes. |
+| `MARKETING_ACQUISITION_OPERATOR_HOUR_ET` | `9` | Runs at `:15` ET when enabled. |
+| `MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR` | `docs/growth-runs` | Artifact directory for operator summaries and video packs. |
 | `MARKETING_DAILY_DIGEST_ENABLED` | `true` | Post-close KPI digest. |
 | `MARKETING_DAILY_DIGEST_HOUR_ET` | `16` | 4 PM ET (post-close). |
 | `MARKETING_DAILY_DIGEST_MINUTE_ET` | `30` | 30. |
