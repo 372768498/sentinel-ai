@@ -10,6 +10,7 @@ sys.path.insert(0, str(REPO_ROOT / "worker"))
 from app.marketing.short_video_renderer import (
     ShortVideoSpec,
     render_mp4,
+    write_asset_pack,
     write_preview_svg,
 )
 
@@ -20,7 +21,13 @@ def main() -> int:
     parser.add_argument("--state", default="HEATED")
     parser.add_argument("--out", default="docs/assets/sentinel-short-demo-nvda.mp4")
     parser.add_argument("--svg", default="docs/assets/sentinel-short-demo-nvda.svg")
+    parser.add_argument("--pack-dir", default="docs/assets/sentinel-short-demo-pack")
     parser.add_argument("--duration", type=int, default=8)
+    parser.add_argument(
+        "--pack-only",
+        action="store_true",
+        help="Write the reviewable asset pack without rendering MP4.",
+    )
     args = parser.parse_args()
 
     ticker = args.ticker.upper().lstrip("$")
@@ -28,7 +35,7 @@ def main() -> int:
         ticker=ticker,
         state=args.state,
         hook=f"${ticker} has three signals firing right now.",
-        why_now="AI-chip attention, margin expectations, and valuation pressure are all moving at the same time.",
+        why_now="Attention, margins, and valuation pressure overlap today.",
         risk_flags=(
             "Expectation crowding",
             "Margin sensitivity",
@@ -36,6 +43,10 @@ def main() -> int:
         ),
         cta_url=f"https://app.jilo.ai/stocks/{ticker}",
     )
+    pack = write_asset_pack(spec, Path(args.pack_dir), render_cover=False, render_video=False)
+    print(f"asset_pack={pack.output_dir}")
+    if args.pack_only:
+        return 0
     svg_path = write_preview_svg(spec, Path(args.svg))
     mp4_path = render_mp4(spec, Path(args.out), duration_seconds=args.duration)
     print(f"svg={svg_path}")

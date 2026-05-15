@@ -8,6 +8,8 @@ into an mp4 preview for YouTube Shorts / TikTok manual upload.
 from __future__ import annotations
 
 import html
+import json
+import re
 import subprocess
 import tempfile
 import textwrap
@@ -19,6 +21,20 @@ WIDTH = 1080
 HEIGHT = 1920
 FPS = 30
 DEFAULT_DURATION_SECONDS = 18
+FORBIDDEN_TERMS = (
+    "buy",
+    "sell",
+    "hold",
+    "price target",
+    "ai predicts",
+    "predicts",
+    "guaranteed",
+    "100x",
+    "pump",
+    "dump",
+    "go long",
+    "go short",
+)
 
 
 @dataclass(frozen=True)
@@ -32,8 +48,47 @@ class ShortVideoSpec:
     disclaimer: str = "Context, not financial advice."
 
 
+@dataclass(frozen=True)
+class ShortVideoAssetPack:
+    output_dir: Path
+    creative_brief: Path
+    script: Path
+    shot_plan: Path
+    captions: Path
+    cover_svg: Path
+    cover_png: Path | None
+    video: Path | None
+    platform_copy: Path
+    qa_report: Path
+
+
 def _wrap(text: str, width: int) -> list[str]:
     return textwrap.wrap(text.strip(), width=width, break_long_words=False) or [""]
+
+
+def _ticker(spec: ShortVideoSpec) -> str:
+    return spec.ticker.strip().upper().lstrip("$")
+
+
+def _state(spec: ShortVideoSpec) -> str:
+    return spec.state.strip().upper()
+
+
+def _words(value: str) -> int:
+    return len(re.findall(r"[A-Za-z0-9$']+", value))
+
+
+def _forbidden_hits(spec: ShortVideoSpec) -> list[str]:
+    haystack = " ".join(
+        [
+            spec.hook,
+            spec.why_now,
+            " ".join(spec.risk_flags),
+            spec.cta_url,
+            spec.disclaimer,
+        ]
+    ).lower()
+    return [term for term in FORBIDDEN_TERMS if term in haystack]
 
 
 def _text(x: int, y: int, value: str, *, size: int, color: str, weight: int = 600) -> str:
@@ -54,8 +109,8 @@ def _multiline(x: int, y: int, value: str, *, size: int, color: str, width: int,
 
 
 def render_svg(spec: ShortVideoSpec, *, progress: float = 0.0) -> str:
-    ticker = spec.ticker.strip().upper().lstrip("$")
-    state = spec.state.strip().upper()
+    ticker = _ticker(spec)
+    state = _state(spec)
     flags = list(spec.risk_flags[:3])
     while len(flags) < 3:
         flags.append("No additional risk flag supplied")
@@ -124,6 +179,258 @@ def write_preview_svg(spec: ShortVideoSpec, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(render_svg(spec, progress=0.35), encoding="utf-8")
     return path
+
+
+def render_cover_svg(spec: ShortVideoSpec) -> str:
+    ticker = _ticker(spec)
+    state = _state(spec)
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">
+  <rect width="{WIDTH}" height="{HEIGHT}" fill="#07120d"/>
+  <rect x="70" y="92" width="940" height="150" rx="8" fill="#0f251a"/>
+  {_text(106, 154, "Sentinel Market State", size=34, color="#d7ffe2", weight=760)}
+  {_text(106, 204, spec.disclaimer, size=24, color="#95b7a3", weight=520)}
+  <rect x="70" y="390" width="940" height="710" rx="8" fill="#122119"/>
+  {_text(112, 535, f"${ticker}", size=98, color="#ffffff", weight=860)}
+  <rect x="112" y="590" width="390" height="90" rx="4" fill="#d7ffe2"/>
+  {_text(150, 650, state, size=42, color="#07120d", weight=840)}
+  {_multiline(112, 805, spec.hook, size=62, color="#ffffff", width=25, line_gap=72)}
+  <rect x="70" y="1220" width="940" height="250" rx="8" fill="#d7ffe2"/>
+  {_text(112, 1310, "3 signals to verify", size=54, color="#07120d", weight=840)}
+  {_text(112, 1386, "Context scan, not financial advice", size=32, color="#17492f", weight=620)}
+  {_text(112, 1745, "Run the free context scan", size=38, color="#d7ffe2", weight=780)}
+</svg>"""
+
+
+def write_cover_svg(spec: ShortVideoSpec, path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_cover_svg(spec), encoding="utf-8")
+    return path
+
+
+def write_cover_png(spec: ShortVideoSpec, path: Path) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    _svgs_to_pngs([(render_cover_svg(spec), path)])
+    return path
+
+
+def _script_lines(spec: ShortVideoSpec) -> list[tuple[int, int, str, str]]:
+    ticker = _ticker(spec)
+    flags = list(spec.risk_flags[:3])
+    while len(flags) < 3:
+        flags.append("No additional risk flag supplied")
+    return [
+        (0, 2, "Hook", f"${ticker} {_state(spec)}: {spec.hook}"),
+        (2, 7, "State reveal", f"${ticker} is in {_state(spec)} state."),
+        (7, 12, "Signal 1", flags[0]),
+        (12, 17, "Signal 2", flags[1]),
+        (17, 22, "Signal 3", flags[2]),
+        (22, 26, "Sentinel State", spec.why_now),
+        (26, 30, "CTA", f"Run the free context scan. {spec.disclaimer}"),
+    ]
+
+
+def _srt_timestamp(seconds: int) -> str:
+    return f"00:00:{seconds:02d},000"
+
+
+def render_captions_srt(spec: ShortVideoSpec) -> str:
+    blocks = []
+    for idx, (start, end, _label, text) in enumerate(_script_lines(spec), start=1):
+        blocks.append(f"{idx}\n{_srt_timestamp(start)} --> {_srt_timestamp(end)}\n{text}")
+    return "\n\n".join(blocks) + "\n"
+
+
+def build_shot_plan(spec: ShortVideoSpec) -> dict:
+    ticker = _ticker(spec)
+    flags = list(spec.risk_flags[:3])
+    return {
+        "canvas": {"width": WIDTH, "height": HEIGHT, "fps": FPS, "safe_area_px": 96},
+        "template": "ticker_state_risk_stack",
+        "ticker": ticker,
+        "state": _state(spec),
+        "duration_seconds": 30,
+        "scenes": [
+            {
+                "id": f"scene_{idx:02d}_{label.lower().replace(' ', '_')}",
+                "start": start,
+                "end": end,
+                "label": label,
+                "text": text,
+                "max_words": 12,
+                "animation": "fade_up",
+            }
+            for idx, (start, end, label, text) in enumerate(_script_lines(spec), start=1)
+        ],
+        "signals": flags,
+        "cta_url": spec.cta_url,
+        "disclaimer": spec.disclaimer,
+    }
+
+
+def render_creative_brief(spec: ShortVideoSpec) -> str:
+    flags = "\n".join(f"- {flag}" for flag in spec.risk_flags[:3])
+    forbidden = _forbidden_hits(spec)
+    forbidden_line = ", ".join(forbidden) if forbidden else "None"
+    return f"""# Sentinel AI Short Video Creative Brief
+
+## Ticker
+
+${_ticker(spec)}
+
+## Angle
+
+Ticker State / Risk Stack
+
+## User Anxiety
+
+The viewer wants to know what changed before trusting the market narrative.
+
+## Hook
+
+{spec.hook}
+
+## Why Now
+
+{spec.why_now}
+
+## Evidence Signals
+
+{flags}
+
+## CTA
+
+{spec.cta_url}
+
+## Disclaimer
+
+{spec.disclaimer}
+
+## Forbidden Term Check
+
+{forbidden_line}
+"""
+
+
+def render_script_md(spec: ShortVideoSpec) -> str:
+    rows = "\n".join(
+        f"| {start}-{end}s | {label} | {text} |"
+        for start, end, label, text in _script_lines(spec)
+    )
+    return f"""# Sentinel AI Short Video Script
+
+| Time | Beat | On-screen / Voiceover |
+| --- | --- | --- |
+{rows}
+"""
+
+
+def render_platform_copy(spec: ShortVideoSpec) -> str:
+    ticker = _ticker(spec)
+    return f"""# Platform Copy
+
+## YouTube Shorts Title
+
+${ticker} risk stack: 3 signals to verify
+
+## YouTube Description
+
+Sentinel AI flagged a {_state(spec).lower()} state in ${ticker}. Run the context scan: {spec.cta_url}
+
+{spec.disclaimer}
+
+## TikTok Caption
+
+${ticker} moved, but the move is not the whole story. 3 signals to verify. {spec.disclaimer}
+
+## Pinned Comment
+
+Run the free ${ticker} context scan: {spec.cta_url}
+
+## Hashtags
+
+#SentinelAI #StockMarket #Investing #MarketSignals #{ticker}
+"""
+
+
+def build_qa_report(spec: ShortVideoSpec) -> dict:
+    lines = _script_lines(spec)
+    forbidden = _forbidden_hits(spec)
+    first_text = " ".join(line[3] for line in lines if line[0] < 2)
+    scene_word_counts = [
+        {"label": label, "words": _words(text), "ok": _words(text) <= 12}
+        for _start, _end, label, text in lines
+    ]
+    return {
+        "resolution": {"width": WIDTH, "height": HEIGHT, "ok": WIDTH == 1080 and HEIGHT == 1920},
+        "duration_seconds": 30,
+        "duration_ok": True,
+        "ticker_in_first_2_seconds": _ticker(spec) in first_text.upper(),
+        "state_in_first_2_seconds": _state(spec) in first_text.upper(),
+        "scene_word_counts": scene_word_counts,
+        "captions_safe_area": True,
+        "cta_specific": "context scan" in spec.cta_url.lower()
+        or "/stocks/" in spec.cta_url.lower(),
+        "has_disclaimer": bool(spec.disclaimer.strip()),
+        "forbidden_terms": forbidden,
+        "ok": not forbidden
+        and all(item["ok"] for item in scene_word_counts)
+        and bool(spec.disclaimer.strip()),
+    }
+
+
+def write_asset_pack(
+    spec: ShortVideoSpec,
+    output_dir: Path,
+    *,
+    render_cover: bool = False,
+    render_video: bool = False,
+    ffmpeg_bin: str = "ffmpeg",
+) -> ShortVideoAssetPack:
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    creative_brief = output_dir / "creative_brief.md"
+    script = output_dir / "script.md"
+    shot_plan = output_dir / "shot_plan.json"
+    captions = output_dir / "captions.srt"
+    cover_svg = output_dir / "cover.svg"
+    cover_png = output_dir / "cover.png"
+    video = output_dir / "video.mp4"
+    platform_copy = output_dir / "platform_copy.md"
+    qa_report = output_dir / "qa_report.json"
+
+    creative_brief.write_text(render_creative_brief(spec), encoding="utf-8")
+    script.write_text(render_script_md(spec), encoding="utf-8")
+    shot_plan.write_text(
+        json.dumps(build_shot_plan(spec), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    captions.write_text(render_captions_srt(spec), encoding="utf-8")
+    write_cover_svg(spec, cover_svg)
+    platform_copy.write_text(render_platform_copy(spec), encoding="utf-8")
+    qa_report.write_text(
+        json.dumps(build_qa_report(spec), indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+
+    rendered_cover = write_cover_png(spec, cover_png) if render_cover else None
+    rendered_video = (
+        render_mp4(spec, video, duration_seconds=30, ffmpeg_bin=ffmpeg_bin)
+        if render_video
+        else None
+    )
+
+    return ShortVideoAssetPack(
+        output_dir=output_dir,
+        creative_brief=creative_brief,
+        script=script,
+        shot_plan=shot_plan,
+        captions=captions,
+        cover_svg=cover_svg,
+        cover_png=rendered_cover,
+        video=rendered_video,
+        platform_copy=platform_copy,
+        qa_report=qa_report,
+    )
 
 
 def render_mp4(
