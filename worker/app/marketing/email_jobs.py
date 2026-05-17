@@ -625,6 +625,25 @@ def _scheduled_limit() -> int:
         return 50
 
 
+def _safe_scheduled_summary(stats: dict) -> dict:
+    """Small production-log summary without recipient addresses or secrets."""
+    renders = stats.get("renders") or []
+    branches: dict[str, int] = {}
+    for row in renders:
+        branch = str(row.get("branch") or "unknown")
+        branches[branch] = branches.get(branch, 0) + 1
+    return {
+        "session": stats.get("session"),
+        "mode": stats.get("mode"),
+        "leads_queried": stats.get("leads_queried"),
+        "leads_eligible": stats.get("leads_eligible"),
+        "sent": stats.get("sent"),
+        "skipped_unverified": stats.get("skipped_unverified"),
+        "error_count": len(stats.get("errors") or []),
+        "branches": branches,
+    }
+
+
 async def run_scheduled_email_digest() -> dict:
     """Reads env flags and runs ``send_email_digest`` for the cron path.
 
@@ -642,6 +661,10 @@ async def run_scheduled_email_digest() -> dict:
         live=live,
         allow_bulk=allow_bulk,
         limit=limit,
+    )
+    print(
+        f"[email_jobs] scheduled summary={_safe_scheduled_summary(stats)}",
+        flush=True,
     )
     logger.info("[email_jobs] scheduled run stats=%s", stats)
     return stats
