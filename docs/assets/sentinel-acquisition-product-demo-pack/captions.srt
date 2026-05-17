@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:03,000
+You saw the $NVDA move, but not the state change.
+
+2
+00:00:03,000 --> 00:00:10,000
+Sentinel AI flags $NVDA as HEATED. AI-chip attention, valuation pressure, and earnings expectations are overlapping today.
+
+3
+00:00:10,000 --> 00:00:14,000
+Expectation crowding is rising
+
+4
+00:00:14,000 --> 00:00:18,000
+Valuation pressure is back in the discussion
+
+5
+00:00:18,000 --> 00:00:22,000
+Earnings sensitivity is closer than most posts mention
+
+6
+00:00:22,000 --> 00:00:26,000
+Run the context scan before the next headline.
+
+7
+00:00:26,000 --> 00:00:30,000
+Context, not financial advice.

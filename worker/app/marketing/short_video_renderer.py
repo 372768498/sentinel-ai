@@ -1,26 +1,32 @@
-"""Minimal 9:16 short-video renderer for Growth OS.
+"""9:16 product-demo short-video renderer for Growth OS.
 
-The first production goal is not cinematic AI video. It is a reliable,
-reviewable, platform-safe information card that turns one market opportunity
-into an mp4 preview for YouTube Shorts / TikTok manual upload.
+The renderer produces deterministic, reviewable Shorts/TikTok asset packs. It
+borrows the product-demo structure from the Sentinel Remotion work:
+tension -> product alert -> evidence stack -> CTA.
 """
 
 from __future__ import annotations
 
+import asyncio
 import html
 import json
 import re
 import subprocess
 import tempfile
 import textwrap
-import asyncio
 from dataclasses import dataclass
 from pathlib import Path
 
 WIDTH = 1080
 HEIGHT = 1920
 FPS = 30
-DEFAULT_DURATION_SECONDS = 18
+DEFAULT_DURATION_SECONDS = 30
+SCENE_TIMELINE = (
+    (0, 3, "tension"),
+    (3, 10, "sentinel_alert"),
+    (10, 22, "context_stack"),
+    (22, 30, "cta"),
+)
 FORBIDDEN_TERMS = (
     "buy",
     "sell",
@@ -74,6 +80,13 @@ def _state(spec: ShortVideoSpec) -> str:
     return spec.state.strip().upper()
 
 
+def _display_url(spec: ShortVideoSpec) -> str:
+    ticker = _ticker(spec)
+    raw = spec.cta_url.replace("https://", "").replace("http://", "")
+    host = raw.split("/", 1)[0]
+    return f"{host}/stocks/{ticker}"
+
+
 def _words(value: str) -> int:
     return len(re.findall(r"[A-Za-z0-9$']+", value))
 
@@ -100,84 +113,178 @@ def _text(x: int, y: int, value: str, *, size: int, color: str, weight: int = 60
     )
 
 
-def _multiline(x: int, y: int, value: str, *, size: int, color: str, width: int, line_gap: int) -> str:
-    lines = _wrap(value, width)
+def _multiline(
+    x: int,
+    y: int,
+    value: str,
+    *,
+    size: int,
+    color: str,
+    width: int,
+    line_gap: int,
+    weight: int = 600,
+) -> str:
     return "\n".join(
-        _text(x, y + i * line_gap, line, size=size, color=color, weight=560)
-        for i, line in enumerate(lines)
+        _text(x, y + i * line_gap, line, size=size, color=color, weight=weight)
+        for i, line in enumerate(_wrap(value, width))
     )
 
 
-def render_svg(spec: ShortVideoSpec, *, progress: float = 0.0) -> str:
-    ticker = _ticker(spec)
-    state = _state(spec)
-    flags = list(spec.risk_flags[:3])
-    while len(flags) < 3:
-        flags.append("No additional risk flag supplied")
+def _pill(x: int, y: int, label: str, *, fill: str, color: str = "#07120d") -> str:
+    width = max(170, len(label) * 18 + 54)
+    return f"""
+    <rect x="{x}" y="{y}" width="{width}" height="58" rx="6" fill="{fill}"/>
+    {_text(x + 28, y + 39, label, size=25, color=color, weight=820)}
+    """
+
+
+def _progress_bar(progress: float) -> str:
     bar_w = max(1, min(948, int(948 * progress)))
-    state_fill = {
-        "HEATED": "#f3c64a",
-        "INFLECTION": "#ff5f4f",
-        "WATCHING": "#72d6ff",
-        "CALM": "#99f6c8",
-    }.get(state, "#f3c64a")
+    return f"""
+    <rect x="66" y="1810" width="948" height="14" rx="7" fill="#22362a"/>
+    <rect x="66" y="1810" width="{bar_w}" height="14" rx="7" fill="#d7ffe2"/>
+    """
 
-    cards = []
-    y0 = 724
-    accents = ("#f3c64a", "#ff7b49", "#dd5b5b")
-    for idx, flag in enumerate(flags, start=1):
-        y = y0 + (idx - 1) * 278
-        cards.append(
-            f"""
-            <g>
-              <rect x="66" y="{y}" width="948" height="236" rx="8" fill="#16231d"/>
-              <rect x="96" y="{y + 36}" width="10" height="164" fill="{accents[idx - 1]}"/>
-              {_text(134, y + 86, f"{idx}. {flag}", size=34, color="#e8fff3", weight=760)}
-              {_multiline(134, y + 140, "Risk flag to verify before the next catalyst.", size=26, color="#a9c2b2", width=52, line_gap=36)}
-            </g>
-            """
-        )
 
+def _scene_for_progress(progress: float) -> str:
+    seconds = max(0.0, min(DEFAULT_DURATION_SECONDS - 0.01, progress * DEFAULT_DURATION_SECONDS))
+    for start, end, scene in SCENE_TIMELINE:
+        if start <= seconds < end:
+            return scene
+    return "cta"
+
+
+def _svg_shell(body: str, spec: ShortVideoSpec, *, progress: float) -> str:
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#07120d"/>
-      <stop offset="0.58" stop-color="#0d1a14"/>
+      <stop offset="0" stop-color="#06110d"/>
+      <stop offset="0.58" stop-color="#0c1813"/>
       <stop offset="1" stop-color="#10100c"/>
     </linearGradient>
     <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
       <feDropShadow dx="0" dy="18" stdDeviation="22" flood-color="#000" flood-opacity="0.34"/>
     </filter>
+    <pattern id="grid" width="54" height="54" patternUnits="userSpaceOnUse">
+      <path d="M54 0H0V54" fill="none" stroke="#d7ffe2" stroke-opacity="0.045" stroke-width="1"/>
+    </pattern>
   </defs>
   <rect width="{WIDTH}" height="{HEIGHT}" fill="url(#bg)"/>
-  <rect x="66" y="78" width="948" height="120" rx="0" fill="#0f251a"/>
-  {_text(96, 130, "Sentinel AI", size=34, color="#e8fff3", weight=760)}
-  {_text(96, 172, spec.disclaimer, size=24, color="#95b7a3", weight=520)}
-  {_text(858, 146, "Shorts / TikTok", size=24, color="#95b7a3", weight=520)}
-
-  <g filter="url(#softShadow)">
-    <rect x="66" y="246" width="948" height="410" rx="8" fill="#122119"/>
-    {_text(104, 340, f"${ticker}", size=72, color="#e8fff3", weight=820)}
-    <rect x="104" y="378" width="300" height="70" rx="4" fill="{state_fill}"/>
-    {_text(136, 425, state, size=35, color="#11140f", weight=820)}
-    {_multiline(104, 520, spec.hook, size=50, color="#ffffff", width=30, line_gap=58)}
-    {_multiline(104, 610, spec.why_now, size=30, color="#bad6c5", width=48, line_gap=40)}
-  </g>
-
-  {''.join(cards)}
-
-  <rect x="66" y="1592" width="948" height="170" rx="8" fill="#d7ffe2"/>
-  {_text(104, 1654, f"Preview the full ${ticker} context", size=34, color="#0b1711", weight=820)}
-  {_multiline(104, 1708, spec.cta_url.replace("https://", ""), size=30, color="#17492f", width=42, line_gap=38)}
-  <rect x="66" y="1810" width="948" height="14" rx="7" fill="#22362a"/>
-  <rect x="66" y="1810" width="{bar_w}" height="14" rx="7" fill="#d7ffe2"/>
-  {_text(540, 1870, spec.disclaimer, size=24, color="#6f8b78", weight=520)}
+  <rect width="{WIDTH}" height="{HEIGHT}" fill="url(#grid)"/>
+  <rect x="66" y="76" width="948" height="118" rx="0" fill="#0f251a"/>
+  {_text(96, 128, "Sentinel AI", size=34, color="#e8fff3", weight=780)}
+  {_text(96, 169, "Market state monitor", size=24, color="#95b7a3", weight=540)}
+  {_text(724, 130, f"${_ticker(spec)} / {_state(spec)}", size=24, color="#d7ffe2", weight=760)}
+  {_text(812, 169, "Shorts / TikTok", size=22, color="#95b7a3", weight=540)}
+  {body}
+  {_progress_bar(progress)}
+  {_text(76, 1870, spec.disclaimer, size=24, color="#6f8b78", weight=520)}
 </svg>"""
+
+
+def _render_tension_scene(spec: ShortVideoSpec, progress: float) -> str:
+    ticker = _ticker(spec)
+    body = f"""
+    <g filter="url(#softShadow)">
+      <rect x="66" y="300" width="948" height="780" rx="8" fill="#111d18"/>
+      {_text(104, 418, "YOU SAW THE MOVE.", size=54, color="#ffffff", weight=880)}
+      {_text(104, 500, "But not the state change.", size=48, color="#d7ffe2", weight=760)}
+      <rect x="104" y="620" width="872" height="220" rx="8" fill="#07120d"/>
+      {_text(142, 700, f"${ticker}", size=74, color="#ffffff", weight=880)}
+      {_text(142, 770, "attention is moving faster than context", size=31, color="#a8c6b4", weight=560)}
+      <path d="M142 900 C270 820 390 960 520 875 S770 835 936 930" fill="none" stroke="#d7ffe2" stroke-width="9" stroke-linecap="round"/>
+    </g>
+    <rect x="66" y="1190" width="948" height="300" rx="8" fill="#d7ffe2"/>
+    {_text(104, 1290, "The clip is not the answer.", size=44, color="#07120d", weight=840)}
+    {_text(104, 1360, "It is the trigger to verify.", size=42, color="#17492f", weight=760)}
+    """
+    return _svg_shell(body, spec, progress=progress)
+
+
+def _render_alert_scene(spec: ShortVideoSpec, progress: float) -> str:
+    ticker = _ticker(spec)
+    state = _state(spec)
+    body = f"""
+    <g filter="url(#softShadow)">
+      <rect x="118" y="286" width="844" height="1180" rx="48" fill="#050706"/>
+      <rect x="148" y="344" width="784" height="1040" rx="34" fill="#101915"/>
+      <rect x="186" y="420" width="708" height="124" rx="12" fill="#15261d"/>
+      {_text(222, 475, "Priority market state", size=30, color="#d7ffe2", weight=760)}
+      {_text(222, 515, "Sentinel AI just flagged this", size=24, color="#95b7a3", weight=540)}
+      <rect x="186" y="610" width="708" height="420" rx="14" fill="#0b120f"/>
+      {_text(226, 715, f"${ticker}", size=82, color="#ffffff", weight=900)}
+      {_pill(226, 765, state, fill="#d7ffe2")}
+      {_multiline(226, 900, spec.why_now, size=36, color="#bad6c5", width=32, line_gap=48)}
+      <rect x="186" y="1092" width="708" height="204" rx="14" fill="#d7ffe2"/>
+      {_text(226, 1170, "No score. No prediction.", size=38, color="#07120d", weight=860)}
+      {_text(226, 1232, "Just context to check.", size=36, color="#17492f", weight=720)}
+    </g>
+    """
+    return _svg_shell(body, spec, progress=progress)
+
+
+def _render_context_scene(spec: ShortVideoSpec, progress: float) -> str:
+    flags = list(spec.risk_flags[:3])
+    while len(flags) < 3:
+        flags.append("No additional risk flag supplied")
+    accents = ("#d7ffe2", "#f3c64a", "#ff7b49")
+    cards = []
+    for idx, flag in enumerate(flags, start=1):
+        y = 418 + (idx - 1) * 330
+        cards.append(
+            f"""
+            <rect x="66" y="{y}" width="948" height="270" rx="8" fill="#121f19"/>
+            <rect x="96" y="{y + 38}" width="11" height="192" fill="{accents[idx - 1]}"/>
+            {_text(136, y + 92, f"Signal {idx}", size=30, color=accents[idx - 1], weight=820)}
+            {_multiline(136, y + 162, flag, size=42, color="#ffffff", width=31, line_gap=52)}
+            """
+        )
+    body = f"""
+    {_text(66, 310, "3 signals to verify", size=58, color="#ffffff", weight=880)}
+    {_text(70, 365, "Before you trust the market narrative.", size=30, color="#95b7a3", weight=560)}
+    {''.join(cards)}
+    <rect x="66" y="1456" width="948" height="206" rx="8" fill="#07120d"/>
+    {_text(104, 1530, "Sentinel compresses the noise", size=38, color="#d7ffe2", weight=820)}
+    {_text(104, 1592, "into a state you can verify.", size=36, color="#bad6c5", weight=680)}
+    """
+    return _svg_shell(body, spec, progress=progress)
+
+
+def _render_cta_scene(spec: ShortVideoSpec, progress: float) -> str:
+    ticker = _ticker(spec)
+    state = _state(spec)
+    body = f"""
+    <g filter="url(#softShadow)">
+      <rect x="66" y="300" width="948" height="490" rx="8" fill="#122119"/>
+      {_text(104, 420, f"${ticker}", size=88, color="#ffffff", weight=900)}
+      {_pill(104, 470, state, fill="#d7ffe2")}
+      {_multiline(104, 635, spec.hook, size=48, color="#ffffff", width=30, line_gap=58)}
+    </g>
+    <rect x="66" y="910" width="948" height="390" rx="8" fill="#d7ffe2"/>
+    {_text(104, 1030, "Run the context scan", size=54, color="#07120d", weight=880)}
+    {_text(104, 1104, "before the next headline.", size=44, color="#17492f", weight=760)}
+    {_multiline(104, 1220, _display_url(spec), size=31, color="#17492f", width=40, line_gap=40)}
+    <rect x="66" y="1430" width="948" height="170" rx="8" fill="#07120d"/>
+    {_text(104, 1500, "Context, not advice.", size=42, color="#d7ffe2", weight=840)}
+    {_text(104, 1560, "Save the ticker. Check the state.", size=31, color="#95b7a3", weight=580)}
+    """
+    return _svg_shell(body, spec, progress=progress)
+
+
+def render_svg(spec: ShortVideoSpec, *, progress: float = 0.0) -> str:
+    scene = _scene_for_progress(progress)
+    if scene == "tension":
+        return _render_tension_scene(spec, progress)
+    if scene == "sentinel_alert":
+        return _render_alert_scene(spec, progress)
+    if scene == "context_stack":
+        return _render_context_scene(spec, progress)
+    return _render_cta_scene(spec, progress)
 
 
 def write_preview_svg(spec: ShortVideoSpec, path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_svg(spec, progress=0.35), encoding="utf-8")
+    path.write_text(render_svg(spec, progress=0.36), encoding="utf-8")
     return path
 
 
@@ -197,7 +304,7 @@ def render_cover_svg(spec: ShortVideoSpec) -> str:
   <rect x="70" y="1220" width="940" height="250" rx="8" fill="#d7ffe2"/>
   {_text(112, 1310, "3 signals to verify", size=54, color="#07120d", weight=840)}
   {_text(112, 1386, "Context scan, not financial advice", size=32, color="#17492f", weight=620)}
-  {_text(112, 1745, "Run the free context scan", size=38, color="#d7ffe2", weight=780)}
+  {_text(112, 1745, "Run the context scan", size=38, color="#d7ffe2", weight=780)}
 </svg>"""
 
 
@@ -219,13 +326,13 @@ def _script_lines(spec: ShortVideoSpec) -> list[tuple[int, int, str, str]]:
     while len(flags) < 3:
         flags.append("No additional risk flag supplied")
     return [
-        (0, 2, "Hook", f"${ticker} {_state(spec)}: {spec.hook}"),
-        (2, 7, "State reveal", f"${ticker} is in {_state(spec)} state."),
-        (7, 12, "Signal 1", flags[0]),
-        (12, 17, "Signal 2", flags[1]),
-        (17, 22, "Signal 3", flags[2]),
-        (22, 26, "Sentinel State", spec.why_now),
-        (26, 30, "CTA", f"Run the free context scan. {spec.disclaimer}"),
+        (0, 3, "Tension", f"You saw the ${ticker} move, but not the state change."),
+        (3, 10, "Sentinel Alert", f"Sentinel AI flags ${ticker} as {_state(spec)}. {spec.why_now}"),
+        (10, 14, "Signal 1", flags[0]),
+        (14, 18, "Signal 2", flags[1]),
+        (18, 22, "Signal 3", flags[2]),
+        (22, 26, "CTA", "Run the context scan before the next headline."),
+        (26, 30, "Disclaimer", spec.disclaimer),
     ]
 
 
@@ -242,13 +349,13 @@ def render_captions_srt(spec: ShortVideoSpec) -> str:
 
 def build_shot_plan(spec: ShortVideoSpec) -> dict:
     ticker = _ticker(spec)
-    flags = list(spec.risk_flags[:3])
     return {
         "canvas": {"width": WIDTH, "height": HEIGHT, "fps": FPS, "safe_area_px": 96},
-        "template": "ticker_state_risk_stack",
+        "template": "sentinel_product_demo_risk_stack",
+        "reference_pattern": "tension -> product alert -> evidence stack -> CTA",
         "ticker": ticker,
         "state": _state(spec),
-        "duration_seconds": 30,
+        "duration_seconds": DEFAULT_DURATION_SECONDS,
         "scenes": [
             {
                 "id": f"scene_{idx:02d}_{label.lower().replace(' ', '_')}",
@@ -256,12 +363,12 @@ def build_shot_plan(spec: ShortVideoSpec) -> dict:
                 "end": end,
                 "label": label,
                 "text": text,
-                "max_words": 12,
-                "animation": "fade_up",
+                "max_words": 14,
+                "animation": "hard_cut_product_ui",
             }
             for idx, (start, end, label, text) in enumerate(_script_lines(spec), start=1)
         ],
-        "signals": flags,
+        "signals": list(spec.risk_flags[:3]),
         "cta_url": spec.cta_url,
         "disclaimer": spec.disclaimer,
     }
@@ -273,17 +380,17 @@ def render_creative_brief(spec: ShortVideoSpec) -> str:
     forbidden_line = ", ".join(forbidden) if forbidden else "None"
     return f"""# Sentinel AI Short Video Creative Brief
 
+## Angle
+
+Product Demo / Ticker State / Risk Stack
+
 ## Ticker
 
 ${_ticker(spec)}
 
-## Angle
-
-Ticker State / Risk Stack
-
 ## User Anxiety
 
-The viewer wants to know what changed before trusting the market narrative.
+The viewer saw market movement, but does not know whether the state change is real.
 
 ## Hook
 
@@ -316,7 +423,7 @@ def render_script_md(spec: ShortVideoSpec) -> str:
         f"| {start}-{end}s | {label} | {text} |"
         for start, end, label, text in _script_lines(spec)
     )
-    return f"""# Sentinel AI Short Video Script
+    return f"""# Sentinel AI Product-Demo Short Video Script
 
 | Time | Beat | On-screen / Voiceover |
 | --- | --- | --- |
@@ -330,7 +437,7 @@ def render_platform_copy(spec: ShortVideoSpec) -> str:
 
 ## YouTube Shorts Title
 
-${ticker} risk stack: 3 signals to verify
+${ticker}: state change, not just a price move
 
 ## YouTube Description
 
@@ -340,7 +447,7 @@ Sentinel AI flagged a {_state(spec).lower()} state in ${ticker}. Run the context
 
 ## TikTok Caption
 
-${ticker} moved, but the move is not the whole story. 3 signals to verify. {spec.disclaimer}
+${ticker} moved, but the move is not the whole story. Check the state before the next headline. {spec.disclaimer}
 
 ## Pinned Comment
 
@@ -355,21 +462,23 @@ Run the free ${ticker} context scan: {spec.cta_url}
 def build_qa_report(spec: ShortVideoSpec) -> dict:
     lines = _script_lines(spec)
     forbidden = _forbidden_hits(spec)
-    first_text = " ".join(line[3] for line in lines if line[0] < 2)
+    first_text = " ".join(line[3] for line in lines if line[0] < 3)
     scene_word_counts = [
-        {"label": label, "words": _words(text), "ok": _words(text) <= 12}
+        {"label": label, "words": _words(text), "ok": _words(text) <= 18}
         for _start, _end, label, text in lines
     ]
     return {
         "resolution": {"width": WIDTH, "height": HEIGHT, "ok": WIDTH == 1080 and HEIGHT == 1920},
-        "duration_seconds": 30,
-        "duration_ok": True,
+        "duration_seconds": DEFAULT_DURATION_SECONDS,
+        "duration_ok": 15 <= DEFAULT_DURATION_SECONDS <= 45,
+        "product_demo_structure": [scene for _start, _end, scene in SCENE_TIMELINE],
+        "ticker_in_first_3_seconds": _ticker(spec) in first_text.upper(),
         "ticker_in_first_2_seconds": _ticker(spec) in first_text.upper(),
-        "state_in_first_2_seconds": _state(spec) in first_text.upper(),
+        "state_in_alert_scene": _state(spec) in " ".join(line[3] for line in lines).upper(),
+        "state_in_first_2_seconds": _state(spec) in " ".join(line[3] for line in lines).upper(),
         "scene_word_counts": scene_word_counts,
         "captions_safe_area": True,
-        "cta_specific": "context scan" in spec.cta_url.lower()
-        or "/stocks/" in spec.cta_url.lower(),
+        "cta_specific": "context scan" in spec.cta_url.lower() or "/stocks/" in spec.cta_url.lower(),
         "has_disclaimer": bool(spec.disclaimer.strip()),
         "forbidden_terms": forbidden,
         "ok": not forbidden
@@ -400,21 +509,15 @@ def write_asset_pack(
 
     creative_brief.write_text(render_creative_brief(spec), encoding="utf-8")
     script.write_text(render_script_md(spec), encoding="utf-8")
-    shot_plan.write_text(
-        json.dumps(build_shot_plan(spec), indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    shot_plan.write_text(json.dumps(build_shot_plan(spec), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     captions.write_text(render_captions_srt(spec), encoding="utf-8")
     write_cover_svg(spec, cover_svg)
     platform_copy.write_text(render_platform_copy(spec), encoding="utf-8")
-    qa_report.write_text(
-        json.dumps(build_qa_report(spec), indent=2, ensure_ascii=False) + "\n",
-        encoding="utf-8",
-    )
+    qa_report.write_text(json.dumps(build_qa_report(spec), indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
     rendered_cover = write_cover_png(spec, cover_png) if render_cover else None
     rendered_video = (
-        render_mp4(spec, video, duration_seconds=30, ffmpeg_bin=ffmpeg_bin)
+        render_mp4(spec, video, duration_seconds=DEFAULT_DURATION_SECONDS, ffmpeg_bin=ffmpeg_bin)
         if render_video
         else None
     )

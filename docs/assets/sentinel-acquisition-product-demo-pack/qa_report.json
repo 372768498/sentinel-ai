@@ -1,0 +1,61 @@
+{
+  "resolution": {
+    "width": 1080,
+    "height": 1920,
+    "ok": true
+  },
+  "duration_seconds": 30,
+  "duration_ok": true,
+  "product_demo_structure": [
+    "tension",
+    "sentinel_alert",
+    "context_stack",
+    "cta"
+  ],
+  "ticker_in_first_3_seconds": true,
+  "ticker_in_first_2_seconds": true,
+  "state_in_alert_scene": true,
+  "state_in_first_2_seconds": true,
+  "scene_word_counts": [
+    {
+      "label": "Tension",
+      "words": 10,
+      "ok": true
+    },
+    {
+      "label": "Sentinel Alert",
+      "words": 17,
+      "ok": true
+    },
+    {
+      "label": "Signal 1",
+      "words": 4,
+      "ok": true
+    },
+    {
+      "label": "Signal 2",
+      "words": 7,
+      "ok": true
+    },
+    {
+      "label": "Signal 3",
+      "words": 8,
+      "ok": true
+    },
+    {
+      "label": "CTA",
+      "words": 8,
+      "ok": true
+    },
+    {
+      "label": "Disclaimer",
+      "words": 4,
+      "ok": true
+    }
+  ],
+  "captions_safe_area": true,
+  "cta_specific": true,
+  "has_disclaimer": true,
+  "forbidden_terms": [],
+  "ok": true
+}
