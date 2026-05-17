@@ -7,15 +7,20 @@ import asyncio
 import pytest
 
 from app.marketing.intel import TickerBuzz
+from app.marketing.data_sources.fmp import MarketMover
+from app.marketing.data_sources.x_serp import SocialSignal
 from app.marketing.opportunities import (
     ACTION_CREATE_CONTENT,
     ACTION_IGNORE,
     ACTION_WATCH,
+    INTENT_HIGH_INTENT_QUESTION,
+    INTENT_MARKET_MOVER,
     Opportunity,
     derive_action,
     rank_opportunities,
 )
-from app.marketing.signal_layer import compute_x_score, scan_x_opportunities
+from app.marketing.signal_layer import compute_x_score, scan_growth_opportunities, scan_x_opportunities
+from datetime import datetime, timezone
 
 
 def _tweet(tid: str, likes: int, author: str = "u1") -> dict:
@@ -135,3 +140,109 @@ def test_scan_x_continues_when_one_ticker_throws(monkeypatch: pytest.MonkeyPatch
         scan_x_opportunities(["BROKEN", "NVDA"], min_score=50, client=fake_client)
     )
     assert [o.ticker for o in result] == ["NVDA"]
+
+
+def test_scan_growth_uses_serp_fallback_without_x_bearer(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
+    monkeypatch.delenv("X_DRY_RUN", raising=False)
+
+    async def fake_serp(tickers):
+        return [
+            SocialSignal(
+                source="tavily",
+                query='site:x.com "$NVDA" risk',
+                ticker="NVDA",
+                title="Is $NVDA risk getting crowded?",
+                url="https://x.com/u/status/1",
+                snippet="Investors are asking whether NVDA risk is now one-sided.",
+                observed_at=datetime.now(timezone.utc),
+                estimated_engagement=45,
+                intent="high_intent_question",
+            )
+        ]
+
+    async def fake_quotes(tickers):
+        return []
+
+    monkeypatch.setattr("app.marketing.signal_layer.scan_x_serp_signals", fake_serp)
+    monkeypatch.setattr("app.marketing.signal_layer.fetch_quotes_for_tickers", fake_quotes)
+
+    result = asyncio.run(scan_growth_opportunities(["NVDA"], min_score=70))
+
+    assert len(result) == 1
+    assert result[0].ticker == "NVDA"
+    assert result[0].source == "tavily"
+    assert result[0].intent == INTENT_HIGH_INTENT_QUESTION
+    assert result[0].suggested_action == ACTION_CREATE_CONTENT
+
+
+def test_scan_growth_uses_fmp_quote_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
+
+    async def fake_serp(tickers):
+        return []
+
+    async def fake_quotes(tickers):
+        return [
+            MarketMover(
+                ticker="TSLA",
+                price=180.0,
+                change_pct=-4.2,
+                volume=50_000_000,
+                market_cap=600_000_000_000,
+                company_name="Tesla, Inc.",
+                source_url="https://financialmodelingprep.com/stable/quote?symbol=TSLA",
+            )
+        ]
+
+    monkeypatch.setattr("app.marketing.signal_layer.scan_x_serp_signals", fake_serp)
+    monkeypatch.setattr("app.marketing.signal_layer.fetch_quotes_for_tickers", fake_quotes)
+
+    result = asyncio.run(scan_growth_opportunities(["TSLA"], min_score=70))
+
+    assert len(result) == 1
+    assert result[0].ticker == "TSLA"
+    assert result[0].source == "fmp"
+    assert result[0].intent == INTENT_MARKET_MOVER
+    assert result[0].evidence["change_pct"] == -4.2
+
+
+def test_scan_growth_dedupes_by_ticker_highest_score_wins(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("X_BEARER_TOKEN", raising=False)
+
+    async def fake_serp(tickers):
+        return [
+            SocialSignal(
+                source="tavily",
+                query='site:x.com "$NVDA" stock',
+                ticker="NVDA",
+                title="$NVDA social buzz",
+                url="https://x.com/u/status/2",
+                snippet="discussion",
+                observed_at=datetime.now(timezone.utc),
+                estimated_engagement=0,
+                intent="ticker_buzz",
+            )
+        ]
+
+    async def fake_quotes(tickers):
+        return [
+            MarketMover(
+                ticker="NVDA",
+                price=120.0,
+                change_pct=8.0,
+                volume=70_000_000,
+                market_cap=2_000_000_000_000,
+                company_name="NVIDIA Corporation",
+                source_url="https://financialmodelingprep.com/stable/quote?symbol=NVDA",
+            )
+        ]
+
+    monkeypatch.setattr("app.marketing.signal_layer.scan_x_serp_signals", fake_serp)
+    monkeypatch.setattr("app.marketing.signal_layer.fetch_quotes_for_tickers", fake_quotes)
+
+    result = asyncio.run(scan_growth_opportunities(["NVDA"], min_score=70))
+
+    assert len(result) == 1
+    assert result[0].ticker == "NVDA"
+    assert result[0].source == "fmp"

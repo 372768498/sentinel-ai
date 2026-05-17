@@ -6,7 +6,7 @@
 09:00 ET (Mon-Fri)
    │
    ▼
-scan_x_opportunities(DEFAULT_WATCHLIST, min_score=70)
+scan_growth_opportunities(DEFAULT_WATCHLIST, min_score=70)
    │   reuses intel.measure_ticker_buzz()
    │   reuses x_client.XClient (X_BEARER_TOKEN required)
    │

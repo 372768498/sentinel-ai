@@ -19,7 +19,7 @@ from .feishu_client import FeishuAPIError, FeishuClient
 from .opportunities import ACTION_CREATE_CONTENT, Opportunity
 from .publisher import Publisher
 from .review_queue import ReviewQueueError, submit_draft_to_review
-from .signal_layer import DEFAULT_WATCHLIST, scan_x_opportunities
+from .signal_layer import DEFAULT_WATCHLIST, scan_growth_opportunities
 from .signals import passes_gate, score_from_move
 from .x_client import XClient
 
@@ -156,7 +156,7 @@ async def generate_daily_review_drafts(
     session_label: str = "daily_0900_et",
     *,
     tickers=DEFAULT_WATCHLIST,
-    scanner=scan_x_opportunities,
+    scanner=scan_growth_opportunities,
     composer: Optional[MultiPlatformComposer] = None,
     feishu_client: Optional[FeishuClient] = None,
     submit_fn=submit_draft_to_review,

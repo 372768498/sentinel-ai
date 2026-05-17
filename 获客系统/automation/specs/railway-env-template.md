@@ -119,7 +119,7 @@ MARKETING_DAILY_DIGEST_ENABLED=true
 MARKETING_DAILY_DIGEST_HOUR_ET=16
 MARKETING_DAILY_DIGEST_MINUTE_ET=30
 MARKETING_DAILY_DRAFT_ENABLED=false
-MARKETING_ACQUISITION_OPERATOR_ENABLED=false
+MARKETING_ACQUISITION_OPERATOR_ENABLED=true
 MARKETING_ACQUISITION_OPERATOR_HOUR_ET=9
 MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR=docs/growth-runs
 MARKETING_ACQUISITION_OPERATOR_KPI_LOOKBACK_DAYS=7
@@ -139,7 +139,7 @@ USE_NEW_TEMPLATES=false
 | `MARKETING_DAILY_DIGEST_HOUR_ET` | `16` | D | ET hour 0-23 |
 | `MARKETING_DAILY_DIGEST_MINUTE_ET` | `30` | D | |
 | `MARKETING_DAILY_DRAFT_ENABLED` | **`false`** | O | Leave off — depends on X scanner which is currently SUSPENDED |
-| `MARKETING_ACQUISITION_OPERATOR_ENABLED` | **`false`** | O | Daily CEO-operator layer. Generates review drafts, Shorts/TikTok asset packs, blocked-item reports, and next actions. Keep false on Railway until write-path smoke passes locally. |
+| `MARKETING_ACQUISITION_OPERATOR_ENABLED` | **`true`** | O | Daily CEO-operator layer. Generates review drafts, Shorts/TikTok asset packs, blocked-item reports, and next actions. If API keys are incomplete, keep false until `scripts/run_acquisition_operator.py --fixture` and a real Feishu dry-run pass. |
 | `MARKETING_ACQUISITION_OPERATOR_HOUR_ET` | `9` | O | Runs at `:15` ET when enabled. |
 | `MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR` | `docs/growth-runs` | O | Artifact directory for operator summaries and video packs. |
 | `MARKETING_ACQUISITION_OPERATOR_KPI_LOOKBACK_DAYS` | `7` | O | KPI lookback window for Scale / Keep / Rewrite / Pause decisions. Min 1, max 30. |

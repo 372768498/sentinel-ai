@@ -35,7 +35,7 @@ from .kpi_db import KPIDBError, fetch_all_metrics
 from .opportunities import ACTION_CREATE_CONTENT, Opportunity
 from .review_queue import ContentDraft, ReviewQueueError, submit_draft_to_review
 from .short_video_renderer import ShortVideoSpec, write_asset_pack
-from .signal_layer import DEFAULT_WATCHLIST, scan_x_opportunities
+from .signal_layer import DEFAULT_WATCHLIST, scan_growth_opportunities
 
 logger = logging.getLogger(__name__)
 
@@ -335,7 +335,7 @@ async def run_daily_acquisition_operator(
     session_label: str = "daily_acquisition_operator",
     *,
     tickers=DEFAULT_WATCHLIST,
-    scanner: ScannerFn = scan_x_opportunities,
+    scanner: ScannerFn = scan_growth_opportunities,
     composer: Optional[MultiPlatformComposer] = None,
     feishu_client: Optional[FeishuClient] = None,
     submit_fn: SubmitFn = submit_draft_to_review,

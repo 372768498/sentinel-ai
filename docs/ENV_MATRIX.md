@@ -101,7 +101,7 @@ market local time) and runs Mon–Fri only — independent of host timezone.
 | `MARKETING_DAILY_DRAFT_HOUR_ET` | No | `9` | Hour-of-day in ET (0-23). Default 9 = pre-market. |
 | `MARKETING_ALWAYS_ON_DRAFT_ENABLED` | No | `false` | Enables recurring Growth Content Pack generation for 24h social acquisition. Uses hour-level content ids to avoid overwriting daily drafts. |
 | `MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES` | No | `180` | Recurring draft cadence. Floor 60 minutes. |
-| `MARKETING_ACQUISITION_OPERATOR_ENABLED` | No | `false` | Enables the daily operator that generates Growth Content Pack drafts, Shorts/TikTok asset packs, and local run summaries. |
+| `MARKETING_ACQUISITION_OPERATOR_ENABLED` | No | `true` after local smoke | Enables the daily operator that generates Growth Content Pack drafts, Shorts/TikTok asset packs, and local run summaries. Keep `false` only while API keys are incomplete. |
 | `MARKETING_ACQUISITION_OPERATOR_HOUR_ET` | No | `9` | Hour-of-day in ET (0-23). Runs at `:15` to avoid colliding with the draft cron. |
 | `MARKETING_ACQUISITION_OPERATOR_OUTPUT_DIR` | No | `docs/growth-runs` | Local directory for `growth_run_summary.json`, review summaries, blocked items, next actions, and video packs. |
 | `MARKETING_ACQUISITION_OPERATOR_KPI_LOOKBACK_DAYS` | No | `7` | KPI lookback window for Scale / Keep / Rewrite / Pause decisions. Min 1, max 30. |

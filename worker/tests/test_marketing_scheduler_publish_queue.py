@@ -13,6 +13,8 @@ def _clear_all(monkeypatch: pytest.MonkeyPatch) -> None:
         "MARKETING_DAILY_DRAFT_ENABLED",
         "MARKETING_ALWAYS_ON_DRAFT_ENABLED",
         "MARKETING_ALWAYS_ON_DRAFT_INTERVAL_MINUTES",
+        "MARKETING_ACQUISITION_OPERATOR_ENABLED",
+        "MARKETING_ACQUISITION_OPERATOR_HOUR_ET",
         "MARKETING_QUEUE_POLL_ENABLED",
         "MARKETING_PUBLISH_DRY_RUN",
         "MARKETING_QUEUE_POLL_INTERVAL_SECONDS",
@@ -76,6 +78,23 @@ def test_scheduler_no_poller_when_disabled(monkeypatch: pytest.MonkeyPatch) -> N
     scheduler = build_scheduler()
     assert scheduler.get_job("marketing-daily-drafts") is not None
     assert scheduler.get_job("marketing-review-poller") is None
+
+
+def test_scheduler_registers_acquisition_operator(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_all(monkeypatch)
+    monkeypatch.setenv("MARKETING_ACQUISITION_OPERATOR_ENABLED", "true")
+    monkeypatch.setenv("MARKETING_ACQUISITION_OPERATOR_HOUR_ET", "10")
+
+    from app.scheduler import build_scheduler
+
+    scheduler = build_scheduler()
+    assert scheduler is not None
+    job = scheduler.get_job("marketing-acquisition-operator")
+    assert job is not None
+    fields = {f.name: str(f) for f in job.trigger.fields}
+    assert fields["hour"] == "10"
+    assert fields["minute"] == "15"
+    assert fields["day_of_week"] in ("mon-fri", "0-4")
 
 
 def test_dry_run_default_true(monkeypatch: pytest.MonkeyPatch) -> None:
