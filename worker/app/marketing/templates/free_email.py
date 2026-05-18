@@ -396,6 +396,10 @@ def _table_html(lines: list[str]) -> str:
     header, *body = rows
     if _is_stock_detail_table(header):
         return _stock_cards_html(header, body)
+    if _is_market_overview_table(header):
+        return _market_overview_cards_html(header, body)
+    if _is_sector_table(header):
+        return _sector_cards_html(header, body)
     head_cells = "".join(
         '<th style="padding:10px 11px;border-bottom:1px solid #cbd5e1;'
         'font-size:12px;line-height:1.35;text-align:left;color:#475569;'
@@ -426,6 +430,78 @@ def _table_html(lines: list[str]) -> str:
 def _is_stock_detail_table(header: list[str]) -> bool:
     keys = set(header)
     return {"股票", "中文解释", "涨跌"}.issubset(keys)
+
+
+def _is_market_overview_table(header: list[str]) -> bool:
+    return header == ["指标", "中文解释", "最新值", "涨跌"]
+
+
+def _is_sector_table(header: list[str]) -> bool:
+    return header == ["排名", "板块", "ETF", "涨跌"]
+
+
+def _market_overview_cards_html(header: list[str], rows: list[list[str]]) -> str:
+    index = {name: idx for idx, name in enumerate(header)}
+    cards = []
+    for row in rows:
+        label = _cell(row, index, "指标")
+        desc = _cell(row, index, "中文解释")
+        value = _cell(row, index, "最新值")
+        change = _cell(row, index, "涨跌")
+        cards.append(
+            '<div style="margin:0 0 10px;padding:14px 15px;border:1px solid #e2e8f0;'
+            'border-radius:11px;background:#ffffff;">'
+            '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
+            '<tr><td style="vertical-align:top;padding-right:12px;">'
+            '<div style="font-size:19px;line-height:1.18;color:#0f172a;font-weight:900;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(label)}</div>"
+            '<div style="margin-top:6px;font-size:15px;line-height:1.42;color:#334155;font-weight:650;">'
+            f"{_inline_html(desc)}</div>"
+            "</td>"
+            '<td style="width:112px;vertical-align:top;text-align:right;">'
+            '<div style="font-size:20px;line-height:1.18;color:#0f172a;font-weight:900;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(value)}</div>"
+            f'<div style="margin-top:7px;font-size:16px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(change)}</div>"
+            "</td></tr></table></div>"
+        )
+    return '<div style="margin:10px 0 16px;">' + "".join(cards) + "</div>"
+
+
+def _sector_cards_html(header: list[str], rows: list[list[str]]) -> str:
+    index = {name: idx for idx, name in enumerate(header)}
+    cards = []
+    for row in rows:
+        rank = _cell(row, index, "排名")
+        sector = _cell(row, index, "板块")
+        etf = _cell(row, index, "ETF")
+        change = _cell(row, index, "涨跌")
+        cards.append(
+            '<div style="margin:0 0 9px;padding:13px 14px;border:1px solid #e2e8f0;'
+            'border-radius:10px;background:#ffffff;">'
+            '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
+            '<tr><td style="width:30px;padding-right:10px;vertical-align:top;">'
+            '<div style="width:28px;height:28px;border-radius:999px;background:#eef2ff;'
+            'color:#3730a3;font-size:13px;line-height:28px;text-align:center;font-weight:850;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(rank)}</div></td>"
+            '<td style="vertical-align:top;padding-right:12px;">'
+            '<div style="font-size:17px;line-height:1.22;color:#0f172a;font-weight:850;">'
+            f"{_inline_html(sector)}</div>"
+            '<div style="margin-top:5px;font-size:13px;line-height:1.25;color:#64748b;'
+            'font-weight:750;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(etf)}</div>"
+            "</td>"
+            '<td style="width:86px;vertical-align:top;text-align:right;">'
+            f'<div style="font-size:17px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(change)}</div>"
+            "</td></tr></table></div>"
+        )
+    return '<div style="margin:10px 0 16px;">' + "".join(cards) + "</div>"
 
 
 def _stock_cards_html(header: list[str], rows: list[list[str]]) -> str:

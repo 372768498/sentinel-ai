@@ -180,6 +180,12 @@ SPY	标普500 ETF，代表美国大盘	739.17	-1.20%
 QQQ	纳斯达克100 ETF，代表大型科技股	708.93	-1.51%
 VIX	恐慌指数，衡量市场波动预期	18.43	+6.78%
 
+三、板块强弱榜
+
+排名	板块	ETF	涨跌
+1	能源 Energy	XLE	+2.36%
+2	科技 Technology	XLK	-1.81%
+
 四、今日涨幅前10
 
 排名	股票	中文解释	涨跌	价格	成交量
@@ -212,6 +218,9 @@ Methodology + sources: https://sentinelai.com/methodology
         "<table",
         "标普500 ETF",
         "font-size:24px",
+        "font-size:20px",
+        "能源 Energy",
+        "XLE",
         "Pro unlock / Pro 可见",
         "完整异动归因 · 新闻源 · 成交量验证 · 实时推送",
         "https://sentinelai.com/pro",
