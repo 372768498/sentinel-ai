@@ -394,6 +394,8 @@ def _table_html(lines: list[str]) -> str:
     if not rows:
         return ""
     header, *body = rows
+    if _is_stock_detail_table(header):
+        return _stock_cards_html(header, body)
     head_cells = "".join(
         '<th style="padding:10px 11px;border-bottom:1px solid #cbd5e1;'
         'font-size:12px;line-height:1.35;text-align:left;color:#475569;'
@@ -419,6 +421,66 @@ def _table_html(lines: list[str]) -> str:
         f"<tbody>{''.join(body_rows)}</tbody>"
         "</table></div>"
     )
+
+
+def _is_stock_detail_table(header: list[str]) -> bool:
+    keys = set(header)
+    return {"股票", "中文解释", "涨跌"}.issubset(keys)
+
+
+def _stock_cards_html(header: list[str], rows: list[list[str]]) -> str:
+    index = {name: idx for idx, name in enumerate(header)}
+    cards: list[str] = []
+    for row in rows:
+        ticker = _cell(row, index, "股票")
+        desc = _cell(row, index, "中文解释")
+        change = _cell(row, index, "涨跌")
+        price = _cell(row, index, "价格")
+        volume = _cell(row, index, "成交量")
+        rank = _cell(row, index, "排名")
+        rank_badge = (
+            '<td style="width:30px;padding:0 10px 0 0;vertical-align:top;">'
+            '<div style="width:28px;height:28px;border-radius:999px;background:#eef2ff;'
+            'color:#3730a3;font-size:13px;line-height:28px;text-align:center;'
+            'font-weight:850;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(rank)}</div></td>"
+            if rank
+            else ""
+        )
+        cards.append(
+            '<div style="margin:0 0 10px;padding:13px 14px;border:1px solid #e2e8f0;'
+            'border-radius:10px;background:#ffffff;">'
+            '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
+            f"<tr>{rank_badge}"
+            '<td style="vertical-align:top;">'
+            '<div style="font-size:18px;line-height:1.18;color:#0f172a;font-weight:900;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(ticker)}</div>"
+            '<div style="margin-top:5px;font-size:14px;line-height:1.38;color:#334155;'
+            'font-weight:650;">'
+            f"{_inline_html(desc)}</div>"
+            "</td>"
+            '<td style="width:96px;vertical-align:top;text-align:right;">'
+            f'<div style="font-size:17px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(change)}</div>"
+            '<div style="margin-top:7px;font-size:12px;line-height:1.35;color:#64748b;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"${escape(price)} · {escape(volume)}</div>"
+            "</td></tr></table></div>"
+        )
+    return (
+        '<div style="margin:10px 0 16px;">'
+        + "".join(cards)
+        + "</div>"
+    )
+
+
+def _cell(row: list[str], index: dict[str, int], key: str) -> str:
+    pos = index.get(key)
+    if pos is None or pos >= len(row):
+        return ""
+    return row[pos]
 
 
 def _table_cell_style(cell: str, col_index: int) -> str:
@@ -501,12 +563,18 @@ def _short_kpi_desc(desc: str) -> str:
 def _locked_card_html(line: str) -> str:
     text = line.lstrip("🔒").strip()
     return (
-        '<div style="margin:16px 0;padding:16px 17px;border:1px solid #f6c76f;'
-        'border-radius:10px;background:#fff8e6;">'
-        '<div style="font-size:13px;line-height:1.4;letter-spacing:.08em;'
-        'text-transform:uppercase;color:#9a6700;font-weight:850;">Pro unlock / Pro 可见</div>'
-        '<p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:#4b3b10;">'
+        '<div style="margin:18px 0;padding:18px 18px 17px;border:1px solid #f0be4e;'
+        'border-radius:12px;background:#fff7df;">'
+        '<div style="font-size:12px;line-height:1.3;letter-spacing:.12em;'
+        'text-transform:uppercase;color:#9a6700;font-weight:900;">Pro unlock / Pro 可见</div>'
+        '<div style="margin-top:8px;font-size:18px;line-height:1.25;color:#2f2305;'
+        'font-weight:900;">完整异动归因 · 新闻源 · 成交量验证 · 实时推送</div>'
+        '<p style="margin:9px 0 13px;font-size:14px;line-height:1.55;color:#4b3b10;">'
         f"{_inline_html(text)}</p>"
+        '<a href="https://sentinelai.com/pro" '
+        'style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;'
+        'border-radius:8px;padding:11px 14px;font-size:14px;line-height:1.2;font-weight:850;">'
+        'Try Pro Watch / 查看 Pro</a>'
         "</div>"
     )
 
