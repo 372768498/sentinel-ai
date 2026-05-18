@@ -48,6 +48,10 @@ def test_market_brief_renders_dense_market_context(
 
     out = market_brief.render_market_brief_text()
 
+    assert "今日 3 条最重要结论" in out
+    assert "科技继续弱于大盘" in out
+    assert "能源逆势，板块轮动明显" in out
+    assert "高成交下跌集中在热门大票" in out
     assert "一、昨日 Sentinel 提示兑现" in out
     assert "二、今日市场总览" in out
     assert "三、板块强弱榜" in out

@@ -303,6 +303,8 @@ def _html_blocks(body_text: str) -> str:
 def _is_heading(line: str) -> bool:
     if "\t" in line:
         return False
+    if line == "今日 3 条最重要结论":
+        return True
     if re.match(r"^[一二三四五六七八九十]+、", line):
         return True
     if _has_cjk(line):
@@ -364,6 +366,9 @@ def _lines_html(lines: list[str], *, section_kind: str) -> str:
             continue
         if _is_label_line(line):
             out.append(_label_html(line))
+            continue
+        if section_kind == "priority" and re.match(r"^\d+\.\s", line):
+            out.append(_takeaway_card_html(line))
             continue
         if line.startswith("🔒"):
             out.append(_locked_card_html(line))
@@ -655,6 +660,22 @@ def _locked_card_html(line: str) -> str:
     )
 
 
+def _takeaway_card_html(line: str) -> str:
+    number, _, text = line.partition(".")
+    return (
+        '<div style="margin:0 0 10px;padding:13px 14px;border:1px solid #dbeafe;'
+        'border-radius:10px;background:#ffffff;">'
+        '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
+        '<tr><td style="width:32px;padding-right:10px;vertical-align:top;">'
+        '<div style="width:30px;height:30px;border-radius:999px;background:#0f172a;color:#ffffff;'
+        'font-size:14px;line-height:30px;text-align:center;font-weight:900;'
+        'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+        f"{escape(number)}</div></td>"
+        '<td style="vertical-align:middle;font-size:16px;line-height:1.45;color:#0f172a;font-weight:800;">'
+        f"{_inline_html(text.strip())}</td></tr></table></div>"
+    )
+
+
 def _inline_html(text: str) -> str:
     link_match = re.fullmatch(r"\[\s*(.+?)\s*->\s*(https?://[^\]\s]+)\s*\]", text)
     if link_match:
@@ -691,6 +712,8 @@ def _has_cjk(text: str) -> bool:
 
 def _section_kind(title: str) -> str:
     title_upper = title.upper()
+    if "最重要结论" in title:
+        return "priority"
     if "涨幅" in title or "跌幅" in title or "总览" in title or "强弱榜" in title:
         return "why"
     if "今日盯防" in title or "明早" in title:

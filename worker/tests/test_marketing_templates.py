@@ -173,6 +173,11 @@ WHY SENTINEL FLAGGED IT
 - 2.5x avg volume
 - 3 catalysts in 48h
 
+今日 3 条最重要结论
+1. 科技继续弱于大盘：QQQ -1.51% vs SPY -1.20%
+2. 能源逆势，板块轮动明显：XLE +2.36% vs XLK -1.81%
+3. 高成交下跌集中在热门大票：NVDA / TSLA / AMD / COIN
+
 二、今日市场总览
 
 指标	中文解释	最新值	涨跌
@@ -215,6 +220,9 @@ Methodology + sources: https://sentinelai.com/methodology
         "Something changed enough for Sentinel",
         "2.5x avg volume",
         "3 catalysts in 48h",
+        "今日 3 条最重要结论",
+        "科技继续弱于大盘",
+        "width:30px;height:30px",
         "<table",
         "标普500 ETF",
         "font-size:24px",

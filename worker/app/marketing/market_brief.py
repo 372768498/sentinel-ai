@@ -118,6 +118,7 @@ def _render_market_brief_text_sync() -> str:
         return ""
 
     sections = [
+        _top_takeaways_section(index_rows, sector_rows, hot_rows),
         _yesterday_check_section(index_rows, sector_rows, hot_rows),
         _market_overview_section(index_rows),
         _sector_section(sector_rows),
@@ -216,6 +217,60 @@ def _screen_rows(screen: str, *, count: int) -> list[MarketRow]:
             )
         )
     return rows
+
+
+def _top_takeaways_section(
+    indexes: Sequence[MarketRow],
+    sectors: Sequence[MarketRow],
+    hot_rows: Sequence[MarketRow],
+) -> str:
+    by_index = {r.ticker: r for r in indexes}
+    by_sector = {r.ticker: r for r in sectors}
+    spy = by_index.get("SPY")
+    qqq = by_index.get("QQQ")
+    xle = by_sector.get("XLE")
+    xlk = by_sector.get("XLK")
+    pressured_hot = [
+        row.ticker
+        for row in hot_rows
+        if row.ticker in {"NVDA", "AMD", "TSLA", "INTC", "COIN", "NU"}
+        and (row.change_pct or 0) < -3
+    ]
+
+    lines = ["今日 3 条最重要结论"]
+    if qqq and spy:
+        weaker = (qqq.change_pct or 0) < (spy.change_pct or 0)
+        lines.append(
+            "1. "
+            + (
+                "科技继续弱于大盘"
+                if weaker
+                else "科技暂未继续弱于大盘"
+            )
+            + f"：QQQ {_pct(qqq.change_pct)} vs SPY {_pct(spy.change_pct)}"
+        )
+    if xle and xlk:
+        rotation = (xle.change_pct or 0) > (xlk.change_pct or 0)
+        lines.append(
+            "2. "
+            + (
+                "能源逆势，板块轮动明显"
+                if rotation
+                else "能源没有继续跑赢科技"
+            )
+            + f"：XLE {_pct(xle.change_pct)} vs XLK {_pct(xlk.change_pct)}"
+        )
+    if pressured_hot:
+        lines.append(
+            "3. 高成交下跌集中在热门大票："
+            + " / ".join(pressured_hot[:4])
+        )
+    elif hot_rows:
+        lines.append(
+            "3. 热门大票分化，先看成交量是否确认："
+            + " / ".join(row.ticker for row in hot_rows[:4])
+        )
+    return "\n".join(lines) if len(lines) >= 3 else ""
 
 
 def _yesterday_check_section(
