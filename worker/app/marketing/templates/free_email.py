@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from html import escape
+import re
 from typing import Iterable
 
 from ..state import STATE_DISPLAY, SentinelState
@@ -230,3 +232,129 @@ def render_nothing_email(p: NothingEmailPayload) -> str:
         seed_section=p.seed_section,
         pro_url=p.pro_url,
     )
+
+
+def render_email_html(*, subject: str, preview: str, body_text: str) -> str:
+    """Render a mobile-friendly HTML email while keeping text fallback separate."""
+    blocks = _html_blocks(body_text)
+    return f"""\
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{escape(subject)}</title>
+  </head>
+  <body style="margin:0;background:#f6f7f9;color:#18212f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      {escape(preview)}
+    </div>
+    <main style="max-width:680px;margin:0 auto;padding:28px 14px;">
+      <section style="background:#ffffff;border:1px solid #e6e9ef;border-radius:10px;overflow:hidden;">
+        <div style="padding:24px 24px 18px;background:#111827;color:#ffffff;">
+          <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;">Sentinel AI · Daily Radar</div>
+          <h1 style="margin:10px 0 8px;font-size:24px;line-height:1.25;font-weight:700;">{escape(subject)}</h1>
+          <p style="margin:0;color:#d1d5db;font-size:15px;line-height:1.5;">{escape(preview)}</p>
+        </div>
+        <div style="padding:22px 24px;">
+          {blocks}
+        </div>
+      </section>
+      <p style="margin:16px 4px 0;color:#6b7280;font-size:12px;line-height:1.5;">
+        Context, not financial advice. You are receiving this because you joined Sentinel AI updates.
+      </p>
+    </main>
+  </body>
+</html>
+"""
+
+
+def _html_blocks(body_text: str) -> str:
+    sections: list[str] = []
+    current_title = ""
+    current_lines: list[str] = []
+    for raw in body_text.splitlines():
+        line = raw.strip()
+        if not line or set(line) <= {"-"}:
+            continue
+        if _is_heading(line):
+            if current_title or current_lines:
+                sections.append(_section_html(current_title, current_lines))
+            current_title = line.title()
+            current_lines = []
+        else:
+            current_lines.append(line)
+    if current_title or current_lines:
+        sections.append(_section_html(current_title, current_lines))
+    return "\n".join(sections)
+
+
+def _is_heading(line: str) -> bool:
+    if len(line) > 42:
+        return False
+    letters = [c for c in line if c.isalpha()]
+    return bool(letters) and line.upper() == line and not line.startswith("[")
+
+
+def _section_html(title: str, lines: list[str]) -> str:
+    title_html = (
+        f'<h2 style="margin:0 0 12px;font-size:15px;line-height:1.3;'
+        f'letter-spacing:.04em;text-transform:uppercase;color:#111827;">{escape(title)}</h2>'
+        if title
+        else ""
+    )
+    body = _lines_html(lines)
+    return (
+        '<section style="padding:16px 0;border-bottom:1px solid #eef1f5;">'
+        f"{title_html}{body}</section>"
+    )
+
+
+def _lines_html(lines: list[str]) -> str:
+    out: list[str] = []
+    bullet_items: list[str] = []
+    for line in lines:
+        if line.startswith(("- ", "  - ", "• ")):
+            bullet_items.append(_inline_html(line.lstrip(" -•")))
+            continue
+        if bullet_items:
+            out.append(_bullet_list_html(bullet_items))
+            bullet_items = []
+        out.append(
+            '<p style="margin:0 0 10px;font-size:15px;line-height:1.58;color:#374151;">'
+            f"{_inline_html(line)}</p>"
+        )
+    if bullet_items:
+        out.append(_bullet_list_html(bullet_items))
+    return "\n".join(out)
+
+
+def _bullet_list_html(items: list[str]) -> str:
+    lis = "".join(
+        '<li style="margin:0 0 8px;font-size:15px;line-height:1.5;color:#374151;">'
+        f"{item}</li>"
+        for item in items
+    )
+    return f'<ul style="margin:0 0 10px;padding-left:20px;">{lis}</ul>'
+
+
+def _inline_html(text: str) -> str:
+    link_match = re.fullmatch(r"\[\s*(.+?)\s*->\s*(https?://[^\]\s]+)\s*\]", text)
+    if link_match:
+        label, url = link_match.groups()
+        return (
+            f'<a href="{escape(url, quote=True)}" '
+            'style="display:inline-block;background:#111827;color:#ffffff;'
+            'text-decoration:none;border-radius:6px;padding:10px 14px;font-weight:600;">'
+            f"{escape(label)}</a>"
+        )
+    escaped = escape(text)
+    escaped = re.sub(
+        r"(https?://[^\s<]+)",
+        lambda m: (
+            f'<a href="{escape(m.group(1), quote=True)}" '
+            f'style="color:#2563eb;text-decoration:underline;">{escape(m.group(1))}</a>'
+        ),
+        escaped,
+    )
+    return escaped

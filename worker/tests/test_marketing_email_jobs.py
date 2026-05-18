@@ -21,6 +21,8 @@ from app.marketing.email_jobs import (
     _select_top_profile,
     _seed_for_lead,
     _split_subject_preview,
+    _render_for_lead,
+    send_via_resend,
     send_email_digest,
 )
 from app.marketing.intelligence import TickerIntelligenceProfile
@@ -166,6 +168,7 @@ class _SendRecorder:
         to_email: str,
         subject: str,
         text_body: str,
+        html_body: str | None = None,
         dry_run: bool,
     ) -> str | None:
         self.calls.append(
@@ -174,6 +177,7 @@ class _SendRecorder:
                 "subject": subject,
                 "dry_run": dry_run,
                 "from": from_email,
+                "has_html": bool(html_body),
             }
         )
         return None if dry_run else f"msg-{len(self.calls)}"
@@ -228,6 +232,28 @@ def test_send_email_digest_dry_run_skips_resend_post() -> None:
     assert stats["sent"] == 1
     assert len(recorder.calls) == 1
     assert recorder.calls[0]["dry_run"] is True
+    assert recorder.calls[0]["has_html"] is True
+
+
+def test_render_for_lead_returns_html_email_body() -> None:
+    lead = _verified("a@example.com", ("NVDA",))
+    subject, preview, text_body, html_body = _render_for_lead(
+        lead=lead,
+        profiles=[_heated_profile("NVDA")],
+        now_et=datetime(2026, 5, 18, 12, 15, tzinfo=timezone.utc),
+        public_url="https://sentinelai.com",
+        pro_url="https://sentinelai.com/pro",
+        methodology_url="https://sentinelai.com/methodology",
+        scan_universe_size=2000,
+        day_offset=1,
+    )
+
+    assert "$NVDA" in subject
+    assert preview
+    assert "Context, not financial advice" in text_body
+    assert "<!doctype html>" in html_body
+    assert "Sentinel AI" in html_body
+    assert "https://sentinelai.com/stocks/NVDA" in html_body
 
 
 def test_send_email_digest_only_email_single_recipient() -> None:
@@ -306,6 +332,41 @@ def test_send_email_digest_nothing_branch_when_all_calm() -> None:
     )
     assert stats["renders"][0]["branch"] == "nothing"
     assert "nothing unusual" in stats["renders"][0]["subject"].lower()
+
+
+def test_send_via_resend_includes_html_payload() -> None:
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"id": "email_123"}
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.payload = None
+
+        async def post(self, url, *, json, headers):
+            self.payload = json
+            return FakeResponse()
+
+    client = FakeClient()
+    result = asyncio.run(
+        send_via_resend(
+            api_key="key",
+            from_email="Sentinel <noreply@example.com>",
+            to_email="a@example.com",
+            subject="Subject",
+            text_body="plain",
+            html_body="<p>html</p>",
+            dry_run=False,
+            client=client,
+        )
+    )
+
+    assert result == "email_123"
+    assert client.payload["text"] == "plain"
+    assert client.payload["html"] == "<p>html</p>"
 
 
 # ---------------------------------------------------------------------------

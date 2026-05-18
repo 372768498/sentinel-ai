@@ -50,6 +50,7 @@ from .templates.free_email import (
     SeedTicker,
     pick_reflection_question,
     render_anomaly_email,
+    render_email_html,
     render_nothing_email,
     render_seed_section,
 )
@@ -311,8 +312,8 @@ def _render_for_lead(
     methodology_url: str,
     scan_universe_size: int,
     day_offset: int,
-) -> tuple[str, str, str]:
-    """Return ``(subject, preview, text_body)`` for the lead."""
+) -> tuple[str, str, str, str]:
+    """Return ``(subject, preview, text_body, html_body)`` for the lead."""
     profiles_by_ticker = {p.ticker.upper(): p for p in profiles}
     seed_section = _seed_for_lead(lead.seed_tickers, profiles_by_ticker)
     top = _select_top_profile(profiles)
@@ -325,7 +326,10 @@ def _render_for_lead(
         )
         rendered = render_nothing_email(nothing)
         # The Nothing template hardcodes Subject/Preview; pull them out.
-        return _split_subject_preview(rendered)
+        subject, preview, body = _split_subject_preview(rendered)
+        return subject, preview, body, render_email_html(
+            subject=subject, preview=preview, body_text=body
+        )
     anomaly = _build_anomaly_payload(
         lead=lead,
         profile=top,
@@ -337,7 +341,10 @@ def _render_for_lead(
         day_offset=day_offset,
     )
     rendered = render_anomaly_email(anomaly)
-    return _split_subject_preview(rendered)
+    subject, preview, body = _split_subject_preview(rendered)
+    return subject, preview, body, render_email_html(
+        subject=subject, preview=preview, body_text=body
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +359,7 @@ async def send_via_resend(
     to_email: str,
     subject: str,
     text_body: str,
+    html_body: Optional[str] = None,
     dry_run: bool,
     client: Optional[httpx.AsyncClient] = None,
 ) -> Optional[str]:
@@ -368,6 +376,8 @@ async def send_via_resend(
         "subject": subject,
         "text": text_body,
     }
+    if html_body:
+        payload["html"] = html_body
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
@@ -545,7 +555,7 @@ async def send_email_digest(
 
     for lead in leads:
         try:
-            subject, preview, body_text = _render_for_lead(
+            subject, preview, body_text, html_body = _render_for_lead(
                 lead=lead,
                 profiles=profiles,
                 now_et=now,
@@ -579,6 +589,7 @@ async def send_email_digest(
                 to_email=lead.email,
                 subject=subject,
                 text_body=body_text,
+                html_body=html_body,
                 dry_run=dry_run,
             )
             sent += 1
