@@ -76,8 +76,8 @@ Unsubscribe: {unsubscribe_url}
 """
 
 TEMPLATE_NOTHING = """\
-Subject: Today: nothing unusual, but not empty
-Preview: No confirmed anomaly yet. Here is what Sentinel watched and what would change the state.
+Subject: Sentinel Market Brief: quiet watchlist, active market
+Preview: No confirmed watchlist anomaly yet. Market breadth, sectors, movers, and next-session checks inside.
 
 -------------------------
 SENTINEL - DAILY RADAR
@@ -88,6 +88,8 @@ TODAY'S WATCHLIST PRIORITY
 
 Quiet. No confirmed public anomaly yet.
 In plain English: nothing unusual reached the public radar.
+
+{market_brief_section}
 
 We scanned ~{scan_universe_size} U.S.-listed equities
 across price, volume, SEC filings, news, and social chatter.
@@ -196,6 +198,7 @@ class NothingEmailPayload:
     scan_universe_size: int
     seed_section: str
     pro_url: str
+    market_brief_section: str = ""
 
 
 def render_anomaly_email(p: AnomalyEmailPayload) -> str:
@@ -231,6 +234,7 @@ def render_nothing_email(p: NothingEmailPayload) -> str:
         scan_universe_size=p.scan_universe_size,
         seed_section=p.seed_section,
         pro_url=p.pro_url,
+        market_brief_section=p.market_brief_section,
     )
 
 

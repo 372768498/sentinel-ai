@@ -42,6 +42,7 @@ from .intelligence import (
     build_daily_profiles,
 )
 from .kpi_db import _connect
+from .market_brief import render_market_brief_text_async
 from .state import STATE_DISPLAY, SentinelState
 from .state_resolver import resolve_state
 from .templates.free_email import (
@@ -292,6 +293,7 @@ def _build_nothing_payload(
     now_et: datetime,
     pro_url: str,
     scan_universe_size: int,
+    market_brief_section: str = "",
 ) -> NothingEmailPayload:
     return NothingEmailPayload(
         date_long=now_et.strftime("%A, %B %d, %Y"),
@@ -299,6 +301,7 @@ def _build_nothing_payload(
         scan_universe_size=scan_universe_size,
         seed_section=seed_section,
         pro_url=pro_url,
+        market_brief_section=market_brief_section,
     )
 
 
@@ -312,6 +315,7 @@ def _render_for_lead(
     methodology_url: str,
     scan_universe_size: int,
     day_offset: int,
+    market_brief_section: str = "",
 ) -> tuple[str, str, str, str]:
     """Return ``(subject, preview, text_body, html_body)`` for the lead."""
     profiles_by_ticker = {p.ticker.upper(): p for p in profiles}
@@ -323,6 +327,7 @@ def _render_for_lead(
             now_et=now_et,
             pro_url=pro_url,
             scan_universe_size=scan_universe_size,
+            market_brief_section=market_brief_section,
         )
         rendered = render_nothing_email(nothing)
         # The Nothing template hardcodes Subject/Preview; pull them out.
@@ -401,6 +406,7 @@ IntelFetcher = Callable[..., Awaitable[list[TickerIntelligenceProfile]]]
 LeadsFetcher = Callable[..., Awaitable[list[VerifiedLead]]]
 SingleLeadFetcher = Callable[..., Awaitable[Optional[VerifiedLead]]]
 ResendSender = Callable[..., Awaitable[Optional[str]]]
+MarketBriefFetcher = Callable[[], Awaitable[str]]
 
 
 def _public_base() -> str:
@@ -446,6 +452,7 @@ async def send_email_digest(
     leads_fetcher: Optional[LeadsFetcher] = None,
     single_lead_fetcher: Optional[SingleLeadFetcher] = None,
     resend_sender: ResendSender = send_via_resend,
+    market_brief_fetcher: MarketBriefFetcher = render_market_brief_text_async,
     conn=None,
     now_utc: Optional[datetime] = None,
 ) -> dict:
@@ -548,6 +555,11 @@ async def send_email_digest(
     day_offset = _day_offset(now)
     api_key = _resend_api_key()
     from_email = _resend_from_email()
+    market_brief_section = ""
+    try:
+        market_brief_section = await market_brief_fetcher()
+    except Exception as exc:
+        logger.warning("[email_jobs] market_brief failed: %s", exc)
 
     sent = 0
     errors: list[str] = []
@@ -564,6 +576,7 @@ async def send_email_digest(
                 methodology_url=methodology_url,
                 scan_universe_size=DEFAULT_SCAN_UNIVERSE_SIZE,
                 day_offset=day_offset,
+                market_brief_section=market_brief_section,
             )
         except Exception as exc:
             logger.exception("[email_jobs] render failed for %s", lead.email)
