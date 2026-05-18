@@ -245,6 +245,7 @@ def render_nothing_email(p: NothingEmailPayload) -> str:
 def render_email_html(*, subject: str, preview: str, body_text: str) -> str:
     """Render a mobile-friendly HTML email while keeping text fallback separate."""
     blocks = _html_blocks(body_text)
+    kpis = _kpi_strip_html(body_text)
     return f"""\
 <!doctype html>
 <html lang="en">
@@ -266,6 +267,7 @@ def render_email_html(*, subject: str, preview: str, body_text: str) -> str:
           <div style="margin-top:18px;height:4px;width:86px;background:#38bdf8;border-radius:999px;"></div>
         </div>
         <div style="padding:10px 26px 24px;">
+          {kpis}
           {blocks}
         </div>
       </section>
@@ -303,6 +305,8 @@ def _is_heading(line: str) -> bool:
         return False
     if re.match(r"^[一二三四五六七八九十]+、", line):
         return True
+    if _has_cjk(line):
+        return False
     if len(line) > 42:
         return False
     letters = [c for c in line if c.isalpha()]
@@ -361,6 +365,9 @@ def _lines_html(lines: list[str], *, section_kind: str) -> str:
         if _is_label_line(line):
             out.append(_label_html(line))
             continue
+        if line.startswith("🔒"):
+            out.append(_locked_card_html(line))
+            continue
         if section_kind == "watchlist" and ":" in line:
             out.append(_watchlist_row_html(line))
             continue
@@ -388,29 +395,119 @@ def _table_html(lines: list[str]) -> str:
         return ""
     header, *body = rows
     head_cells = "".join(
-        '<th style="padding:9px 10px;border-bottom:1px solid #cbd5e1;'
+        '<th style="padding:10px 11px;border-bottom:1px solid #cbd5e1;'
         'font-size:12px;line-height:1.35;text-align:left;color:#475569;'
-        'font-weight:800;background:#f8fafc;">'
+        'font-weight:800;background:#f8fafc;white-space:nowrap;">'
         f"{_inline_html(cell)}</th>"
         for cell in header
     )
     body_rows = []
-    for row in body:
+    for row_index, row in enumerate(body):
+        row_bg = "#ffffff" if row_index % 2 == 0 else "#fbfdff"
         cells = "".join(
-            '<td style="padding:9px 10px;border-bottom:1px solid #edf2f7;'
-            'font-size:13px;line-height:1.35;color:#334155;vertical-align:top;">'
+            f'<td style="{_table_cell_style(cell, col_index)}">'
             f"{_inline_html(cell)}</td>"
-            for cell in row
+            for col_index, cell in enumerate(row)
         )
-        body_rows.append(f"<tr>{cells}</tr>")
+        body_rows.append(f'<tr style="background:{row_bg};">{cells}</tr>')
     return (
         '<div style="margin:10px 0 16px;overflow-x:auto;border:1px solid #e2e8f0;'
         'border-radius:10px;background:#ffffff;">'
         '<table role="presentation" cellspacing="0" cellpadding="0" '
-        'style="width:100%;border-collapse:collapse;min-width:520px;">'
+        'style="width:100%;border-collapse:collapse;min-width:580px;">'
         f"<thead><tr>{head_cells}</tr></thead>"
         f"<tbody>{''.join(body_rows)}</tbody>"
         "</table></div>"
+    )
+
+
+def _table_cell_style(cell: str, col_index: int) -> str:
+    align = "right" if _looks_numeric(cell) else "left"
+    color = _value_color(cell)
+    weight = "800" if col_index in (0, 1) else "500"
+    family = (
+        "ui-monospace,SFMono-Regular,Menlo,Consolas,monospace"
+        if _looks_numeric(cell) or col_index in (0, 2)
+        else "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif"
+    )
+    return (
+        "padding:10px 11px;border-bottom:1px solid #edf2f7;"
+        f"font-size:13px;line-height:1.35;color:{color};vertical-align:top;"
+        f"text-align:{align};font-weight:{weight};font-family:{family};"
+        "white-space:nowrap;"
+    )
+
+
+def _kpi_strip_html(body_text: str) -> str:
+    rows = _market_overview_rows(body_text)
+    if not rows:
+        return ""
+    wanted = ("SPY", "QQQ", "IWM", "VIX")
+    cards: list[str] = []
+    for ticker in wanted:
+        row = rows.get(ticker)
+        if row is None:
+            continue
+        label, desc, value, change = row
+        cards.append(
+            '<td style="width:25%;padding:0 6px 12px 0;vertical-align:top;">'
+            '<div style="border:1px solid #dbe5f1;border-radius:10px;background:#ffffff;'
+            'padding:13px 14px;min-height:94px;">'
+            '<div style="font-size:11px;line-height:1.25;letter-spacing:.08em;'
+            'text-transform:uppercase;color:#64748b;font-weight:800;">'
+            f"{escape(label)}</div>"
+            '<div style="margin-top:8px;font-size:24px;line-height:1;'
+            'font-weight:850;color:#0f172a;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            f"{escape(value)}</div>"
+            f'<div style="margin-top:7px;font-size:13px;line-height:1.2;font-weight:800;color:{_value_color(change)};">'
+            f"{escape(change)}</div>"
+            '<div style="margin-top:7px;font-size:11px;line-height:1.35;color:#64748b;">'
+            f"{escape(_short_kpi_desc(desc))}</div>"
+            "</div></td>"
+        )
+    if not cards:
+        return ""
+    return (
+        '<table role="presentation" cellspacing="0" cellpadding="0" '
+        'style="width:100%;border-collapse:collapse;margin:18px 0 8px;">'
+        f"<tr>{''.join(cards)}</tr></table>"
+    )
+
+
+def _market_overview_rows(body_text: str) -> dict[str, tuple[str, str, str, str]]:
+    rows: dict[str, tuple[str, str, str, str]] = {}
+    for raw in body_text.splitlines():
+        parts = [p.strip() for p in raw.split("\t")]
+        if len(parts) != 4:
+            continue
+        label, desc, value, change = parts
+        if label in {"SPY", "QQQ", "DIA", "IWM", "VIX", "10Y Yield"}:
+            rows[label] = (label, desc, value, change)
+    return rows
+
+
+def _short_kpi_desc(desc: str) -> str:
+    if "大盘" in desc:
+        return "美国大盘"
+    if "科技" in desc:
+        return "大型科技股"
+    if "小盘" in desc:
+        return "小盘股"
+    if "波动" in desc or "恐慌" in desc:
+        return "波动预期"
+    return desc[:14]
+
+
+def _locked_card_html(line: str) -> str:
+    text = line.lstrip("🔒").strip()
+    return (
+        '<div style="margin:16px 0;padding:16px 17px;border:1px solid #f6c76f;'
+        'border-radius:10px;background:#fff8e6;">'
+        '<div style="font-size:13px;line-height:1.4;letter-spacing:.08em;'
+        'text-transform:uppercase;color:#9a6700;font-weight:850;">Pro unlock / Pro 可见</div>'
+        '<p style="margin:8px 0 0;font-size:14px;line-height:1.55;color:#4b3b10;">'
+        f"{_inline_html(text)}</p>"
+        "</div>"
     )
 
 
@@ -429,6 +526,23 @@ def _inline_html(text: str) -> str:
         escaped,
     )
     return escaped
+
+
+def _looks_numeric(text: str) -> bool:
+    return bool(re.fullmatch(r"[-+]?\d+(?:\.\d+)?%?|[-+]?\d+\s*bp|\d+(?:\.\d+)?[MK]?", text.strip()))
+
+
+def _value_color(text: str) -> str:
+    stripped = text.strip()
+    if stripped.startswith("+"):
+        return "#15803d"
+    if stripped.startswith("-"):
+        return "#b91c1c"
+    return "#334155"
+
+
+def _has_cjk(text: str) -> bool:
+    return bool(re.search(r"[\u3400-\u9fff]", text))
 
 
 def _section_kind(title: str) -> str:

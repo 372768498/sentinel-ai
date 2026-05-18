@@ -178,6 +178,9 @@ WHY SENTINEL FLAGGED IT
 指标	中文解释	最新值	涨跌
 SPY	标普500 ETF，代表美国大盘	739.17	-1.20%
 QQQ	纳斯达克100 ETF，代表大型科技股	708.93	-1.51%
+VIX	恐慌指数，衡量市场波动预期	18.43	+6.78%
+
+🔒 其余 7 只完整异动归因、新闻源、成交量验证，Pro 用户可见。
 
 YOUR WATCHLIST PRIORITY
 
@@ -202,6 +205,10 @@ Methodology + sources: https://sentinelai.com/methodology
         "3 catalysts in 48h",
         "<table",
         "标普500 ETF",
+        "font-size:24px",
+        "Pro unlock / Pro 可见",
+        "#15803d",
+        "#b91c1c",
         "NVDA",
         "MSFT",
         "multi-signal firing",
