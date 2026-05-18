@@ -76,8 +76,8 @@ Unsubscribe: {unsubscribe_url}
 """
 
 TEMPLATE_NOTHING = """\
-Subject: Sentinel Market Brief: quiet watchlist, active market
-Preview: No confirmed watchlist anomaly yet. Market breadth, sectors, movers, and next-session checks inside.
+Subject: {subject_line}
+Preview: {preview_line}
 
 -------------------------
 SENTINEL - DAILY RADAR
@@ -199,6 +199,8 @@ class NothingEmailPayload:
     seed_section: str
     pro_url: str
     market_brief_section: str = ""
+    subject_line: str = "Sentinel AI 美股市场日报：市场复盘与明日观察"
+    preview_line: str = "SPY · QQQ · IWM · VIX · 板块轮动 · 涨跌幅前10"
 
 
 def render_anomaly_email(p: AnomalyEmailPayload) -> str:
@@ -229,6 +231,8 @@ def render_anomaly_email(p: AnomalyEmailPayload) -> str:
 
 def render_nothing_email(p: NothingEmailPayload) -> str:
     return TEMPLATE_NOTHING.format(
+        subject_line=p.subject_line,
+        preview_line=p.preview_line,
         date_long=p.date_long,
         timestamp_et=p.timestamp_et,
         scan_universe_size=p.scan_universe_size,
@@ -295,6 +299,10 @@ def _html_blocks(body_text: str) -> str:
 
 
 def _is_heading(line: str) -> bool:
+    if "\t" in line:
+        return False
+    if re.match(r"^[一二三四五六七八九十]+、", line):
+        return True
     if len(line) > 42:
         return False
     letters = [c for c in line if c.isalpha()]
@@ -320,13 +328,30 @@ def _section_html(title: str, lines: list[str]) -> str:
 def _lines_html(lines: list[str], *, section_kind: str) -> str:
     out: list[str] = []
     bullet_items: list[str] = []
-    for line in lines:
-        if line.startswith(("- ", "  - ", "• ")):
-            bullet_items.append(_inline_html(_strip_bullet(line)))
-            continue
+    table_lines: list[str] = []
+
+    def flush_bullets() -> None:
+        nonlocal bullet_items
         if bullet_items:
             out.append(_bullet_list_html(bullet_items))
             bullet_items = []
+
+    def flush_table() -> None:
+        nonlocal table_lines
+        if table_lines:
+            out.append(_table_html(table_lines))
+            table_lines = []
+
+    for line in lines:
+        if "\t" in line:
+            flush_bullets()
+            table_lines.append(line)
+            continue
+        flush_table()
+        if line.startswith(("- ", "  - ", "• ")):
+            bullet_items.append(_inline_html(_strip_bullet(line)))
+            continue
+        flush_bullets()
         if _is_cta_line(line):
             out.append(_cta_html(line))
             continue
@@ -343,8 +368,8 @@ def _lines_html(lines: list[str], *, section_kind: str) -> str:
             '<p style="margin:0 0 11px;font-size:15px;line-height:1.62;color:#334155;">'
             f"{_inline_html(line)}</p>"
         )
-    if bullet_items:
-        out.append(_bullet_list_html(bullet_items))
+    flush_table()
+    flush_bullets()
     return "\n".join(out)
 
 
@@ -355,6 +380,38 @@ def _bullet_list_html(items: list[str]) -> str:
         for item in items
     )
     return f'<ul style="margin:0 0 12px;padding-left:20px;">{lis}</ul>'
+
+
+def _table_html(lines: list[str]) -> str:
+    rows = [[cell.strip() for cell in line.split("\t")] for line in lines]
+    if not rows:
+        return ""
+    header, *body = rows
+    head_cells = "".join(
+        '<th style="padding:9px 10px;border-bottom:1px solid #cbd5e1;'
+        'font-size:12px;line-height:1.35;text-align:left;color:#475569;'
+        'font-weight:800;background:#f8fafc;">'
+        f"{_inline_html(cell)}</th>"
+        for cell in header
+    )
+    body_rows = []
+    for row in body:
+        cells = "".join(
+            '<td style="padding:9px 10px;border-bottom:1px solid #edf2f7;'
+            'font-size:13px;line-height:1.35;color:#334155;vertical-align:top;">'
+            f"{_inline_html(cell)}</td>"
+            for cell in row
+        )
+        body_rows.append(f"<tr>{cells}</tr>")
+    return (
+        '<div style="margin:10px 0 16px;overflow-x:auto;border:1px solid #e2e8f0;'
+        'border-radius:10px;background:#ffffff;">'
+        '<table role="presentation" cellspacing="0" cellpadding="0" '
+        'style="width:100%;border-collapse:collapse;min-width:520px;">'
+        f"<thead><tr>{head_cells}</tr></thead>"
+        f"<tbody>{''.join(body_rows)}</tbody>"
+        "</table></div>"
+    )
 
 
 def _inline_html(text: str) -> str:
@@ -376,6 +433,12 @@ def _inline_html(text: str) -> str:
 
 def _section_kind(title: str) -> str:
     title_upper = title.upper()
+    if "涨幅" in title or "跌幅" in title or "总览" in title or "强弱榜" in title:
+        return "why"
+    if "今日盯防" in title or "明早" in title:
+        return "next"
+    if "一句话总结" in title:
+        return "reflection"
     if "YOUR WATCHLIST" in title_upper:
         return "watchlist"
     if "PRIORITY" in title_upper:

@@ -173,6 +173,12 @@ WHY SENTINEL FLAGGED IT
 - 2.5x avg volume
 - 3 catalysts in 48h
 
+二、今日市场总览
+
+指标	中文解释	最新值	涨跌
+SPY	标普500 ETF，代表美国大盘	739.17	-1.20%
+QQQ	纳斯达克100 ETF，代表大型科技股	708.93	-1.51%
+
 YOUR WATCHLIST PRIORITY
 
   NVDA: 🟠 Heated - multi-signal firing
@@ -194,6 +200,8 @@ Methodology + sources: https://sentinelai.com/methodology
         "Something changed enough for Sentinel",
         "2.5x avg volume",
         "3 catalysts in 48h",
+        "<table",
+        "标普500 ETF",
         "NVDA",
         "MSFT",
         "multi-signal firing",

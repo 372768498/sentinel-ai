@@ -202,6 +202,13 @@ async def _fake_market_brief() -> str:
     )
 
 
+def _fake_market_brief_subject() -> tuple[str, str]:
+    return (
+        "Sentinel AI 美股市场日报：科技与小盘承压，能源逆势",
+        "SPY -1.20% · QQQ -1.51% · IWM -2.41% · VIX 18.43",
+    )
+
+
 def _verified(email: str, seeds: tuple[str, ...] = ()) -> VerifiedLead:
     return VerifiedLead(email=email, seed_tickers=seeds)
 
@@ -218,6 +225,7 @@ def test_send_email_digest_refuses_bulk_live_without_allow_bulk() -> None:
             leads_fetcher=leads_fetcher,
             resend_sender=_SendRecorder(),
             market_brief_fetcher=_fake_market_brief,
+            market_brief_subject_fetcher=_fake_market_brief_subject,
         )
     )
     assert stats["mode"] == "live"
@@ -237,6 +245,7 @@ def test_send_email_digest_dry_run_skips_resend_post() -> None:
             leads_fetcher=leads_fetcher,
             resend_sender=recorder,
             market_brief_fetcher=_fake_market_brief,
+            market_brief_subject_fetcher=_fake_market_brief_subject,
         )
     )
     assert stats["mode"] == "dry-run"
@@ -282,6 +291,7 @@ def test_send_email_digest_only_email_single_recipient() -> None:
             single_lead_fetcher=single_fetcher,
             resend_sender=recorder,
             market_brief_fetcher=_fake_market_brief,
+            market_brief_subject_fetcher=_fake_market_brief_subject,
         )
     )
     assert stats["sent"] == 1
@@ -303,6 +313,7 @@ def test_send_email_digest_only_email_unknown_skipped() -> None:
             single_lead_fetcher=single_fetcher,
             resend_sender=recorder,
             market_brief_fetcher=_fake_market_brief,
+            market_brief_subject_fetcher=_fake_market_brief_subject,
         )
     )
     assert stats["sent"] == 0
@@ -322,6 +333,7 @@ def test_send_email_digest_anomaly_branch_renders_subject_with_state() -> None:
             leads_fetcher=leads_fetcher,
             resend_sender=recorder,
             market_brief_fetcher=_fake_market_brief,
+            market_brief_subject_fetcher=_fake_market_brief_subject,
         )
     )
     assert stats["renders"][0]["branch"] == "anomaly"
@@ -343,10 +355,11 @@ def test_send_email_digest_nothing_branch_when_all_calm() -> None:
             leads_fetcher=leads_fetcher,
             resend_sender=recorder,
             market_brief_fetcher=_fake_market_brief,
+            market_brief_subject_fetcher=_fake_market_brief_subject,
         )
     )
     assert stats["renders"][0]["branch"] == "nothing"
-    assert "market brief" in stats["renders"][0]["subject"].lower()
+    assert "美股市场日报" in stats["renders"][0]["subject"]
 
 
 def test_send_via_resend_includes_html_payload() -> None:

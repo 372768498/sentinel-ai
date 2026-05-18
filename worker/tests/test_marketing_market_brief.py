@@ -48,13 +48,20 @@ def test_market_brief_renders_dense_market_context(
 
     out = market_brief.render_market_brief_text()
 
-    assert "MARKET SNAPSHOT / 市场总览" in out
-    assert "SECTOR ROTATION / 板块轮动" in out
-    assert "TOP MOVERS / 涨跌幅前 10" in out
-    assert "MEGACAPS + ACTIVE FLOW / 巨头与异常活跃" in out
-    assert "SENTINEL WATCH / 今日盯防" in out
-    assert "NEXT SESSION CHECKLIST / 明早先看" in out
-    assert "SEDG +22.93%" in out
-    assert "POET -22.36%" in out
-    assert "XLE +2.36%" in out
-    assert "XLK -1.81%" in out
+    assert "一、昨日 Sentinel 提示兑现" in out
+    assert "二、今日市场总览" in out
+    assert "三、板块强弱榜" in out
+    assert "四、今日涨幅前10" in out
+    assert "五、今日跌幅前10" in out
+    assert "六、巨头 + 异常活跃" in out
+    assert "七、Sentinel 今日盯防" in out
+    assert "八、明早 Sentinel 会先看" in out
+    assert "九、Sentinel 一句话总结" in out
+    assert "SEDG\tSolarEdge" in out
+    assert "+22.93%" in out
+    assert "POET\tPOET Technologies" in out
+    assert "-22.36%" in out
+    assert "XLE（能源板块）+2.36%" in out
+    assert "XLK（科技板块）-1.81%" in out
+    assert "指标\t中文解释\t最新值\t涨跌" in out
+    assert "🔒 其余 7 只完整异动归因" in out

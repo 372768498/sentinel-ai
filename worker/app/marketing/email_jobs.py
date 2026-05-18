@@ -42,7 +42,7 @@ from .intelligence import (
     build_daily_profiles,
 )
 from .kpi_db import _connect
-from .market_brief import render_market_brief_text_async
+from .market_brief import market_brief_subject_preview, render_market_brief_text_async
 from .state import STATE_DISPLAY, SentinelState
 from .state_resolver import resolve_state
 from .templates.free_email import (
@@ -294,6 +294,8 @@ def _build_nothing_payload(
     pro_url: str,
     scan_universe_size: int,
     market_brief_section: str = "",
+    market_brief_subject: str = "Sentinel AI 美股市场日报：市场复盘与明日观察",
+    market_brief_preview: str = "SPY · QQQ · IWM · VIX · 板块轮动 · 涨跌幅前10",
 ) -> NothingEmailPayload:
     return NothingEmailPayload(
         date_long=now_et.strftime("%A, %B %d, %Y"),
@@ -302,6 +304,8 @@ def _build_nothing_payload(
         seed_section=seed_section,
         pro_url=pro_url,
         market_brief_section=market_brief_section,
+        subject_line=market_brief_subject,
+        preview_line=market_brief_preview,
     )
 
 
@@ -316,6 +320,8 @@ def _render_for_lead(
     scan_universe_size: int,
     day_offset: int,
     market_brief_section: str = "",
+    market_brief_subject: str = "Sentinel AI 美股市场日报：市场复盘与明日观察",
+    market_brief_preview: str = "SPY · QQQ · IWM · VIX · 板块轮动 · 涨跌幅前10",
 ) -> tuple[str, str, str, str]:
     """Return ``(subject, preview, text_body, html_body)`` for the lead."""
     profiles_by_ticker = {p.ticker.upper(): p for p in profiles}
@@ -328,6 +334,8 @@ def _render_for_lead(
             pro_url=pro_url,
             scan_universe_size=scan_universe_size,
             market_brief_section=market_brief_section,
+            market_brief_subject=market_brief_subject,
+            market_brief_preview=market_brief_preview,
         )
         rendered = render_nothing_email(nothing)
         # The Nothing template hardcodes Subject/Preview; pull them out.
@@ -407,6 +415,7 @@ LeadsFetcher = Callable[..., Awaitable[list[VerifiedLead]]]
 SingleLeadFetcher = Callable[..., Awaitable[Optional[VerifiedLead]]]
 ResendSender = Callable[..., Awaitable[Optional[str]]]
 MarketBriefFetcher = Callable[[], Awaitable[str]]
+MarketBriefSubjectFetcher = Callable[[], tuple[str, str]]
 
 
 def _public_base() -> str:
@@ -453,6 +462,7 @@ async def send_email_digest(
     single_lead_fetcher: Optional[SingleLeadFetcher] = None,
     resend_sender: ResendSender = send_via_resend,
     market_brief_fetcher: MarketBriefFetcher = render_market_brief_text_async,
+    market_brief_subject_fetcher: MarketBriefSubjectFetcher = market_brief_subject_preview,
     conn=None,
     now_utc: Optional[datetime] = None,
 ) -> dict:
@@ -556,8 +566,12 @@ async def send_email_digest(
     api_key = _resend_api_key()
     from_email = _resend_from_email()
     market_brief_section = ""
+    market_brief_subject = "Sentinel AI 美股市场日报：市场复盘与明日观察"
+    market_brief_preview = "SPY · QQQ · IWM · VIX · 板块轮动 · 涨跌幅前10"
     try:
         market_brief_section = await market_brief_fetcher()
+        if market_brief_section:
+            market_brief_subject, market_brief_preview = market_brief_subject_fetcher()
     except Exception as exc:
         logger.warning("[email_jobs] market_brief failed: %s", exc)
 
@@ -577,6 +591,8 @@ async def send_email_digest(
                 scan_universe_size=DEFAULT_SCAN_UNIVERSE_SIZE,
                 day_offset=day_offset,
                 market_brief_section=market_brief_section,
+                market_brief_subject=market_brief_subject,
+                market_brief_preview=market_brief_preview,
             )
         except Exception as exc:
             logger.exception("[email_jobs] render failed for %s", lead.email)
