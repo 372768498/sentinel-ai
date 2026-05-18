@@ -111,7 +111,10 @@ def test_drafts_without_earnings_date_pass_when_clean() -> None:
         pass
 
 
-def test_drafts_with_earnings_date_escalate_when_phrase_present() -> None:
+def test_drafts_with_earnings_date_escalate_when_phrase_present(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("USE_NEW_TEMPLATES", raising=False)
     today = date(2026, 5, 12)
     earnings = today + timedelta(days=3)
     bundle = create_drafts_for_opportunity(

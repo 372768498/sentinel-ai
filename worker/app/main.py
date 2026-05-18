@@ -132,6 +132,50 @@ async def trigger_scan(
     return await run_scan_and_push(session_label)
 
 
+@app.post("/api/marketing/email-daily/test-send")
+async def trigger_email_daily_test_send(
+    only_email: str = Query(..., min_length=3),
+    dry_run: bool = Query(default=True),
+    x_internal_token: str | None = Header(default=None),
+) -> dict:
+    """Operator-only single-recipient Daily Radar email smoke test."""
+    _require_internal_token(x_internal_token)
+    from .marketing.email_jobs import send_email_digest
+
+    stats = await send_email_digest(
+        only_email=only_email,
+        live=not dry_run,
+        allow_bulk=False,
+        limit=1,
+    )
+    safe_renders: list[dict] = []
+    for row in stats.get("renders") or []:
+        safe = dict(row)
+        if "email" in safe:
+            safe["email"] = _mask_email(str(safe["email"]))
+        safe_renders.append(safe)
+    return {
+        "session": stats.get("session"),
+        "mode": stats.get("mode"),
+        "leads_queried": stats.get("leads_queried"),
+        "leads_eligible": stats.get("leads_eligible"),
+        "sent": stats.get("sent"),
+        "skipped_unverified": stats.get("skipped_unverified"),
+        "error_count": len(stats.get("errors") or []),
+        "errors": stats.get("errors") or [],
+        "renders": safe_renders,
+    }
+
+
+def _mask_email(email: str) -> str:
+    name, sep, domain = email.partition("@")
+    if not sep:
+        return "***"
+    if len(name) <= 2:
+        return f"***@{domain}"
+    return f"{name[:2]}***@{domain}"
+
+
 @app.post("/api/bot/push-alert")
 async def push_alert(
     payload: PushAlertRequest,

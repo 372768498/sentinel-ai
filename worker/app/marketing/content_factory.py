@@ -107,6 +107,15 @@ def _today_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y%m%d")
 
 
+def _campaign_date_or_today(value: Optional[str]) -> _date:
+    if value:
+        try:
+            return datetime.strptime(value, "%Y%m%d").date()
+        except ValueError:
+            pass
+    return _date.today()
+
+
 def content_id_for(opportunity: Opportunity, platform: str, date: Optional[str] = None) -> str:
     suffix = _PLATFORM_SUFFIX[platform]
     return f"CT-{date or _today_str()}-{opportunity.ticker.upper()}-{suffix}"
@@ -605,6 +614,7 @@ def create_drafts_for_opportunity(
     """
     cmp = composer or build_default_composer()
     camp = campaign_id or campaign_id_for(date)
+    redline_today = _campaign_date_or_today(date)
     drafts: list[ContentDraft] = []
     redlines: dict[str, RedlineResult] = {}
 
@@ -639,7 +649,9 @@ def create_drafts_for_opportunity(
 
         body = _clean_generated_text(body)
         redline = redline_scan(body, require_source=True, require_disclaimer=True)
-        redline = _apply_earnings_window(body, redline, earnings_date)
+        redline = _apply_earnings_window(
+            body, redline, earnings_date, today=redline_today
+        )
         redlines[cid] = redline
         drafts.append(
             ContentDraft(
