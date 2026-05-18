@@ -245,22 +245,23 @@ def render_email_html(*, subject: str, preview: str, body_text: str) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{escape(subject)}</title>
   </head>
-  <body style="margin:0;background:#f6f7f9;color:#18212f;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <body style="margin:0;background:#eef2f7;color:#172033;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
       {escape(preview)}
     </div>
-    <main style="max-width:680px;margin:0 auto;padding:28px 14px;">
-      <section style="background:#ffffff;border:1px solid #e6e9ef;border-radius:10px;overflow:hidden;">
-        <div style="padding:24px 24px 18px;background:#111827;color:#ffffff;">
-          <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#9ca3af;">Sentinel AI · Daily Radar</div>
-          <h1 style="margin:10px 0 8px;font-size:24px;line-height:1.25;font-weight:700;">{escape(subject)}</h1>
-          <p style="margin:0;color:#d1d5db;font-size:15px;line-height:1.5;">{escape(preview)}</p>
+    <main style="max-width:720px;margin:0 auto;padding:30px 14px;">
+      <section style="background:#ffffff;border:1px solid #dfe5ee;border-radius:12px;overflow:hidden;box-shadow:0 18px 44px rgba(23,32,51,.09);">
+        <div style="padding:26px 26px 22px;background:#0b1220;color:#ffffff;">
+          <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#9fb1cc;font-weight:700;">Sentinel AI · Daily Radar</div>
+          <h1 style="margin:12px 0 10px;font-size:28px;line-height:1.18;font-weight:800;letter-spacing:0;">{escape(subject)}</h1>
+          <p style="margin:0;color:#d9e2ef;font-size:16px;line-height:1.55;">{escape(preview)}</p>
+          <div style="margin-top:18px;height:4px;width:86px;background:#38bdf8;border-radius:999px;"></div>
         </div>
-        <div style="padding:22px 24px;">
+        <div style="padding:10px 26px 24px;">
           {blocks}
         </div>
       </section>
-      <p style="margin:16px 4px 0;color:#6b7280;font-size:12px;line-height:1.5;">
+      <p style="margin:16px 4px 0;color:#607089;font-size:12px;line-height:1.5;">
         Context, not financial advice. You are receiving this because you joined Sentinel AI updates.
       </p>
     </main>
@@ -297,31 +298,45 @@ def _is_heading(line: str) -> bool:
 
 
 def _section_html(title: str, lines: list[str]) -> str:
+    section_kind = _section_kind(title)
     title_html = (
-        f'<h2 style="margin:0 0 12px;font-size:15px;line-height:1.3;'
-        f'letter-spacing:.04em;text-transform:uppercase;color:#111827;">{escape(title)}</h2>'
+        f'<h2 style="margin:0 0 14px;font-size:14px;line-height:1.3;'
+        f'letter-spacing:.08em;text-transform:uppercase;color:{_title_color(section_kind)};'
+        f'font-weight:800;">{escape(title)}</h2>'
         if title
         else ""
     )
-    body = _lines_html(lines)
+    body = _lines_html(lines, section_kind=section_kind)
     return (
-        '<section style="padding:16px 0;border-bottom:1px solid #eef1f5;">'
+        f'<section style="{_section_style(section_kind)}">'
         f"{title_html}{body}</section>"
     )
 
 
-def _lines_html(lines: list[str]) -> str:
+def _lines_html(lines: list[str], *, section_kind: str) -> str:
     out: list[str] = []
     bullet_items: list[str] = []
     for line in lines:
         if line.startswith(("- ", "  - ", "• ")):
-            bullet_items.append(_inline_html(line.lstrip(" -•")))
+            bullet_items.append(_inline_html(_strip_bullet(line)))
             continue
         if bullet_items:
             out.append(_bullet_list_html(bullet_items))
             bullet_items = []
+        if _is_cta_line(line):
+            out.append(_cta_html(line))
+            continue
+        if _is_ticker_priority(line):
+            out.append(_ticker_priority_html(line))
+            continue
+        if _is_label_line(line):
+            out.append(_label_html(line))
+            continue
+        if section_kind == "watchlist" and ":" in line:
+            out.append(_watchlist_row_html(line))
+            continue
         out.append(
-            '<p style="margin:0 0 10px;font-size:15px;line-height:1.58;color:#374151;">'
+            '<p style="margin:0 0 11px;font-size:15px;line-height:1.62;color:#334155;">'
             f"{_inline_html(line)}</p>"
         )
     if bullet_items:
@@ -331,30 +346,156 @@ def _lines_html(lines: list[str]) -> str:
 
 def _bullet_list_html(items: list[str]) -> str:
     lis = "".join(
-        '<li style="margin:0 0 8px;font-size:15px;line-height:1.5;color:#374151;">'
+        '<li style="margin:0 0 9px;font-size:15px;line-height:1.55;color:#334155;">'
         f"{item}</li>"
         for item in items
     )
-    return f'<ul style="margin:0 0 10px;padding-left:20px;">{lis}</ul>'
+    return f'<ul style="margin:0 0 12px;padding-left:20px;">{lis}</ul>'
 
 
 def _inline_html(text: str) -> str:
     link_match = re.fullmatch(r"\[\s*(.+?)\s*->\s*(https?://[^\]\s]+)\s*\]", text)
     if link_match:
         label, url = link_match.groups()
-        return (
-            f'<a href="{escape(url, quote=True)}" '
-            'style="display:inline-block;background:#111827;color:#ffffff;'
-            'text-decoration:none;border-radius:6px;padding:10px 14px;font-weight:600;">'
-            f"{escape(label)}</a>"
-        )
+        return _button_link_html(label, url)
     escaped = escape(text)
     escaped = re.sub(
         r"(https?://[^\s<]+)",
         lambda m: (
             f'<a href="{escape(m.group(1), quote=True)}" '
-            f'style="color:#2563eb;text-decoration:underline;">{escape(m.group(1))}</a>'
+            f'style="color:#0369a1;text-decoration:underline;font-weight:600;">{escape(m.group(1))}</a>'
         ),
         escaped,
     )
     return escaped
+
+
+def _section_kind(title: str) -> str:
+    title_upper = title.upper()
+    if "YOUR WATCHLIST" in title_upper:
+        return "watchlist"
+    if "PRIORITY" in title_upper:
+        return "priority"
+    if "WHY" in title_upper:
+        return "why"
+    if "IGNORE" in title_upper:
+        return "ignore"
+    if "HEAR FROM SENTINEL" in title_upper or "WATCH NEXT" in title_upper:
+        return "next"
+    if "QUESTION" in title_upper:
+        return "reflection"
+    if "WANT" in title_upper:
+        return "cta"
+    return "default"
+
+
+def _section_style(kind: str) -> str:
+    if kind == "priority":
+        return (
+            "margin:16px 0;padding:18px 18px 16px;border:1px solid #cbd5e1;"
+            "border-radius:10px;background:#f8fafc;"
+        )
+    if kind in {"why", "next"}:
+        return (
+            "margin:14px 0;padding:18px 18px 14px;border:1px solid #dbeafe;"
+            "border-radius:10px;background:#f8fbff;"
+        )
+    if kind == "ignore":
+        return (
+            "margin:14px 0;padding:18px 18px 14px;border:1px solid #fed7aa;"
+            "border-radius:10px;background:#fffaf5;"
+        )
+    if kind == "reflection":
+        return (
+            "margin:14px 0;padding:18px 18px 14px;border:1px solid #ddd6fe;"
+            "border-radius:10px;background:#fbf9ff;"
+        )
+    if kind == "cta":
+        return (
+            "margin:16px 0 8px;padding:20px 18px 16px;border:1px solid #bae6fd;"
+            "border-radius:10px;background:#f0f9ff;"
+        )
+    return "padding:18px 0 14px;border-bottom:1px solid #edf2f7;"
+
+
+def _title_color(kind: str) -> str:
+    if kind == "ignore":
+        return "#c2410c"
+    if kind == "reflection":
+        return "#6d28d9"
+    if kind == "cta":
+        return "#0369a1"
+    if kind in {"why", "next"}:
+        return "#1d4ed8"
+    return "#0f172a"
+
+
+def _strip_bullet(line: str) -> str:
+    return line.strip().lstrip("-•").strip()
+
+
+def _is_cta_line(line: str) -> bool:
+    return bool(re.fullmatch(r"\[\s*.+?\s*->\s*https?://[^\]\s]+\s*\]", line))
+
+
+def _cta_html(line: str) -> str:
+    return (
+        '<div style="margin:16px 0 8px;">'
+        f"{_inline_html(line)}"
+        "</div>"
+    )
+
+
+def _button_link_html(label: str, url: str) -> str:
+    return (
+        f'<a href="{escape(url, quote=True)}" '
+        'style="display:inline-block;background:#0b1220;color:#ffffff;'
+        'text-decoration:none;border-radius:8px;padding:12px 16px;'
+        'font-size:14px;line-height:1.2;font-weight:800;">'
+        f"{escape(label)}</a>"
+    )
+
+
+def _is_ticker_priority(line: str) -> bool:
+    return bool(re.search(r"\$[A-Z]{1,6}.*[-+]\d+(?:\.\d+)?%", line))
+
+
+def _ticker_priority_html(line: str) -> str:
+    return (
+        '<div style="margin:0 0 14px;padding:16px;border-radius:10px;'
+        'background:#0f172a;color:#ffffff;">'
+        '<div style="font-size:17px;line-height:1.45;font-weight:800;">'
+        f"{_inline_html(line)}</div>"
+        "</div>"
+    )
+
+
+def _is_label_line(line: str) -> bool:
+    labels = (
+        "Bottom line:",
+        "What it means:",
+        "Evidence balance:",
+    )
+    return line in labels
+
+
+def _label_html(line: str) -> str:
+    return (
+        '<p style="margin:14px 0 7px;font-size:13px;line-height:1.35;'
+        'letter-spacing:.06em;text-transform:uppercase;color:#64748b;font-weight:800;">'
+        f"{escape(line.rstrip(':'))}</p>"
+    )
+
+
+def _watchlist_row_html(line: str) -> str:
+    ticker, detail = line.split(":", 1)
+    return (
+        '<div style="margin:0 0 10px;padding:12px 14px;border:1px solid #e2e8f0;'
+        'border-radius:9px;background:#ffffff;">'
+        '<span style="display:inline-block;min-width:58px;font-size:14px;'
+        'font-weight:800;color:#0f172a;">'
+        f"{escape(ticker.strip())}</span>"
+        '<span style="font-size:14px;line-height:1.5;color:#334155;">'
+        f"{_inline_html(detail.strip())}</span>"
+        "</div>"
+    )

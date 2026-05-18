@@ -158,6 +158,51 @@ def test_free_email_nothing_render() -> None:
     _assert_no_score_language(out)
 
 
+def test_free_email_html_preserves_core_text_and_links() -> None:
+    body = """\
+-------------------------
+TODAY'S WATCHLIST PRIORITY
+
+🟠 $NVDA - $150.0 - +3.2% intraday
+
+Bottom line:
+Something changed enough for Sentinel to move this ticker to the top.
+
+WHY SENTINEL FLAGGED IT
+
+- 2.5x avg volume
+- 3 catalysts in 48h
+
+YOUR WATCHLIST PRIORITY
+
+  NVDA: 🟠 Heated - multi-signal firing
+  MSFT: 🟢 Calm - no signal today
+
+[ Open stock context preview -> https://sentinelai.com/stocks/NVDA ]
+Methodology + sources: https://sentinelai.com/methodology
+"""
+
+    html = free_email.render_email_html(
+        subject="$NVDA: multi-signal anomaly",
+        preview="Volume + social + news all firing.",
+        body_text=body,
+    )
+
+    for expected in (
+        "$NVDA",
+        "+3.2% intraday",
+        "Something changed enough for Sentinel",
+        "2.5x avg volume",
+        "3 catalysts in 48h",
+        "NVDA",
+        "MSFT",
+        "multi-signal firing",
+        "https://sentinelai.com/stocks/NVDA",
+        "https://sentinelai.com/methodology",
+    ):
+        assert expected in html
+
+
 # ============================================================
 # pro_telegram
 # ============================================================
