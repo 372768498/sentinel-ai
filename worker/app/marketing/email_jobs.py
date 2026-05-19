@@ -371,7 +371,7 @@ async def send_via_resend(
     from_email: str,
     to_email: str,
     subject: str,
-    text_body: str,
+    text_body: str | None,
     html_body: Optional[str] = None,
     dry_run: bool,
     client: Optional[httpx.AsyncClient] = None,
@@ -387,8 +387,9 @@ async def send_via_resend(
         "from": from_email,
         "to": [to_email],
         "subject": subject,
-        "text": text_body,
     }
+    if text_body:
+        payload["text"] = text_body
     if html_body:
         payload["html"] = html_body
     headers = {
@@ -617,7 +618,7 @@ async def send_email_digest(
                 from_email=from_email,
                 to_email=lead.email,
                 subject=subject,
-                text_body=body_text,
+                text_body=None if html_body else body_text,
                 html_body=html_body,
                 dry_run=dry_run,
             )

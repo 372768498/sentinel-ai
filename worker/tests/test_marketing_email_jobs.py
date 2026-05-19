@@ -167,7 +167,7 @@ class _SendRecorder:
         from_email: str,
         to_email: str,
         subject: str,
-        text_body: str,
+        text_body: str | None,
         html_body: str | None = None,
         dry_run: bool,
     ) -> str | None:
@@ -177,6 +177,7 @@ class _SendRecorder:
                 "subject": subject,
                 "dry_run": dry_run,
                 "from": from_email,
+                "has_text": bool(text_body),
                 "has_html": bool(html_body),
             }
         )
@@ -252,6 +253,7 @@ def test_send_email_digest_dry_run_skips_resend_post() -> None:
     assert stats["sent"] == 1
     assert len(recorder.calls) == 1
     assert recorder.calls[0]["dry_run"] is True
+    assert recorder.calls[0]["has_text"] is False
     assert recorder.calls[0]["has_html"] is True
 
 
@@ -394,6 +396,41 @@ def test_send_via_resend_includes_html_payload() -> None:
 
     assert result == "email_123"
     assert client.payload["text"] == "plain"
+    assert client.payload["html"] == "<p>html</p>"
+
+
+def test_send_via_resend_can_send_html_without_text_payload() -> None:
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"id": "email_456"}
+
+    class FakeClient:
+        def __init__(self) -> None:
+            self.payload = None
+
+        async def post(self, url, *, json, headers):
+            self.payload = json
+            return FakeResponse()
+
+    client = FakeClient()
+    result = asyncio.run(
+        send_via_resend(
+            api_key="key",
+            from_email="Sentinel <noreply@example.com>",
+            to_email="a@example.com",
+            subject="Subject",
+            text_body=None,
+            html_body="<p>html</p>",
+            dry_run=False,
+            client=client,
+        )
+    )
+
+    assert result == "email_456"
+    assert "text" not in client.payload
     assert client.payload["html"] == "<p>html</p>"
 
 
