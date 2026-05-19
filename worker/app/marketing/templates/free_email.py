@@ -254,19 +254,18 @@ def render_email_html(*, subject: str, preview: str, body_text: str) -> str:
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{escape(subject)}</title>
   </head>
-  <body style="margin:0;background:#eef2f7;color:#172033;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <body style="margin:0;background:#f4f6f8;color:#172033;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
     <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
       {escape(preview)}
     </div>
-    <main style="max-width:720px;margin:0 auto;padding:30px 14px;">
-      <section style="background:#ffffff;border:1px solid #dfe5ee;border-radius:12px;overflow:hidden;box-shadow:0 18px 44px rgba(23,32,51,.09);">
-        <div style="padding:26px 26px 22px;background:#0b1220;color:#ffffff;">
+    <main style="max-width:660px;margin:0 auto;padding:22px 10px;">
+      <section style="background:#ffffff;border:1px solid #dfe5ee;border-radius:10px;overflow:hidden;">
+        <div style="padding:24px 22px 20px;background:#0b1220;color:#ffffff;">
           <div style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#9fb1cc;font-weight:700;">Sentinel AI · Daily Radar</div>
-          <h1 style="margin:12px 0 10px;font-size:28px;line-height:1.18;font-weight:800;letter-spacing:0;">{escape(subject)}</h1>
+          <h1 style="margin:12px 0 10px;font-size:26px;line-height:1.22;font-weight:850;letter-spacing:0;">{escape(subject)}</h1>
           <p style="margin:0;color:#d9e2ef;font-size:16px;line-height:1.55;">{escape(preview)}</p>
-          <div style="margin-top:18px;height:4px;width:86px;background:#38bdf8;border-radius:999px;"></div>
         </div>
-        <div style="padding:10px 26px 24px;">
+        <div style="padding:8px 18px 22px;">
           {kpis}
           {blocks}
         </div>
@@ -454,24 +453,22 @@ def _market_overview_cards_html(header: list[str], rows: list[list[str]]) -> str
         value = _cell(row, index, "最新值")
         change = _cell(row, index, "涨跌")
         cards.append(
-            '<div style="margin:0 0 10px;padding:14px 15px;border:1px solid #e2e8f0;'
-            'border-radius:11px;background:#ffffff;">'
-            '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
-            '<tr><td style="vertical-align:top;padding-right:12px;">'
-            '<div style="font-size:19px;line-height:1.18;color:#0f172a;font-weight:900;'
-            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
+            '<div data-block="market-card" style="margin:0 0 10px;padding:15px 15px;'
+            'border:1px solid #e2e8f0;border-radius:8px;background:#ffffff;">'
+            '<div style="font-size:19px;line-height:1.2;color:#0f172a;font-weight:900;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;display:inline-block;">'
             f"{escape(label)}</div>"
-            '<div style="margin-top:6px;font-size:15px;line-height:1.42;color:#334155;font-weight:650;">'
-            f"{_inline_html(desc)}</div>"
-            "</td>"
-            '<td style="width:112px;vertical-align:top;text-align:right;">'
-            '<div style="font-size:20px;line-height:1.18;color:#0f172a;font-weight:900;'
+            '<div style="float:right;text-align:right;margin-left:12px;">'
+            '<div style="font-size:20px;line-height:1.2;color:#0f172a;font-weight:900;'
             'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
             f"{escape(value)}</div>"
-            f'<div style="margin-top:7px;font-size:16px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
+            f'<div style="margin-top:5px;font-size:16px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
             'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
             f"{escape(change)}</div>"
-            "</td></tr></table></div>"
+            "</div>"
+            '<div style="clear:both;margin-top:7px;font-size:16px;line-height:1.48;color:#334155;font-weight:650;">'
+            f"{_inline_html(desc)}</div>"
+            "</div>"
         )
     return '<div style="margin:10px 0 16px;">' + "".join(cards) + "</div>"
 
@@ -485,26 +482,24 @@ def _sector_cards_html(header: list[str], rows: list[list[str]]) -> str:
         etf = _cell(row, index, "ETF")
         change = _cell(row, index, "涨跌")
         cards.append(
-            '<div style="margin:0 0 9px;padding:13px 14px;border:1px solid #e2e8f0;'
-            'border-radius:10px;background:#ffffff;">'
-            '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
-            '<tr><td style="width:30px;padding-right:10px;vertical-align:top;">'
-            '<div style="width:28px;height:28px;border-radius:999px;background:#eef2ff;'
-            'color:#3730a3;font-size:13px;line-height:28px;text-align:center;font-weight:850;'
+            '<div data-block="sector-card" style="margin:0 0 9px;padding:14px 14px;'
+            'border:1px solid #e2e8f0;border-radius:8px;background:#ffffff;">'
+            '<div style="float:left;width:30px;height:30px;border-radius:999px;background:#eef2ff;'
+            'color:#3730a3;font-size:13px;line-height:30px;text-align:center;font-weight:850;'
+            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin-right:10px;">'
+            f"{escape(rank)}</div>"
+            '<div style="float:right;text-align:right;margin-left:12px;">'
+            f'<div style="font-size:18px;line-height:1.25;font-weight:900;color:{_value_color(change)};'
             'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-            f"{escape(rank)}</div></td>"
-            '<td style="vertical-align:top;padding-right:12px;">'
-            '<div style="font-size:17px;line-height:1.22;color:#0f172a;font-weight:850;">'
-            f"{_inline_html(sector)}</div>"
+            f"{escape(change)}</div>"
             '<div style="margin-top:5px;font-size:13px;line-height:1.25;color:#64748b;'
             'font-weight:750;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
             f"{escape(etf)}</div>"
-            "</td>"
-            '<td style="width:86px;vertical-align:top;text-align:right;">'
-            f'<div style="font-size:17px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
-            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-            f"{escape(change)}</div>"
-            "</td></tr></table></div>"
+            "</div>"
+            '<div style="overflow:hidden;">'
+            '<div style="font-size:18px;line-height:1.28;color:#0f172a;font-weight:850;">'
+            f"{_inline_html(sector)}</div>"
+            "</div><div style=\"clear:both;\"></div></div>"
         )
     return '<div style="margin:10px 0 16px;">' + "".join(cards) + "</div>"
 
@@ -520,35 +515,27 @@ def _stock_cards_html(header: list[str], rows: list[list[str]]) -> str:
         volume = _cell(row, index, "成交量")
         rank = _cell(row, index, "排名")
         rank_badge = (
-            '<td style="width:30px;padding:0 10px 0 0;vertical-align:top;">'
-            '<div style="width:28px;height:28px;border-radius:999px;background:#eef2ff;'
+            '<span style="display:inline-block;width:28px;height:28px;border-radius:999px;background:#eef2ff;'
             'color:#3730a3;font-size:13px;line-height:28px;text-align:center;'
-            'font-weight:850;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-            f"{escape(rank)}</div></td>"
+            'font-weight:850;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;'
+            'margin-right:9px;vertical-align:middle;">'
+            f"{escape(rank)}</span>"
             if rank
             else ""
         )
         cards.append(
-            '<div style="margin:0 0 10px;padding:13px 14px;border:1px solid #e2e8f0;'
-            'border-radius:10px;background:#ffffff;">'
-            '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
-            f"<tr>{rank_badge}"
-            '<td style="vertical-align:top;">'
-            '<div style="font-size:18px;line-height:1.18;color:#0f172a;font-weight:900;'
+            '<div data-block="stock-row" style="margin:0 0 10px;padding:15px 15px;'
+            'border:1px solid #e2e8f0;border-radius:8px;background:#ffffff;">'
+            '<div style="font-size:19px;line-height:1.25;color:#0f172a;font-weight:900;'
             'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-            f"{escape(ticker)}</div>"
-            '<div style="margin-top:5px;font-size:14px;line-height:1.38;color:#334155;'
-            'font-weight:650;">'
+            f"{rank_badge}{escape(ticker)}</div>"
+            '<div style="margin-top:7px;font-size:16px;line-height:1.45;color:#334155;font-weight:650;">'
             f"{_inline_html(desc)}</div>"
-            "</td>"
-            '<td style="width:96px;vertical-align:top;text-align:right;">'
-            f'<div style="font-size:17px;line-height:1.2;font-weight:900;color:{_value_color(change)};'
+            '<div style="margin-top:10px;font-size:16px;line-height:1.35;'
             'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-            f"{escape(change)}</div>"
-            '<div style="margin-top:7px;font-size:12px;line-height:1.35;color:#64748b;'
-            'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-            f"${escape(price)} · {escape(volume)}</div>"
-            "</td></tr></table></div>"
+            f'<span style="font-weight:900;color:{_value_color(change)};">{escape(change)}</span>'
+            f'<span style="color:#64748b;"> · ${escape(price)} · {escape(volume)}</span>'
+            "</div></div>"
         )
     return (
         '<div style="margin:10px 0 16px;">'
@@ -593,9 +580,9 @@ def _kpi_strip_html(body_text: str) -> str:
             continue
         label, desc, value, change = row
         cards.append(
-            '<td style="width:25%;padding:0 6px 12px 0;vertical-align:top;">'
-            '<div style="border:1px solid #dbe5f1;border-radius:10px;background:#ffffff;'
-            'padding:13px 14px;min-height:94px;">'
+            '<div data-block="kpi-card" style="display:inline-block;width:48%;min-width:238px;'
+            'vertical-align:top;margin:0 6px 10px 0;border:1px solid #dbe5f1;'
+            'border-radius:8px;background:#ffffff;padding:13px 14px;box-sizing:border-box;">'
             '<div style="font-size:11px;line-height:1.25;letter-spacing:.08em;'
             'text-transform:uppercase;color:#64748b;font-weight:800;">'
             f"{escape(label)}</div>"
@@ -606,15 +593,11 @@ def _kpi_strip_html(body_text: str) -> str:
             f"{escape(change)}</div>"
             '<div style="margin-top:7px;font-size:11px;line-height:1.35;color:#64748b;">'
             f"{escape(_short_kpi_desc(desc))}</div>"
-            "</div></td>"
+            "</div>"
         )
     if not cards:
         return ""
-    return (
-        '<table role="presentation" cellspacing="0" cellpadding="0" '
-        'style="width:100%;border-collapse:collapse;margin:18px 0 8px;">'
-        f"<tr>{''.join(cards)}</tr></table>"
-    )
+    return '<div style="margin:18px 0 8px;font-size:0;">' + "".join(cards) + "</div>"
 
 
 def _market_overview_rows(body_text: str) -> dict[str, tuple[str, str, str, str]]:
@@ -663,16 +646,14 @@ def _locked_card_html(line: str) -> str:
 def _takeaway_card_html(line: str) -> str:
     number, _, text = line.partition(".")
     return (
-        '<div style="margin:0 0 10px;padding:13px 14px;border:1px solid #dbeafe;'
-        'border-radius:10px;background:#ffffff;">'
-        '<table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">'
-        '<tr><td style="width:32px;padding-right:10px;vertical-align:top;">'
-        '<div style="width:30px;height:30px;border-radius:999px;background:#0f172a;color:#ffffff;'
+        '<div data-block="takeaway-card" style="margin:0 0 10px;padding:14px 14px;border:1px solid #dbeafe;'
+        'border-radius:8px;background:#ffffff;">'
+        '<span style="display:inline-block;width:30px;height:30px;border-radius:999px;background:#0f172a;color:#ffffff;'
         'font-size:14px;line-height:30px;text-align:center;font-weight:900;'
-        'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">'
-        f"{escape(number)}</div></td>"
-        '<td style="vertical-align:middle;font-size:16px;line-height:1.45;color:#0f172a;font-weight:800;">'
-        f"{_inline_html(text.strip())}</td></tr></table></div>"
+        'font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin-right:10px;vertical-align:top;">'
+        f"{escape(number)}</span>"
+        '<span style="display:inline-block;max-width:540px;vertical-align:top;font-size:17px;line-height:1.45;color:#0f172a;font-weight:800;">'
+        f"{_inline_html(text.strip())}</span></div>"
     )
 
 

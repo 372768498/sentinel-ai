@@ -223,10 +223,13 @@ Methodology + sources: https://sentinelai.com/methodology
         "今日 3 条最重要结论",
         "科技继续弱于大盘",
         "width:30px;height:30px",
-        "<table",
         "标普500 ETF",
         "font-size:24px",
         "font-size:20px",
+        'data-block="market-card"',
+        'data-block="sector-card"',
+        'data-block="stock-row"',
+        'data-block="takeaway-card"',
         "能源 Energy",
         "XLE",
         "Pro unlock / Pro 可见",
@@ -245,6 +248,7 @@ Methodology + sources: https://sentinelai.com/methodology
         "https://sentinelai.com/methodology",
     ):
         assert expected in html
+    assert "<table" not in html
 
 
 # ============================================================
