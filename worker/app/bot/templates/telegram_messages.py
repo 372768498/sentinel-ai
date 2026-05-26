@@ -52,6 +52,62 @@ def _et_now_str() -> str:
     return datetime.now(_ET).strftime("%H:%M ET %b %d")
 
 
+# ── Session anchoring ─────────────────────────────────────────────────────────
+# Replaces a bare clock with a phase + countdown so the reader feels urgency
+# without re-doing the math (e.g. "Final hour · 27m to close").
+
+_PREMARKET_OPEN = (9, 30)   # ET — regular session start
+_REGULAR_CLOSE = (16, 0)    # ET — regular session close
+_AFTERHOURS_END = (20, 0)   # ET — extended hours close
+
+
+def _minutes_between(a: tuple[int, int], b: tuple[int, int]) -> int:
+    return (b[0] - a[0]) * 60 + (b[1] - a[1])
+
+
+def _fmt_h_m(total_min: int) -> str:
+    total_min = max(0, total_min)
+    if total_min < 60:
+        return f"{total_min}m"
+    h, m = divmod(total_min, 60)
+    return f"{h}h" if m == 0 else f"{h}h {m}m"
+
+
+def session_anchor(now: datetime | None = None) -> str:
+    """Return a phase + countdown anchor like "Final hour · 27m to close".
+
+    Phases:
+      - Pre-market · {N}m to open       (before 09:30 ET)
+      - Open · first 30m                 (09:30–10:00 ET)
+      - Intraday · {N}m to close         (10:00–15:00 ET)
+      - Final hour · {N}m to close       (15:00–16:00 ET)
+      - After hours · {N}m since close   (16:00–20:00 ET)
+      - Overnight                        (20:00–next 08:00 ET)
+      - Pre-market opening soon          (08:00–09:30 ET)
+    """
+    if now is None:
+        now = datetime.now(_ET)
+    elif now.tzinfo is None:
+        now = now.replace(tzinfo=_ET)
+    else:
+        now = now.astimezone(_ET)
+    cur = (now.hour, now.minute)
+    if cur < _PREMARKET_OPEN:
+        if cur >= (8, 0):
+            return f"Pre-market · {_fmt_h_m(_minutes_between(cur, _PREMARKET_OPEN))} to open"
+        return "Overnight"
+    if cur < (10, 0):
+        mins_in = _minutes_between(_PREMARKET_OPEN, cur)
+        return f"Open · {_fmt_h_m(mins_in)} in"
+    if cur < (15, 0):
+        return f"Intraday · {_fmt_h_m(_minutes_between(cur, _REGULAR_CLOSE))} to close"
+    if cur < _REGULAR_CLOSE:
+        return f"Final hour · {_fmt_h_m(_minutes_between(cur, _REGULAR_CLOSE))} to close"
+    if cur < _AFTERHOURS_END:
+        return f"After hours · {_fmt_h_m(_minutes_between(_REGULAR_CLOSE, cur))} since close"
+    return "Overnight"
+
+
 # ── Onboarding ────────────────────────────────────────────────────────────────
 
 def welcome_group(first_name: str, bot_username: str, telegram_user_id: int) -> str:
@@ -81,6 +137,85 @@ ONBOARDING_STEP1_BUTTONS = [
 ]
 
 SAMPLE_TICKERS = ["NVDA", "AAPL", "TSLA", "MSFT", "GOOGL"]
+
+
+# ── Alert inline keyboards ────────────────────────────────────────────────────
+# Builds Telegram inline_keyboard payloads. Returned dicts are serialised to
+# JSON by the sender layer (telegram.send_channel_message / _default_sender).
+
+DEFAULT_PUBLIC_URL = "https://sentinel.jilo.ai"
+
+
+def _stock_url(ticker: str, *, base: str, utm_campaign: str) -> str:
+    return (
+        f"{base.rstrip('/')}/stocks/{ticker.upper()}"
+        f"?utm_source=telegram&utm_medium=alert&utm_campaign={utm_campaign}"
+    )
+
+
+def _pro_checkout_url(base: str) -> str:
+    return (
+        f"{base.rstrip('/')}/pro"
+        "?utm_source=telegram&utm_medium=alert&utm_campaign=upgrade_pro"
+    )
+
+
+def build_alert_keyboard(
+    ticker: str,
+    *,
+    public_url: str = DEFAULT_PUBLIC_URL,
+    is_pro: bool = False,
+) -> dict:
+    """Build a 2-row inline keyboard for a single-ticker alert.
+
+    Free users see Open Deep View + Watch + Upgrade Pro.
+    Pro users see Open Deep View + Snooze + Threshold.
+    """
+    upper = ticker.upper()
+    deep_view = {
+        "text": f"📊 Open {upper} Deep View",
+        "url": _stock_url(upper, base=public_url, utm_campaign="alert_threshold"),
+    }
+    if is_pro:
+        return {
+            "inline_keyboard": [
+                [deep_view],
+                [
+                    {"text": "🔕 Snooze 2h", "callback_data": f"alert:snooze:{upper}:2"},
+                    {"text": "⚙️ Threshold", "callback_data": f"wl:threshold:{upper}"},
+                ],
+            ]
+        }
+    return {
+        "inline_keyboard": [
+            [deep_view],
+            [
+                {"text": "➕ Watch this", "callback_data": f"wl:add:{upper}"},
+                {"text": "🔔 Upgrade Pro", "url": _pro_checkout_url(public_url)},
+            ],
+        ]
+    }
+
+
+def build_radar_keyboard(
+    tickers: list[str],
+    *,
+    public_url: str = DEFAULT_PUBLIC_URL,
+) -> dict:
+    """Radar broadcast keyboard — first 3 tickers + a Pro upsell row."""
+    rows: list[list[dict]] = []
+    for ticker in tickers[:3]:
+        upper = ticker.upper()
+        rows.append([
+            {
+                "text": f"📊 ${upper} Deep View",
+                "url": _stock_url(upper, base=public_url, utm_campaign="radar"),
+            }
+        ])
+    rows.append([
+        {"text": "🛰 Get YOUR ticker alerts (Pro)", "url": _pro_checkout_url(public_url)},
+    ])
+    return {"inline_keyboard": rows}
 
 
 def onboarding_step2(tickers: list[str]) -> str:
@@ -281,7 +416,7 @@ NO_TICKERS_FOUND_MSG = (
 
 _PUBLIC_FOOTER = (
     "Sources: Yahoo Finance - SEC EDGAR - CNN F&amp;G\n"
-    "Open stock context -> <a href=\"https://sentinelai.com\">sentinelai.com</a>\n\n"
+    "Open stock context -> <a href=\"https://sentinel.jilo.ai\">sentinel.jilo.ai</a>\n\n"
     "<i>Context, not financial advice.</i>"
 )
 
@@ -449,8 +584,10 @@ def alert_threshold_crossed(
 ) -> str:
     direction = "up" if change_pct > 0 else "down"
     sign = "+" if change_pct > 0 else ""
+    anchor = session_anchor()
     blocks = [
         f"<b>{ticker} crossed your threshold</b>",
+        f"<i>{anchor}</i>",
         "",
         f"{ticker} moved {sign}{change_pct:.2f}% {direction} this {session.lower()}.",
         f"${prev_price:.2f} -> <b>${last_price:.2f}</b>",
@@ -642,7 +779,7 @@ def pro_daily_brief_card(
     sign = "+" if mover["change_pct"] > 0 else ""
     header = (
         "<b>Sentinel Pro - Daily Brief</b>\n"
-        f"<i>{date_str} - 09:00 ET - for {user_first_name}</i>"
+        f"<i>{date_str} - 09:00 ET · {session_anchor()} - for {user_first_name}</i>"
     )
     lines = [
         header,
@@ -683,7 +820,7 @@ def pro_daily_brief_card(
         "- New filings, earnings, or news alter the read.",
         "",
         "Sources: Yahoo Finance - SEC EDGAR - CNN F&amp;G",
-        "Full report -> <a href=\"https://sentinelai.com\">sentinelai.com</a>",
+        "Full report -> <a href=\"https://sentinel.jilo.ai\">sentinel.jilo.ai</a>",
         "",
         "<i>Context, not financial advice.</i>",
     ])
@@ -714,13 +851,14 @@ def caught_moment_alert(
     change_pct: float = 0.0,
 ) -> str:
     timestamp = _et_now_str()
+    anchor = session_anchor()
     sign = "+" if change_pct > 0 else ""
     move_line = f"{ticker} {sign}{change_pct:.2f}% session\n\n" if change_pct else ""
     detail_block = f"<b>Why it matters:</b>\n{detail}\n\n" if detail else ""
     source_block = f'<a href="{source_url}">Source</a>\n\n' if source_url else ""
     return (
         f"<b>{ticker} - {headline}</b>\n"
-        f"<i>{timestamp}</i>\n\n"
+        f"<i>{timestamp} · {anchor}</i>\n\n"
         f"{move_line}"
         f"{detail_block}"
         "<b>Watch next:</b>\n"

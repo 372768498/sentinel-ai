@@ -252,12 +252,18 @@ def _build_anomaly_payload(
     change_pct = mover.get("change_pct")
     confirming, disagreeing = _count_signal_bands(profile)
     content_id = now_et.strftime("daily-%Y%m%d")
-    subject = (
-        f"{display['label']}: ${profile.ticker} — {profile.why_now[:60].rstrip('.')}"
-    )
+    why_short = profile.why_now[:50].rstrip(".")
+    if isinstance(change_pct, (int, float)) and change_pct != 0:
+        subject = (
+            f"${profile.ticker} {change_pct:+.1f}% · "
+            f"{display['label']} — {why_short}"
+        )
+    else:
+        subject = f"${profile.ticker} · {display['label']} — {why_short}"
     preview = (
+        f"{confirming} confirming · {disagreeing} pushing back · "
         f"{display['label']} state on ${profile.ticker}. "
-        "Setup, sources, and one reflection question inside."
+        "Setup + reflection question inside."
     )
     return AnomalyEmailPayload(
         subject_line=subject,
@@ -424,7 +430,7 @@ def _public_base() -> str:
     if not base:
         base = os.environ.get("NEXT_PUBLIC_APP_URL", "").strip()
     if not base:
-        base = "https://sentinelai.com"
+        base = "https://app.jilo.ai"
     return base.rstrip("/")
 
 

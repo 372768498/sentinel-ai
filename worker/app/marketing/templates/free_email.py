@@ -18,6 +18,8 @@ SENTINEL - DAILY RADAR
 {date_long} - {timestamp_et} ET
 -------------------------
 
+[ Pro members saw this 15 min earlier · Real-time alerts -> {pro_url} ]
+
 TODAY'S WATCHLIST PRIORITY
 
 {state_emoji} ${ticker} - ${price} - {price_change_pct:+.1f}% {session_label}
@@ -62,10 +64,11 @@ ONE QUESTION TO ASK YOURSELF
 
 
 -------------------------
-Want this for YOUR tickers?
-Pro watches your actual list, not just the public radar.
+Want real-time alerts on YOUR tickers?
+Pro watches your actual list, scores each move on 10 dimensions,
+and pushes the alert 15 minutes before this email goes out.
 
-[ Try Pro Watch - 7-day trial, no card -> {pro_url} ]
+[ Unlock Pro alerts - $39/mo, 7-day trial -> {pro_url} ]
 -------------------------
 
 Context, not financial advice.

@@ -30,6 +30,7 @@ from .templates.telegram_messages import (
     AlertPriority,
     alert_threshold_crossed,
     alert_threshold_crossed_batch,
+    build_alert_keyboard,
     compute_priority,
     should_call_for,
 )
@@ -89,21 +90,26 @@ async def _default_sender(
     user_id: int,
     text: str,
     priority: AlertPriority = AlertPriority.NORMAL,
+    reply_markup: dict | None = None,
 ) -> dict | None:
     """Send a DM to a Telegram user via Bot API (httpx)."""
+    import json as _json
+
     token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
     if not token:
         logger.error("TELEGRAM_BOT_TOKEN not set — cannot send DM")
         return None
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     # Always notify (False); priority kept as metadata for future critical-alert escalation
-    payload = {
+    payload: dict = {
         "chat_id": user_id,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
         "disable_notification": False,
     }
+    if reply_markup is not None:
+        payload["reply_markup"] = _json.dumps(reply_markup, ensure_ascii=False)
     if should_call_for(priority):
         # Future: trigger Twilio call workflow here (P3 item from backlog)
         logger.warning(
@@ -202,7 +208,9 @@ async def _send_or_queue(
         # Batch priority = max across all crossings
         max_pct = max(abs(m.change_pct) for m in eligible)
         priority = compute_priority(max_pct)
-        result = await sender(user_id, text, priority)
+        top_ticker = max(eligible, key=lambda m: abs(m.change_pct)).ticker
+        keyboard = build_alert_keyboard(top_ticker, is_pro=True)
+        result = await sender(user_id, text, priority, reply_markup=keyboard)
         if result:
             stats["sent"] += len(eligible)
             for m in eligible:
@@ -226,7 +234,8 @@ async def _send_or_queue(
                 risk_flag=score_kwargs.get("risk_flag"),
             )
             priority = compute_priority(move.change_pct)
-            result = await sender(user_id, text, priority)
+            keyboard = build_alert_keyboard(move.ticker, is_pro=True)
+            result = await sender(user_id, text, priority, reply_markup=keyboard)
             if result:
                 stats["sent"] += 1
                 try:

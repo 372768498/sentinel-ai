@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
 
@@ -38,17 +39,20 @@ async def send_channel_message(
     chat_id: str | None = None,
     parse_mode: str = "HTML",
     disable_web_page_preview: bool = True,
+    reply_markup: dict | None = None,
 ) -> dict:
     token = _get_token()
     target = chat_id or _get_public_channel()
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
+    payload: dict = {
         "chat_id": target,
         "text": text,
         "parse_mode": parse_mode,
         "disable_web_page_preview": disable_web_page_preview,
     }
+    if reply_markup is not None:
+        payload["reply_markup"] = json.dumps(reply_markup, ensure_ascii=False)
 
     async with httpx.AsyncClient(timeout=15.0) as client:
         response = await client.post(url, json=payload)

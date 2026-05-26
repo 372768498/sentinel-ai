@@ -45,6 +45,8 @@ from .quiet_context import (
 from .templates.telegram_messages import (
     alert_eod_digest,
     alert_silence_day,
+    build_alert_keyboard,
+    build_radar_keyboard,
     pro_daily_brief_card,
     pro_daily_brief_quiet,
     public_midday_brief_active,
@@ -53,6 +55,11 @@ from .templates.telegram_messages import (
     public_premarket_brief_active,
     public_premarket_brief_quiet,
 )
+
+
+def _radar_keyboard_from_items(items: list[dict]) -> dict | None:
+    tickers = [m.get("ticker", "") for m in items if m.get("ticker")]
+    return build_radar_keyboard(tickers) if tickers else None
 
 logger = logging.getLogger(__name__)
 
@@ -165,11 +172,13 @@ async def public_premarket_brief() -> None:
     if notable:
         items = await _build_mover_items(notable, limit=3)
         text = public_premarket_brief_active(date_str, items)
+        keyboard = _radar_keyboard_from_items(items)
     else:
         bullets = await build_premarket_quiet_bullets(today=today_et())
         text = public_premarket_brief_quiet(date_str, bullets)
+        keyboard = None
 
-    await send_channel_message(text)
+    await send_channel_message(text, reply_markup=keyboard)
     logger.info("public pre-market brief sent (%d notable)", len(notable))
 
 
@@ -188,11 +197,13 @@ async def public_midday_brief() -> None:
     if notable:
         items = await _build_mover_items(notable, limit=3)
         text = public_midday_brief_active(date_str, items)
+        keyboard = _radar_keyboard_from_items(items)
     else:
         bullets = await build_midday_quiet_bullets(watchlist_moves=moves)
         text = public_midday_brief_quiet(date_str, bullets)
+        keyboard = None
 
-    await send_channel_message(text)
+    await send_channel_message(text, reply_markup=keyboard)
     logger.info("public mid-day brief sent (%d notable)", len(notable))
 
 
@@ -295,12 +306,14 @@ async def public_eod_digest() -> None:
     if not movers:
         quiet_bullets = await build_eod_quiet_bullets(today=today_et())
     text = public_postclose_digest(date_str, movers, notes=[], quiet_bullets=quiet_bullets)
-    await send_channel_message(text)
+    keyboard = _radar_keyboard_from_items(movers) if movers else None
+    await send_channel_message(text, reply_markup=keyboard)
     logger.info("public EOD digest sent (%d movers)", len(movers))
 
 
-async def _send_dm(user_id: int, text: str) -> bool:
+async def _send_dm(user_id: int, text: str, reply_markup: dict | None = None) -> bool:
     """Send a Telegram DM to a single user. Returns True on success."""
+    import json as _json
     import os
 
     import httpx
@@ -310,12 +323,14 @@ async def _send_dm(user_id: int, text: str) -> bool:
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    payload = {
+    payload: dict = {
         "chat_id": user_id,
         "text": text,
         "parse_mode": "HTML",
         "disable_web_page_preview": True,
     }
+    if reply_markup is not None:
+        payload["reply_markup"] = _json.dumps(reply_markup, ensure_ascii=False)
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(url, json=payload)
@@ -440,7 +455,8 @@ async def _send_pro_brief_one(user_id: int, profile: dict) -> bool:
         prior_score=prior_score,
         components=components,
     )
-    return await _send_dm(user_id, text)
+    keyboard = build_alert_keyboard(top_mover.ticker, is_pro=True)
+    return await _send_dm(user_id, text, reply_markup=keyboard)
 
 
 async def personal_pro_daily_brief() -> None:

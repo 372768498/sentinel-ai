@@ -36,8 +36,11 @@ Watch next:
 
 Sources: {source_categories}
 
+🔒 Pro members got this 15 min earlier — with peer context,
+deeper signal breakdown, and a personalized risk read.
+
 Stock context preview -> {cta_url}
-Watch your own tickers -> {pro_url}
+Unlock Pro alerts ($39/mo) -> {pro_url}
 
 Not financial advice.
 """
