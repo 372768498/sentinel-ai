@@ -167,3 +167,72 @@ authoritative 9-step pre-live checklist. Run in order:
 7. Flip `MARKETING_PUBLISH_DRY_RUN=false` on Railway
 8. Re-run steps 3–5 with a fresh ticker; verify Telegram channel receives the post
 9. Next day: `push_daily_growth_digest.py` — digest card shows ≥ 1 click
+
+## 15. Production Go-Live Flags (delivery switches)
+
+> **Why this section exists**: 2026-05-26 incident — Free Telegram channel and
+> daily email radar silently stopped after deploy because the Railway env was
+> left in "review-only" mode from initial provisioning. `railway_push_env.sh`
+> used to hardcode the safety defaults; production go-live now requires an
+> explicit second step (this section).
+
+### Flags that gate user-facing delivery
+
+| Flag | Review-only | Live |
+|------|-------------|------|
+| `BOT_ENABLED` | `false` | `true` |
+| `BOT_POLLING_ENABLED` | `false` | `true` |
+| `MARKETING_EMAIL_DAILY_ENABLED` | `false` | `true` |
+| `MARKETING_EMAIL_DAILY_DRY_RUN` | `true` | `false` |
+| `MARKETING_DAILY_DIGEST_ENABLED` | `false` | `true` |
+| `MARKETING_DAILY_DRAFT_ENABLED` | `false` | `true` |
+
+If any of these stays in the review-only column after deploy, the scheduler
+registers the cron but `digest.publish_*` / `email_daily.run_once` short-circuit
+before calling Telegram / Resend. **No alert fires** — the worker logs
+look healthy.
+
+### Go-live procedure
+
+1. **Pre-check Railway credit balance.** Hobby plan = $5/mo credit. With both
+   `sentinel-ai` worker + Postgres running, ~14 days of runway. If
+   `railway status` shows `<$3` remaining, top up or migrate before flipping
+   flags — Postgres auto-pauses when credits hit $0 and the worker starts
+   throwing `connection reset` errors.
+2. **Flip the flags** (idempotent):
+   ```bash
+   bash scripts/railway_go_live_flags.sh
+   ```
+3. **Redeploy the worker** so APScheduler re-registers jobs with the new env:
+   ```bash
+   railway redeploy --service sentinel-ai
+   ```
+4. **Verify the scheduler picked it up.** Tail logs and confirm these lines
+   appear at startup:
+   ```
+   [bot] enabled — registering digest jobs (premarket / midday / eod)
+   [marketing] email daily radar at 08:15 ET (mon-fri) — dry_run=false
+   ```
+5. **Manual smoke ping** (optional but recommended):
+   ```bash
+   railway run --service sentinel-ai \
+     worker/.venv/Scripts/python.exe -c \
+     "import asyncio; from app.bot.digest import public_premarket_brief; asyncio.run(public_premarket_brief())"
+   ```
+   Expected: a message lands in `@SentinelAI_signals`.
+
+### Rollback to review-only mode
+
+During an incident or before a risky change:
+
+```bash
+bash scripts/railway_go_live_flags.sh --off
+railway redeploy --service sentinel-ai
+```
+
+### What `railway_push_env.sh` does and does NOT touch
+
+`scripts/railway_push_env.sh` provisions secrets + safe defaults only. It will
+NOT overwrite the flags in the table above — those are owned exclusively by
+`railway_go_live_flags.sh`. Safe to re-run `railway_push_env.sh` against a live
+service without flipping delivery off.
